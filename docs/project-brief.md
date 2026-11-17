@@ -15,12 +15,13 @@ The longer-term listening targets are mobile, CarPlay and desktop web. Robin has
 - **Language:** 100% Java.
 - **Build:** Maven.
 - **Backend:** Spring Boot.
-- **Deployment:** deploy4j to a VPS.
-- **API hosting:** a running service on the VPS, **not a serverless API**.
+- **Eventual deployment:** deploy4j to a VPS. Deployment is deferred and is not part of the initial PoC.
+- **Eventual API hosting:** a running service on the VPS, **not a serverless API**. The initial PoC is tested locally.
 - **Runtime topology:** a single service instance.
-- **Database:** H2 for the single-instance service.
+- **Database:** H2 for the single-instance service; use embedded H2 for local PoC testing.
 - **Starting point:** API-first, covering the music catalogue/index, music management, storage, uploads and library management.
-- **Storage option:** Cloudflare object storage (previously discussed as R2) remains an option for music files. It is not yet a final provider decision.
+- **Initial PoC storage:** local file-backed storage for music while testing.
+- **Future storage option:** Cloudflare object storage (previously discussed as R2) remains an option for music files. It is not yet a final provider decision and is not required for the local PoC.
 
 The API-first direction replaces the earlier suggestion to begin with a client playback/CarPlay spike. The Spring Boot/VPS decision replaces the earlier serverless API proposal.
 
@@ -38,7 +39,7 @@ Resolve these during planning rather than assuming answers:
 - Upload flow, metadata extraction, duplicate handling and indexing behaviour.
 - Final object-storage provider and access/streaming approach.
 - Authentication and access control.
-- H2 persistence configuration, schema migrations, backups and recovery.
+- Detailed embedded H2 configuration, schema migrations, backups and recovery.
 - Java, Spring Boot and dependency versions.
 - VPS provider, sizing and deployment configuration.
 - Client architecture and Codename One feasibility, including real-device background audio and CarPlay support.
