@@ -8,7 +8,7 @@ This document records Robin's requirements and decisions. It is the starting poi
 
 Normal Bias is a self-hosted personal music service for an existing MP3 collection of approximately 30 GB, intended as an alternative to iBroadcast. Hosting should be in the cloud rather than on a machine at home.
 
-The longer-term listening targets are mobile, CarPlay and desktop web. Robin has expressed interest in Codename One for the client. Client feasibility and implementation are not the first phase.
+The longer-term listening targets are mobile, CarPlay and desktop web. Robin has expressed interest in Codename One for the client. Listening-client feasibility and implementation are not the first phase; the PoC companion upload CLI is in scope as described below.
 
 ## Agreed constraints
 
@@ -20,6 +20,7 @@ The longer-term listening targets are mobile, CarPlay and desktop web. Robin has
 - **Runtime topology:** a single service instance.
 - **Database:** H2 for the single-instance service; use embedded H2 for local PoC testing.
 - **Starting point:** API-first, covering the music catalogue/index, music management, storage, uploads and library management.
+- **PoC companion CLI:** a Java CLI uses the service API to upload a directory of files, reports progress and allows cancellation, so the PoC can exercise a real upload scenario.
 - **Initial PoC storage:** local file-backed storage for music while testing.
 - **Future storage option:** Cloudflare object storage (previously discussed as R2) remains an option for music files. It is not yet a final provider decision and is not required for the local PoC.
 
@@ -37,6 +38,7 @@ Resolve these during planning rather than assuming answers:
 
 - Detailed API contract, catalogue model and management operations.
 - Upload flow, metadata extraction, duplicate handling and indexing behaviour.
+- Companion CLI details, including progress reporting, directory traversal, cancellation semantics and whether/how uploads can resume. These details are not yet decided.
 - Final object-storage provider and access/streaming approach.
 - Authentication and access control.
 - Detailed embedded H2 configuration, schema migrations, backups and recovery.
