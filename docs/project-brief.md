@@ -1,6 +1,6 @@
 # Normal Bias: project brief and constraints
 
-Last updated: 2026-11-17.
+Last updated: 2026-11-18.
 
 This document records Robin's requirements and decisions. It is the starting point for people and coding agents working on Normal Bias. Distinguish agreed constraints from proposals; do not silently turn an open question into an architectural decision.
 
@@ -32,6 +32,14 @@ Robin explicitly authorised implementation of the first local PoC on 2026-11-17,
 
 The implementation uses Java 21 LTS, Maven, Spring Boot 3.5.16, embedded file-backed H2 and local music files. Default API binding is loopback only. Deployment, VPS setup, deploy4j execution, cloud/R2 storage and listening clients remain out of scope.
 
+On 2026-11-18 Robin reported completing the Mac local smoke test and authorised the next API milestone: search, metadata editing and deletion. Search must work effectively across approximately 14,000 songs. All collection queries (get-all/list/search) must be paginated.
+
+This milestone uses a common `{items, offset, limit, total}` collection response (default 50, maximum 200), literal case-insensitive substring search across title/artist/album/filename, partial catalogue metadata edits for title/artist/album, and deletion of the row and stored audio. These are implementation choices within the authorised milestone. Metadata edits do not rewrite MP3 tags or change content IDs. Search is verified with 14,000 synthetic catalogue rows; this is not a real-collection upload or playback test.
+
+Robin subsequently authorised schema migrations, operation recovery and inspection, with backup/restore explicitly deferred to the deployment story. The implementation uses Flyway V1/V2 with checked adoption of the original catalogue and durable H2 upload/deletion intents replayed before HTTP startup. Robin then explicitly requested replacing the offline doctor command with online inspection; that command and its orphan-quarantine option have been removed.
+
+Online inspection runs as a report-only background API job, with quick/full-hash modes, status/progress and paginated findings. One run is active at a time and the five latest runs are retained in memory. Hashing releases the mutation monitor and results are revalidated against concurrent changes; active uploads are excluded from abandoned-staging findings. Startup recovery continues to preserve ambiguous files and may quarantine conflicts; there is no inspection repair endpoint. The API retains exclusive data-directory ownership against another service process. These supported recovery states do not imply hardware/power-loss durability guarantees. See [storage reliability](storage-reliability.md) for the API contract and recovery semantics.
+
 Initial implementation choices (small PoC defaults, not permanent product constraints):
 
 - Raw `audio/mpeg` uploads, 256 MiB maximum per file; SHA-256 exact-file duplicates return the existing track.
@@ -46,12 +54,12 @@ See [local PoC guide](local-poc.md) for the exact contract, commands, verificati
 
 Resolve these during planning rather than assuming answers:
 
-- Further catalogue management operations (editing, deletion, search and library organisation).
+- Library organisation beyond search, metadata editing and deletion (for example playlists).
 - Future upload/indexing requirements beyond the first PoC defaults above.
 - Any future byte-level resumable upload protocol; the initial CLI retries whole files.
 - Final object-storage provider and access/streaming approach.
 - Authentication and access control.
-- Detailed embedded H2 configuration, schema migrations, backups and recovery.
+- Backup/restore requirements and implementation as part of deployment; broader hardware/power-loss recovery beyond the local operation-replay milestone.
 - Dependency maintenance policy beyond the pinned initial build versions.
 - VPS provider, sizing and deployment configuration.
 - Client architecture and Codename One feasibility, including real-device background audio and CarPlay support.

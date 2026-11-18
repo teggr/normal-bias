@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS tracks (
+CREATE TABLE pending_uploads (
  id VARCHAR(64) PRIMARY KEY,
  filename VARCHAR(1024) NOT NULL,
  title VARCHAR(1024) NOT NULL,
@@ -6,5 +6,10 @@ CREATE TABLE IF NOT EXISTS tracks (
  album VARCHAR(1024),
  duration_ms BIGINT NOT NULL,
  size_bytes BIGINT NOT NULL,
- created_at TIMESTAMP WITH TIME ZONE NOT NULL
+ created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+ staging_name VARCHAR(128) NOT NULL
+);
+
+CREATE TABLE pending_deletions (
+ id VARCHAR(64) PRIMARY KEY
 );

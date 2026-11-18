@@ -63,6 +63,172 @@ class ApiIntegrationTest {
     HttpResponse<byte[]> get(String path) throws Exception { return send(HttpRequest.newBuilder(uri(path)).GET().build()); }
     long count() { return db.queryForObject("SELECT COUNT(*) FROM tracks", Long.class); }
 
+    HttpResponse<byte[]> patch(String id, String body) throws Exception {
+        return send(HttpRequest.newBuilder(uri("/api/tracks/" + id)).header("Content-Type", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(body)).build());
+    }
+
+    HttpResponse<byte[]> delete(String id) throws Exception {
+        return send(HttpRequest.newBuilder(uri("/api/tracks/" + id)).DELETE().build());
+    }
+
+    @Test void searchFiltersFieldsLiterallyAndPaginates() throws Exception {
+        String id = uploadedId();
+        for (String term : List.of("SYNTHETIC", "bias", "fixtures", "tone.mp3", "  synthetic  ")) {
+            var result = get("/api/tracks?q=" + URLEncoder.encode(term, StandardCharsets.UTF_8));
+            assertEquals(200, result.statusCode());
+            assertEquals(id, json.readTree(result.body()).get("items").get(0).get("id").asText());
+        }
+        for (String term : List.of("absent", "%", "_", "' OR 1=1 --")) {
+            assertEquals(0, json.readTree(get("/api/tracks?q="
+                    + URLEncoder.encode(term, StandardCharsets.UTF_8)).body()).get("items").size());
+        }
+        assertEquals(0, json.readTree(get("/api/tracks?q=synthetic&offset=1&limit=1").body()).get("items").size());
+        assertEquals(400, get("/api/tracks?q=" + "a".repeat(1025)).statusCode());
+        assertEquals(1, json.readTree(get("/api/tracks?q=%20%20").body()).get("items").size());
+    }
+
+    @Test void metadataEditsPreserveAudioIdentityAndDuplicateUploads() throws Exception {
+        String id = uploadedId();
+        JsonNode original = json.readTree(get("/api/tracks/" + id).body());
+        var response = patch(id, "{\"title\":\"  Edited title  \",\"artist\":null,\"album\":\"  \"}");
+        assertEquals(200, response.statusCode());
+        JsonNode edited = json.readTree(response.body());
+        assertEquals("Edited title", edited.get("title").asText());
+        assertTrue(edited.get("artist").isNull());
+        assertTrue(edited.get("album").isNull());
+        for (String field : List.of("id", "filename", "durationMs", "sizeBytes", "createdAt")) {
+            assertEquals(original.get(field), edited.get(field));
+        }
+        assertEquals(edited, json.readTree(get("/api/tracks/" + id).body()));
+        assertEquals("Edited title", db.queryForObject("SELECT title FROM tracks WHERE id = ?", String.class, id));
+        assertArrayEquals(tone, get("/api/tracks/" + id + "/audio").body());
+        assertEquals(edited, json.readTree(upload(tone, "audio/mpeg").body()));
+        assertEquals(0, json.readTree(get("/api/tracks?q=synthetic").body()).get("items").size());
+        assertEquals(1, json.readTree(get("/api/tracks?q=edited").body()).get("items").size());
+        assertEquals(200, patch(id, "{\"artist\":\"New artist\"}").statusCode());
+        JsonNode partial = json.readTree(get("/api/tracks/" + id).body());
+        assertEquals("Edited title", partial.get("title").asText());
+        assertEquals("New artist", partial.get("artist").asText());
+        assertTrue(partial.get("album").isNull());
+    }
+
+    @Test void invalidEditsAreRejectedWithoutPartialUpdates() throws Exception {
+        String id = uploadedId();
+        JsonNode original = json.readTree(get("/api/tracks/" + id).body());
+        for (String body : List.of("{}", "[]", "null", "{", "{\"title\":null}", "{\"title\":\"  \"}",
+                "{\"artist\":3}", "{\"album\":[]}", "{\"title\":\"changed\",\"id\":\"other\"}",
+                "{\"artist\":\"line\\nbreak\"}", "{\"album\":\"" + "a".repeat(1025) + "\"}")) {
+            assertEquals(400, patch(id, body).statusCode(), body);
+            assertEquals(original, json.readTree(get("/api/tracks/" + id).body()));
+        }
+        assertEquals(404, patch("missing", "{\"title\":\"x\"}").statusCode());
+        assertEquals(404, patch("f".repeat(64), "{\"title\":\"x\"}").statusCode());
+    }
+
+    @Test void deletionRemovesCatalogueAndAudioAndAllowsReupload() throws Exception {
+        String id = uploadedId();
+        Path audio = DATA.resolve("music/" + id + ".mp3");
+        assertTrue(Files.exists(audio));
+        var response = delete(id);
+        assertEquals(204, response.statusCode());
+        assertEquals(0, response.body().length);
+        assertFalse(Files.exists(audio));
+        assertEquals(0, count());
+        assertEquals(404, get("/api/tracks/" + id).statusCode());
+        assertEquals(404, get("/api/tracks/" + id + "/audio").statusCode());
+        assertEquals(404, delete(id).statusCode());
+        assertEquals(404, delete("missing").statusCode());
+        assertEquals(id, uploadedId());
+        assertArrayEquals(tone, get("/api/tracks/" + id + "/audio").body());
+        // A missing stored file must not prevent removal of its stale catalogue entry.
+        Files.delete(audio);
+        assertEquals(204, delete(id).statusCode());
+        try (var paths = Files.list(DATA.resolve("music/staging"))) { assertEquals(0, paths.count()); }
+    }
+
+    @Test void failedCatalogueDeletionPreservesAudioAndRollsBackIntent() throws Exception {
+        String id = uploadedId();
+        // The row and deletion intent must commit together before any audio is touched.
+        db.execute("CREATE TABLE deletion_guard (track_id VARCHAR(64) REFERENCES tracks(id))");
+        try {
+            db.update("INSERT INTO deletion_guard VALUES (?)", id);
+            assertEquals(500, delete(id).statusCode());
+            assertEquals(1, count());
+            assertEquals(0, db.queryForObject("SELECT COUNT(*) FROM pending_deletions", Integer.class));
+            assertArrayEquals(tone, get("/api/tracks/" + id + "/audio").body());
+            try (var paths = Files.list(DATA.resolve("music/staging"))) { assertEquals(0, paths.count()); }
+        } finally {
+            db.execute("DROP TABLE deletion_guard");
+        }
+    }
+
+    @Test void duplicateUploadRepairsMissingAndCorruptAudioWithoutLosingEdits() throws Exception {
+        String id = uploadedId();
+        assertEquals(200, patch(id, "{\"title\":\"Keep this edit\"}").statusCode());
+        Path file = DATA.resolve("music/" + id + ".mp3");
+        Files.delete(file);
+        var restored = upload(tone, "audio/mpeg");
+        assertEquals(200, restored.statusCode());
+        assertEquals("Keep this edit", json.readTree(restored.body()).get("title").asText());
+        assertArrayEquals(tone, get("/api/tracks/" + id + "/audio").body());
+        byte[] corrupt = tone.clone(); corrupt[corrupt.length - 1] ^= 1;
+        Files.write(file, corrupt);
+        assertEquals(200, upload(tone, "audio/mpeg").statusCode());
+        assertArrayEquals(tone, get("/api/tracks/" + id + "/audio").body());
+        assertEquals("Keep this edit", json.readTree(get("/api/tracks/" + id).body()).get("title").asText());
+        assertEquals(0, db.queryForObject("SELECT COUNT(*) FROM pending_uploads", Integer.class));
+    }
+
+    @Test void searchAcrossFourteenThousandTracks() throws Exception {
+        // Synthetic catalogue rows only: this measures search, not audio storage or upload throughput.
+        var rows = new ArrayList<Object[]>();
+        var created = java.time.OffsetDateTime.parse("2026-11-18T00:00:00Z");
+        for (int i = 0; i < 14000; i++) {
+            rows.add(new Object[]{String.format("%064x", i), "track-" + i + ".mp3", "Song " + i,
+                    "Artist " + (i % 140), "Album " + (i % 700), 1000L, 8686L, created});
+        }
+        db.batchUpdate("INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows);
+        var timings = new ArrayList<Double>();
+        for (int repetition = 0; repetition < 10; repetition++) {
+            for (String query : List.of("sOnG", "Artist 139", "Album 699", "track-13999.mp3", "absent")) {
+                long started = System.nanoTime();
+                var response = get("/api/tracks?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&limit=200");
+                timings.add((System.nanoTime() - started) / 1_000_000.0);
+                assertEquals(200, response.statusCode());
+                int expected = switch (query) {
+                    case "sOnG" -> 200;
+                    case "Artist 139" -> 100;
+                    case "Album 699" -> 20;
+                    case "track-13999.mp3" -> 1;
+                    default -> 0;
+                };
+                JsonNode page = json.readTree(response.body());
+                assertEquals(expected, page.get("items").size());
+                assertEquals(query.equals("sOnG") ? 14000 : expected, page.get("total").asLong());
+                assertEquals(0, page.get("offset").asInt());
+                assertEquals(200, page.get("limit").asInt());
+            }
+        }
+        Collections.sort(timings);
+        System.out.printf("14,000-track search, 50 HTTP requests: mean %.1f ms, p95 %.1f ms, max %.1f ms%n",
+                timings.stream().mapToDouble(Double::doubleValue).average().orElseThrow(), timings.get(47), timings.get(49));
+        JsonNode first = json.readTree(get("/api/tracks?q=song&limit=200").body()).get("items");
+        JsonNode next = json.readTree(get("/api/tracks?q=song&offset=200&limit=200").body()).get("items");
+        assertEquals(String.format("%064x", 0), first.get(0).get("id").asText());
+        assertEquals(String.format("%064x", 200), next.get(0).get("id").asText());
+        assertEquals(0, json.readTree(get("/api/tracks?q=song&offset=14000").body()).get("items").size());
+        JsonNode all = json.readTree(get("/api/tracks").body());
+        assertEquals(14000, all.get("total").asLong());
+        assertEquals(50, all.get("limit").asInt());
+        assertEquals(50, all.get("items").size());
+        JsonNode pastEnd = json.readTree(get("/api/tracks?offset=14000&limit=10").body());
+        assertEquals(14000, pastEnd.get("total").asLong());
+        assertEquals(14000, pastEnd.get("offset").asInt());
+        assertEquals(10, pastEnd.get("limit").asInt());
+        assertTrue(pastEnd.get("items").isEmpty());
+    }
+
     @Test void uploadMetadataCatalogueDuplicateAndFullStream() throws Exception {
         var first = upload(tone, "audio/mpeg");
         assertEquals(201, first.statusCode());
@@ -74,8 +240,8 @@ class ApiIntegrationTest {
         assertEquals(tone.length, track.get("sizeBytes").asLong());
         String path = first.headers().firstValue("Location").orElseThrow();
         assertEquals(track, json.readTree(get(path).body()));
-        assertEquals(1, json.readTree(get("/api/tracks").body()).size());
-        assertEquals(0, json.readTree(get("/api/tracks?offset=1&limit=1").body()).size());
+        assertEquals(1, json.readTree(get("/api/tracks").body()).get("items").size());
+        assertEquals(0, json.readTree(get("/api/tracks?offset=1&limit=1").body()).get("items").size());
         var duplicate = upload(tone, "audio/mpeg");
         assertEquals(200, duplicate.statusCode());
         assertEquals(track, json.readTree(duplicate.body()));
@@ -141,6 +307,8 @@ class ApiIntegrationTest {
         assertEquals(404, get("/api/tracks/missing").statusCode());
         assertEquals(404, get("/api/tracks/" + "a".repeat(64) + "/audio").statusCode());
         assertEquals(400, get("/api/tracks?limit=201").statusCode());
+        assertEquals(400, get("/api/tracks?limit=0").statusCode());
+        assertEquals(400, get("/api/tracks?q=tone&limit=0").statusCode());
         assertEquals(400, get("/api/tracks?offset=-1").statusCode());
         assertEquals(0, count());
         try (var paths = Files.list(DATA.resolve("music/staging"))) { assertEquals(0, paths.count()); }
