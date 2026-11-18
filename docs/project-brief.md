@@ -28,21 +28,31 @@ The API-first direction replaces the earlier suggestion to begin with a client p
 
 ## Current status and scope
 
-Robin is still setting constraints. **Do not start implementing the PoC until Robin explicitly asks to proceed.** The current work is documentation only.
+Robin explicitly authorised implementation of the first local PoC on 2026-11-17, superseding the earlier hold. Scope: MP3 upload, metadata extraction, catalogue list/get, HTTP Range streaming and a cancellable Java directory-upload CLI. Use synthetic fixtures for automated checks; do not upload Robin's personal collection during development.
 
-No application, build, deployment or test setup is established by this document. Do not describe unimplemented features as working.
+The implementation uses Java 21 LTS, Maven, Spring Boot 3.5.16, embedded file-backed H2 and local music files. Default API binding is loopback only. Deployment, VPS setup, deploy4j execution, cloud/R2 storage and listening clients remain out of scope.
+
+Initial implementation choices (small PoC defaults, not permanent product constraints):
+
+- Raw `audio/mpeg` uploads, 256 MiB maximum per file; SHA-256 exact-file duplicates return the existing track.
+- ID3 title/artist/album and frame-derived duration via mp3agic; filename title fallback.
+- Paginated catalogue; immutable audio with single byte-range seeking.
+- Sequential recursive CLI traversal, no following symbolic links, case-insensitive `.mp3` selection, per-file progress. Cancellation interrupts the request; committed tracks remain. Rerun the directory to retry whole files with deduplication. No byte-level resume.
+- Local unauthenticated API for this PoC; CLI accepts literal loopback HTTP origins only. This is not ready for public exposure.
+
+See [local PoC guide](local-poc.md) for the exact contract, commands, verification and remaining limitations.
 
 ## Open decisions
 
 Resolve these during planning rather than assuming answers:
 
-- Detailed API contract, catalogue model and management operations.
-- Upload flow, metadata extraction, duplicate handling and indexing behaviour.
-- Companion CLI details, including progress reporting, directory traversal, cancellation semantics and whether/how uploads can resume. These details are not yet decided.
+- Further catalogue management operations (editing, deletion, search and library organisation).
+- Future upload/indexing requirements beyond the first PoC defaults above.
+- Any future byte-level resumable upload protocol; the initial CLI retries whole files.
 - Final object-storage provider and access/streaming approach.
 - Authentication and access control.
 - Detailed embedded H2 configuration, schema migrations, backups and recovery.
-- Java, Spring Boot and dependency versions.
+- Dependency maintenance policy beyond the pinned initial build versions.
 - VPS provider, sizing and deployment configuration.
 - Client architecture and Codename One feasibility, including real-device background audio and CarPlay support.
 
