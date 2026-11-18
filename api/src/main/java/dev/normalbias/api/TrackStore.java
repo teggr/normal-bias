@@ -1,6 +1,7 @@
 package dev.normalbias.api;
 
 import com.mpatric.mp3agic.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,28 +21,80 @@ public class TrackStore {
     private final JdbcTemplate db;
     private final Path music;
     private final Path staging;
+    private final StorageOperations operations;
+    private final Set<String> activeUploads = new HashSet<>();
+    private final Map<String, Long> audioVersions = new HashMap<>();
+    private long mutationSequence;
     private final long maxBytes;
-    private static final RowMapper<Track> ROW = (r, n) -> new Track(r.getString("id"),
+    static final RowMapper<Track> ROW = (r, n) -> new Track(r.getString("id"),
             r.getString("filename"), r.getString("title"), r.getString("artist"), r.getString("album"),
             r.getLong("duration_ms"), r.getLong("size_bytes"), r.getObject("created_at", OffsetDateTime.class));
 
-    public TrackStore(JdbcTemplate db, @Value("${normalbias.data-dir}") String directory,
+    public TrackStore(JdbcTemplate db, StorageOperations operations,
                       @Value("${normalbias.max-upload-bytes}") long maxBytes) throws IOException {
         this.db = db;
         this.maxBytes = maxBytes;
-        music = Files.createDirectories(Path.of(directory).toAbsolutePath().resolve("music"));
-        staging = Files.createDirectories(music.resolve("staging"));
-        // This directory belongs to the single service instance; clear interrupted uploads on startup.
-        try (var paths = Files.list(staging)) {
-            for (Path p : paths.filter(p -> p.getFileName().toString().endsWith(".part")).toList()) {
-                Files.deleteIfExists(p);
-            }
-        }
+        this.operations = operations;
+        staging = operations.staging();
+        music = staging.getParent();
     }
 
-    public List<Track> list(int offset, int limit) {
+    public synchronized TrackPage list(int offset, int limit, String query) {
         if (offset < 0 || limit < 1 || limit > 200) throw error(HttpStatus.BAD_REQUEST, "Invalid pagination");
-        return db.query("SELECT * FROM tracks ORDER BY created_at, id LIMIT ? OFFSET ?", ROW, limit, offset);
+        if (query.length() > 1024) throw error(HttpStatus.BAD_REQUEST, "Search exceeds 1024 characters");
+        // LOCATE treats SQL wildcard characters literally; all input remains parameterized.
+        String term = query.strip().toLowerCase(Locale.ROOT);
+        String filter = term.isEmpty() ? "" : """
+                WHERE LOCATE(?, LOWER(title)) > 0
+                OR LOCATE(?, LOWER(COALESCE(artist, ''))) > 0
+                OR LOCATE(?, LOWER(COALESCE(album, ''))) > 0
+                OR LOCATE(?, LOWER(filename)) > 0
+                """;
+        var parameters = new ArrayList<Object>();
+        if (!term.isEmpty()) Collections.addAll(parameters, term, term, term, term);
+        long total = db.queryForObject("SELECT COUNT(*) FROM tracks " + filter, Long.class, parameters.toArray());
+        Collections.addAll(parameters, limit, offset);
+        var items = db.query("SELECT * FROM tracks " + filter + " ORDER BY created_at, id LIMIT ? OFFSET ?",
+                ROW, parameters.toArray());
+        return new TrackPage(items, offset, limit, total);
+    }
+
+    public synchronized Track edit(String id, JsonNode changes) {
+        Track existing = get(id);
+        if (!changes.isObject() || changes.isEmpty()) {
+            throw error(HttpStatus.BAD_REQUEST, "Provide a nonempty metadata object");
+        }
+        var fields = changes.fieldNames();
+        while (fields.hasNext()) {
+            if (!Set.of("title", "artist", "album").contains(fields.next())) {
+                throw error(HttpStatus.BAD_REQUEST, "Only title, artist and album can be edited");
+            }
+        }
+        String title = editedText(changes, "title", existing.title());
+        String artist = editedText(changes, "artist", existing.artist());
+        String album = editedText(changes, "album", existing.album());
+        db.update("UPDATE tracks SET title = ?, artist = ?, album = ? WHERE id = ?", title, artist, album, id);
+        return get(id);
+    }
+
+    private static String editedText(JsonNode changes, String name, String previous) {
+        if (!changes.has(name)) return previous;
+        JsonNode value = changes.get(name);
+        if (!value.isNull() && !value.isTextual()) throw error(HttpStatus.BAD_REQUEST, "Metadata must be text or null");
+        String text = value.isNull() ? null : value.textValue().strip();
+        if (text != null && (text.length() > 1024 || text.chars().anyMatch(Character::isISOControl))) {
+            throw error(HttpStatus.BAD_REQUEST, "Invalid metadata text");
+        }
+        if (text != null && text.isBlank()) text = null;
+        if (name.equals("title") && text == null) throw error(HttpStatus.BAD_REQUEST, "Title must not be blank or null");
+        return text;
+    }
+
+    // Share the upload commit monitor so deleting cannot remove a newly re-uploaded file.
+    public synchronized void delete(String id) throws IOException {
+        Track track = get(id);
+        try { operations.delete(track); }
+        finally { audioVersions.put(id, ++mutationSequence); }
     }
 
     public Track get(String id) {
@@ -62,7 +115,8 @@ public class TrackStore {
         if (safeName.isBlank() || safeName.length() > 1024 || safeName.chars().anyMatch(Character::isISOControl)) {
             throw error(HttpStatus.BAD_REQUEST, "Invalid filename");
         }
-        Path temp = Files.createTempFile(staging, "upload-", ".part");
+        Path temp = beginUpload();
+        boolean handedToCommit = false;
         try {
             MessageDigest digest;
             try { digest = MessageDigest.getInstance("SHA-256"); }
@@ -93,25 +147,41 @@ public class TrackStore {
             Track track = new Track(id, safeName, title == null ? safeName : title,
                     tag == null ? null : text(tag.getArtist()), tag == null ? null : text(tag.getAlbum()),
                     mp3.getLengthInMilliseconds(), size, OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(java.time.temporal.ChronoUnit.MICROS));
+            handedToCommit = true;
             return commit(temp, track);
-        } finally { Files.deleteIfExists(temp); }
+        } finally {
+            // A failed commit may have a durable intent; preserve its source bytes for replay.
+            synchronized (this) {
+                try { if (!handedToCommit) Files.deleteIfExists(temp); }
+                finally { activeUploads.remove(temp.getFileName().toString()); }
+            }
+        }
     }
+
+    private synchronized Path beginUpload() throws IOException {
+        Path file = Files.createTempFile(staging, "upload-", ".part");
+        activeUploads.add(file.getFileName().toString());
+        return file;
+    }
+
+    synchronized Set<String> activeUploadNames() { return Set.copyOf(activeUploads); }
+
+    synchronized long audioVersion(String id) { return audioVersions.getOrDefault(id, 0L); }
+
+    synchronized List<Track> inspectionSnapshot() { return db.query("SELECT * FROM tracks ORDER BY id", ROW); }
 
     // Serialize the file/row commit and duplicate check within the single service instance.
     private synchronized UploadResult commit(Path temp, Track track) throws IOException {
-        Optional<Track> existing = find(track.id());
-        if (existing.isPresent()) return new UploadResult(existing.get(), false);
-        Path destination = path(track);
-        // An orphan from a crash between move and insert can safely be replaced by identical bytes.
-        Files.move(temp, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         try {
-            db.update("INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, ?, ?)", track.id(), track.filename(),
-                    track.title(), track.artist(), track.album(), track.durationMs(), track.sizeBytes(), track.createdAt());
-        } catch (RuntimeException e) {
-            Files.deleteIfExists(destination);
-            throw e;
-        }
-        return new UploadResult(track, true);
+            Optional<Track> existing = find(track.id());
+            if (existing.isPresent()) {
+                if (StorageOperations.matches(path(existing.get()), existing.get())) Files.deleteIfExists(temp);
+                else operations.install(existing.get(), temp); // Restore audio without losing edited metadata.
+                return new UploadResult(existing.get(), false);
+            }
+            operations.install(track, temp);
+            return new UploadResult(track, true);
+        } finally { audioVersions.put(track.id(), ++mutationSequence); }
     }
 
     private static String text(String s) {

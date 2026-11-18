@@ -2,11 +2,11 @@ package dev.normalbias.api;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import java.io.*;
 import java.net.URI;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/tracks")
@@ -23,13 +23,25 @@ public class TrackController {
     }
 
     @GetMapping
-    public List<Track> list(@RequestParam(defaultValue = "0") int offset,
-                            @RequestParam(defaultValue = "50") int limit) {
-        return store.list(offset, limit);
+    public TrackPage list(@RequestParam(defaultValue = "0") int offset,
+                            @RequestParam(defaultValue = "50") int limit,
+                            @RequestParam(defaultValue = "") String q) {
+        return store.list(offset, limit, q);
     }
 
     @GetMapping("/{id}")
     public Track get(@PathVariable String id) { return store.get(id); }
+
+    @PatchMapping(value = "/{id}", consumes = "application/json")
+    public Track edit(@PathVariable String id, @RequestBody JsonNode changes) {
+        return store.edit(id, changes);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id) throws IOException {
+        store.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 
     @RequestMapping(value = "/{id}/audio", method = {RequestMethod.GET, RequestMethod.HEAD})
     public void audio(@PathVariable String id, HttpServletRequest request, HttpServletResponse response) throws IOException {
