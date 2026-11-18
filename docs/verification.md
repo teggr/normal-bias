@@ -1,5 +1,13 @@
 # Verification record
 
+## PR review — 2026-11-18
+
+Robin also shared successful local curl results on 2026-11-18: duplicate fixture upload returned 200, list/search returned one paginated result, metadata edits were reflected in subsequent search, and a byte-range request returned 206 with exactly 100 bytes. A full online inspection completed with one scanned track, no skipped tracks, zero findings and no error. These supplied outputs do not exercise deletion, complete audio download or persistence across restart.
+
+Reviewed commit `1d211f2` against its parent, covering library management, migrations, recovery and online inspection. No blocking defect was identified in this review. README, project brief and feature guides were reviewed against the implementation; their current contracts and limitations remain accurate.
+
+Re-ran `JAVA_HOME=/Users/robintegg/.sdkman/candidates/java/21.0.9-tem PATH=/Users/robintegg/.sdkman/candidates/java/21.0.9-tem/bin:$PATH mvn -B -ntp clean verify` on macOS with Java 21: **PASS**, all 36 tests and both packaged JARs. Output: `/tmp/normal-bias-pr-review-verify.log`. An initial sandboxed `mvn clean verify` stopped at the CLI HTTP test because local socket binding was prohibited; the successful rerun was outside the sandbox. `git diff HEAD^ HEAD --check` and `git diff --check` passed. No new packaged-process smoke test, real-collection test or power-loss test was performed for this review; prior results below remain historical.
+
 ## Online inspection replacement — 2026-11-18
 
 Robin requested removal of the offline doctor command and replacement with online inspection. The command and its quarantine action are removed; the API now runs quick/full background inspections with status/progress and paginated read-only findings. The older doctor records below are historical and do not describe the current interface.
