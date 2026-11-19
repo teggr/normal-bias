@@ -1,5 +1,56 @@
 # Verification record
 
+## Repository UI recording skill — 2026-11-19
+
+Added `.agents/skills/ui-demo-recording/SKILL.md` with a browser/audio capture reference, and made applying it a completion requirement for every cloud task in root `AGENTS.md`. README links to the skill; the project brief records Robin's evidence requirement. UI work requires a final-behaviour recording, actual sound for audio-related flows, saved-file playback/format/audio checks and a linked handoff artifact. Tasks without visible UI changes record why capture is inapplicable; blockers and user exclusions must be explicit.
+
+Recording outcome for this task: **not applicable**. These are skill/instruction/documentation changes only; no application UI behaviour changed. Reviewed the workflow against the preceding verified capture, including its omitted-silence pitfall and the unavailable preview controls. Checked frontmatter, local Markdown links, skill discovery location and whitespace. No application build, tests or new recording were needed or run. The earlier recording entry below is preserved.
+
+## Web listening-client PoC — 2026-11-19
+
+Executed in the managed Linux workspace with Temurin JDK 21.0.9, Maven 3.9.11, Codename One 7.0.282, Node 24.22.1, Playwright Core 1.57.0 and Chromium 156.0.8078.79. All music used for these checks was synthetic. No personal collection, existing data directory, deployment or cloud build account was used.
+
+Commands (from `/workspace/normal-bias`, with the workspace Java/Maven activation sourced):
+
+```sh
+source /workspace/.normal-bias-setup/activate.sh
+mvn -B -ntp clean verify
+# For Codename One only: writable task-local tool cache and this environment's
+# existing HTTP proxy, also used by vendor tools outside Maven's HTTP client.
+export MAVEN_OPTS="$MAVEN_OPTS -Duser.home=/workspace/.tools/cn1-home -Dhttps.proxyHost=proxy -Dhttps.proxyPort=8080 -Dhttp.proxyHost=proxy -Dhttp.proxyPort=8080 -Dhttp.nonProxyHosts=localhost\|127.*"
+./client/build-web.sh
+mvn -f client/pom.xml -B -ntp verify
+NODE_PATH=/opt/codex/cua_node/lib/node_modules CI=1 node client/tests/browser-smoke.cjs
+```
+
+**PASS:** all 36 existing API/CLI tests, both packaged backend JARs; 2 new JUnit queue tests (none skipped); client bytecode compatibility check, CSS compilation and local JavaScript translation; complete browser smoke test. `git diff --check`, Bash syntax and both JavaScript syntax checks passed. Logs: `/tmp/normal-bias-client-backend-verify.log`, `/tmp/normal-bias-client-build.log`, `/tmp/normal-bias-client-verify.log` and `/tmp/normal-bias-client-browser-smoke.log`. Normal setup/run commands are in [client PoC](client-poc.md); workspace-specific proxy/cache paths are not product requirements.
+
+The browser harness launched the actual packaged API on a random loopback port, with a new temporary H2 catalogue/storage directory and 28 generated 12-second MP3s. It drove the generated Codename One JavaScript bundle, verified real `HTMLAudioElement` time progression and HTTP 206 responses, pause/resume, seeking via the UI, queue previous/next/completion advance, pagination and matching/no-match search/reset. Forced HTTP 404 audio and 503 catalogue responses produced visible failure states; retry recovered after the forced response was removed. Clearing the queue removed its audio element. No uncaught page errors were observed. The successful test stopped its processes and removed its temporary library. A separate local demo on loopback port 8090 uses synthetic audio only.
+
+Queue unit tests cover finite navigation boundaries, preserving the current selection on append, invalid selections, clearing, duplicate positions and the 200-track cap. Browser tests needed real pointer input at accessibility-mirror bounds (Codename One renders on canvas) and a wait for the native text editor/tab selection before subsequent actions. Initial test-driver timing failures were corrected; the final run passed.
+
+**Framework limitation found:** the built-in JavaScript media adapter loaded the stream but threw `TypeError: el.play is not a function` in `HTML5Media.playSafe`, leaving playback pending. The delivered browser native-interface bridge avoids that worker-to-main-thread failure. The generated empty stub was built and its placement verified before implementing the bridge. Browser playback passes with this bridge; it does not validate the built-in Codename One media path. Initial environment setup failures (unwritable default tool home, vendor updater proxy settings and the archetype's dummy test provider resolving only against Central) were resolved with the local tool cache/proxy configuration and a normal JUnit provider. Vendor downloads used TLS verification.
+
+The final screenshot was visually inspected. The shared Chrome session was used for initial UI inspection; its tool transport later disconnected during final preview. The independent headless Chromium checks and screenshot capture completed. Generated PWA caches can retain an older build until its tabs close; smoke tests blocked service workers and used fresh browser contexts.
+
+Not verified: Safari/Firefox, real mobile devices, native background/lock-screen/headphone controls, artwork, calls/audio focus, actual network loss during partially buffered playback, browser autoplay-denial prompts, long-running load, the real 30 GB library, offline playback or installed-PWA behaviour. Slow/error states and explicit retry are implemented; forced HTTP failures do not establish all interruption recovery behaviour. No public access, authentication, CORS expansion or API/storage contract changes were introduced. README, AGENTS, project brief and client/API guides were reviewed and updated in this milestone.
+
+## Client recording with sound — 2026-11-19
+
+Created `client/target/recording/normal-bias-client-demo.mp4` (generated artifact, ignored by Git): 46.379 seconds, 1280×900 H.264 video with AAC audio. Recorded the generated web client against the existing loopback demo API using Chromium/Playwright. Added two original synthetic 42-second music clips to the disposable demo catalogue; no personal music was used. Application source and the pushed client commit were not changed for this recording.
+
+The clip shows searching for the two music tracks, adding to the queue, streamed playback, pause/resume, explicit queue selection, Next/Previous, further search and a no-match search while playback continues, resetting the library and a final pause. Captions identify the actions. The final recording does not demonstrate seeking or native/system media integration.
+
+Sound was captured from the actual browser media elements through Web Audio into MediaRecorder, rather than adding a separate soundtrack. A zero-gain clock source preserves silent intervals before playback. FFmpeg muxed that audio with the browser video after trimming the video startup offset. The first capture was discarded because its initial silence was omitted and the audio would have been out of sync.
+
+Verification: FFprobe confirmed H.264/AAC streams and the duration; FFmpeg silence detection found initial silence ending at 6.77s, the pause at 13.49–16.31s and final silence from 44.53s, matching the logged UI actions. Played the saved MP4 in Chromium and verified the time advanced with decoded audio (RMS 0.093 at 10s). Inspected screenshots of the saved video during playback and its final paused frame. Capture/check scripts and logs are under `/tmp/normal-bias-record-client.cjs`, `/tmp/normal-bias-check-recorded-video.cjs` and their `.log` files. No application tests were rerun because this task only produced a recording and verification documentation.
+
+## Interactive preview access — 2026-11-19
+
+The loopback demo on port 8090 responds successfully and contains 28 synthetic tracks. Opening the Codex browser panel returned `queued`; the requested shared-browser handoff did not become visible in Robin's client. Screenshots show a Cloud environment configuration panel, not a desktop viewer. Do not instruct Robin to use a Desktop/Take over control that is absent from this interface, or present the cloud machine's localhost URL as accessible from Robin's own browser.
+
+A temporary read-only proxy was prepared for the synthetic demo and a Cloudflare quick tunnel was attempted using the official cloudflared binary. Tunnel creation failed with connection refused to `api.trycloudflare.com:443`, both in the normal sandbox and an approved escalated execution. No public URL was created. The temporary proxy was stopped; the original loopback demo remains running. No API exposure or production deployment was completed. Local build/run instructions in the client guide remain accurate.
+
 ## PR review — 2026-11-18
 
 Robin also shared successful local curl results on 2026-11-18: duplicate fixture upload returned 200, list/search returned one paginated result, metadata edits were reflected in subsequent search, and a byte-range request returned 206 with exactly 100 bytes. A full online inspection completed with one scanned track, no skipped tracks, zero findings and no error. These supplied outputs do not exercise deletion, complete audio download or persistence across restart.

@@ -4,3 +4,4 @@
 *.trace.db
 .idea/
 *.iml
+client/tests/node_modules/

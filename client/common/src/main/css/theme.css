@@ -1,0 +1,34 @@
+#Constants {
+    includeNativeBool: true;
+    defaultSourceDPIInt: "0";
+}
+Form { background-color: #101821; }
+Toolbar, TitleArea { background-color: #17232e; }
+Title { color: #f3ede0; font-family: "native:MainBold"; font-size: 5mm; }
+Label, TextArea { color: #f3ede0; font-family: "native:MainRegular"; font-size: 3mm; }
+Button {
+    color: #101821;
+    background-color: #e5b96e;
+    border: 1px solid #e5b96e;
+    border-radius: 1mm;
+    padding: 2mm;
+    margin: 1mm;
+    font-family: "native:MainRegular";
+    font-size: 3mm;
+}
+Button.pressed { background-color: #cda15b; }
+Button.disabled { color: #78818b; background-color: #28343f; border: 1px solid #28343f; }
+TextField { color: #f3ede0; background-color: #243340; padding: 2mm; margin: 1mm; }
+SearchBar { padding: 2mm; }
+TrackRow { background-color: #17232e; padding: 2mm; margin: 1mm 3mm; border-bottom: 1px solid #34424e; }
+TrackTitle { color: #f3ede0; font-family: "native:MainBold"; font-size: 3.5mm; }
+Muted { color: #acbac6; font-size: 2.8mm; }
+NowTitle { color: #f3ede0; font-family: "native:MainBold"; font-size: 4mm; }
+PlayerPanel { background-color: #1c2b38; padding: 3mm; }
+Status { color: #e5b96e; background-color: #1c2b38; border: none; padding: 1mm; font-size: 2.8mm; }
+TabsContainer { background-color: #101821; }
+Tab { color: #acbac6; background-color: #17232e; padding: 2mm 4mm; }
+Tab.selected { color: #e5b96e; background-color: #243340; }
+
+Header { background-color: #17232e; padding: 2mm; }
+Brand { color: #f3ede0; font-family: "native:MainBold"; font-size: 5mm; padding: 1mm 2mm; }

@@ -2,7 +2,7 @@
 
 ## Build and run
 
-Requires a **Java 21 JDK** (including the compiler) and Maven 3.6.3+. Application and test code are Java; XML/properties/SQL configure the build and database. No listening UI is included.
+Requires a **Java 21 JDK** (including the compiler) and Maven 3.6.3+. Application and test code are Java; XML/properties/SQL configure the build and database. The optional [web listening client](client-poc.md) is built separately and can be served by this API.
 
 ```sh
 mvn clean verify
@@ -93,7 +93,7 @@ See [verification record](verification.md) for observed results from the task en
 ## Remaining limitations and future work
 
 - No public exposure: no authentication, authorisation, TLS, quotas or adversarial upload hardening. Loopback defaults do not protect against other local processes.
-- No playlists, artwork, embedded-tag rewriting, transcoding, listening clients or remote uploader.
+- No playlists, artwork, embedded-tag rewriting, transcoding, native mobile listening client or remote uploader.
 - No 30 GB load/performance run, real collection validation, device playback testing or abrupt power-loss testing. Recovery is tested through deterministic interrupted-operation states and restarts.
 - mp3agic 0.9.1 is a small pure-Java parser whose upstream is no longer actively maintained. Review parser/dependency maintenance and hardening before expanding beyond trusted local PoC use.
 - No general automatic repair/import of ambiguous files or missing source material. Missing/truncated stored files fail streaming until repaired; do not edit storage behind the running service.
