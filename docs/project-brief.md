@@ -60,6 +60,10 @@ Initial implementation choices (small PoC defaults, not permanent product constr
 
 See [local PoC guide](local-poc.md) for the exact contract, commands, verification and remaining limitations.
 
+## Cloud UI evidence requirement
+
+On 2026-11-19 Robin requested a repository skill requiring similar demonstration recordings for cloud UI feature work and bug fixes where appropriate. The [UI recording skill](../.agents/skills/ui-demo-recording/SKILL.md), required by `AGENTS.md`, makes capture and verification part of completing those tasks. Audio-related changes must include actual client sound. Every cloud task records either a verified delivered recording, a specific no-UI-effect reason, or a concrete blocker/user exclusion in the verification record. Generated recordings remain ignored artifacts rather than Git content. This requirement does not authorise public deployment or expand the mobile milestone.
+
 ## Open decisions
 
 Resolve these during planning rather than assuming answers:

@@ -6,6 +6,7 @@ A self hosted music service
 - [Project brief and agreed constraints](docs/project-brief.md)
 - [Web listening-client PoC](docs/client-poc.md)
 - [Instructions for coding agents](AGENTS.md)
+- [Cloud UI demonstration recording skill](.agents/skills/ui-demo-recording/SKILL.md)
 - [Storage migrations, recovery and online inspection](docs/storage-reliability.md)
 
 The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated listing/search, catalogue metadata editing and track deletion. Java 21 JDK and Maven 3.6.3+ are required.

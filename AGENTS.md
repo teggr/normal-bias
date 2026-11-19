@@ -4,6 +4,10 @@
 
 Read [docs/project-brief.md](docs/project-brief.md) before planning or changing this repository. It is the canonical record of the project's purpose, agreed constraints, current scope and open decisions. The [README](README.md) is the entry point.
 
+## Required skill for cloud task handoffs
+
+For every cloud task, read and apply [ui-demo-recording](.agents/skills/ui-demo-recording/SKILL.md) before finishing. UI features and UI bug fixes require a short, verified recording of the final behaviour; audio-related flows require the client's actual sound. Deliver the video in the handoff and record the checks in `docs/verification.md`. For work without a visible UI effect, a recording blocker or an explicit user exclusion, document the specific reason instead. This is a completion requirement, not a request to deploy the app or add an approval step.
+
 ## Working rules
 
 - Follow the latest explicit user instructions. Keep the project brief aligned with approved changes; do not promote suggestions to decisions.

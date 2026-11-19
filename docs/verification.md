@@ -1,5 +1,11 @@
 # Verification record
 
+## Repository UI recording skill — 2026-11-19
+
+Added `.agents/skills/ui-demo-recording/SKILL.md` with a browser/audio capture reference, and made applying it a completion requirement for every cloud task in root `AGENTS.md`. README links to the skill; the project brief records Robin's evidence requirement. UI work requires a final-behaviour recording, actual sound for audio-related flows, saved-file playback/format/audio checks and a linked handoff artifact. Tasks without visible UI changes record why capture is inapplicable; blockers and user exclusions must be explicit.
+
+Recording outcome for this task: **not applicable**. These are skill/instruction/documentation changes only; no application UI behaviour changed. Reviewed the workflow against the preceding verified capture, including its omitted-silence pitfall and the unavailable preview controls. Checked frontmatter, local Markdown links, skill discovery location and whitespace. No application build, tests or new recording were needed or run. The earlier recording entry below is preserved.
+
 ## Web listening-client PoC — 2026-11-19
 
 Executed in the managed Linux workspace with Temurin JDK 21.0.9, Maven 3.9.11, Codename One 7.0.282, Node 24.22.1, Playwright Core 1.57.0 and Chromium 156.0.8078.79. All music used for these checks was synthetic. No personal collection, existing data directory, deployment or cloud build account was used.
@@ -28,6 +34,16 @@ Queue unit tests cover finite navigation boundaries, preserving the current sele
 The final screenshot was visually inspected. The shared Chrome session was used for initial UI inspection; its tool transport later disconnected during final preview. The independent headless Chromium checks and screenshot capture completed. Generated PWA caches can retain an older build until its tabs close; smoke tests blocked service workers and used fresh browser contexts.
 
 Not verified: Safari/Firefox, real mobile devices, native background/lock-screen/headphone controls, artwork, calls/audio focus, actual network loss during partially buffered playback, browser autoplay-denial prompts, long-running load, the real 30 GB library, offline playback or installed-PWA behaviour. Slow/error states and explicit retry are implemented; forced HTTP failures do not establish all interruption recovery behaviour. No public access, authentication, CORS expansion or API/storage contract changes were introduced. README, AGENTS, project brief and client/API guides were reviewed and updated in this milestone.
+
+## Client recording with sound — 2026-11-19
+
+Created `client/target/recording/normal-bias-client-demo.mp4` (generated artifact, ignored by Git): 46.379 seconds, 1280×900 H.264 video with AAC audio. Recorded the generated web client against the existing loopback demo API using Chromium/Playwright. Added two original synthetic 42-second music clips to the disposable demo catalogue; no personal music was used. Application source and the pushed client commit were not changed for this recording.
+
+The clip shows searching for the two music tracks, adding to the queue, streamed playback, pause/resume, explicit queue selection, Next/Previous, further search and a no-match search while playback continues, resetting the library and a final pause. Captions identify the actions. The final recording does not demonstrate seeking or native/system media integration.
+
+Sound was captured from the actual browser media elements through Web Audio into MediaRecorder, rather than adding a separate soundtrack. A zero-gain clock source preserves silent intervals before playback. FFmpeg muxed that audio with the browser video after trimming the video startup offset. The first capture was discarded because its initial silence was omitted and the audio would have been out of sync.
+
+Verification: FFprobe confirmed H.264/AAC streams and the duration; FFmpeg silence detection found initial silence ending at 6.77s, the pause at 13.49–16.31s and final silence from 44.53s, matching the logged UI actions. Played the saved MP4 in Chromium and verified the time advanced with decoded audio (RMS 0.093 at 10s). Inspected screenshots of the saved video during playback and its final paused frame. Capture/check scripts and logs are under `/tmp/normal-bias-record-client.cjs`, `/tmp/normal-bias-check-recorded-video.cjs` and their `.log` files. No application tests were rerun because this task only produced a recording and verification documentation.
 
 ## Interactive preview access — 2026-11-19
 
