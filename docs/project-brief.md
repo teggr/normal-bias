@@ -64,6 +64,18 @@ See [local PoC guide](local-poc.md) for the exact contract, commands, verificati
 
 On 2026-11-19 Robin requested a repository skill requiring similar demonstration recordings for cloud UI feature work and bug fixes where appropriate. The [UI recording skill](../.agents/skills/ui-demo-recording/SKILL.md), required by `AGENTS.md`, makes capture and verification part of completing those tasks. Audio-related changes must include actual client sound. Every cloud task records either a verified delivered recording, a specific no-UI-effect reason, or a concrete blocker/user exclusion in the verification record. Generated recordings remain ignored artifacts rather than Git content. This requirement does not authorise public deployment or expand the mobile milestone.
 
+## Codename One agent guidance
+
+On 2026-11-19 Robin requested the Codename One usage skill described in the official getting-started guide. The official Initializr authoring skill, references and tools are now vendored under `.agent-skills/codename-one/`, linked from `.agents/skills/codename-one` for discovery and required by root `AGENTS.md` for client work. Source revision and licensing notices are preserved. Project-specific instructions retain the pinned 7.0.282 web build, existing Spring Boot backend and browser audio workaround; this adds guidance without upgrading the framework or configuring simulator/cloud services.
+
+## Native build investigation
+
+On 2026-11-19 Robin requested starting to investigate Step 4: submitting a native device build. The [readiness review](native-build-readiness.md) records the current browser-only audio and API-address gaps, cloud/signing prerequisites and a proposed first-device sequence. Platform selection and the concrete mobile implementation remain to be settled; no cloud build or device verification has been performed.
+
+## Desktop simulator increment
+
+On 2026-11-19 Robin narrowed the immediate next step to a demoable simulator experience before a physical-device build. The Java client now has simulator-only framework media playback, a loopback API-origin launch override and compact layouts for phone skins while preserving wide browser layouts and its browser audio bridge. Local network failures remain inline without automatic cloud reporting/account prompts. A launcher and disposable synthetic-demo helper are provided; see [simulator guide](simulator-poc.md) for the tested launch and runtime limits. The Linux simulator was exercised with a software sound output and recorded with actual decoded application audio. No cloud account, native build submission, device signing, deployment or physical-device verification has been performed. Mobile media integration and API reachability remain future work.
+
 ## Open decisions
 
 Resolve these during planning rather than assuming answers:

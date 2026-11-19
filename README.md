@@ -5,7 +5,9 @@ A self hosted music service
 
 - [Project brief and agreed constraints](docs/project-brief.md)
 - [Web listening-client PoC](docs/client-poc.md)
+- [Desktop simulator demo](docs/simulator-poc.md)
 - [Instructions for coding agents](AGENTS.md)
+- [Official Codename One authoring skill](.agent-skills/codename-one/SKILL.md)
 - [Cloud UI demonstration recording skill](.agents/skills/ui-demo-recording/SKILL.md)
 - [Storage migrations, recovery and online inspection](docs/storage-reliability.md)
 
@@ -36,3 +38,13 @@ java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
 ```
 
 Open `http://127.0.0.1:8080/` to browse/search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. Mobile/native media support follows later.
+
+## Simulator demo
+
+With Java 21, Maven, Bash, FFmpeg/FFprobe, curl and desktop sound available:
+
+```sh
+./client/demo-simulator.sh
+```
+
+This prepares a disposable local library with two synthetic tracks and launches the Codename One desktop simulator. No cloud account or signing is needed. See the [simulator guide](docs/simulator-poc.md) for connecting to an existing API, proxy troubleshooting and verification limits.

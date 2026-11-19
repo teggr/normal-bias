@@ -37,6 +37,7 @@ public final class LibraryForm extends Form {
     public LibraryForm(LibraryApi api) {
         super("Normal Bias", new BorderLayout());
         this.api = api;
+        boolean compact = CN.getDisplayWidth() < CN.convertToPixels(100);
         player = new Player(api, this::refreshPlayer);
         getToolbar().setHidden(true);
         getToolbar().setVisible(false);
@@ -45,21 +46,27 @@ public final class LibraryForm extends Form {
         find.addActionListener(e -> { query = search.getText().trim(); load(0); });
         search.addActionListener(e -> { query = search.getText().trim(); load(0); });
         reset.addActionListener(e -> { search.setText(""); query = ""; load(0); });
-        Container searchBar = BorderLayout.center(search).add(BorderLayout.EAST, BoxLayout.encloseX(find, reset));
+        Container searchBar = compact
+                ? BoxLayout.encloseY(search, GridLayout.encloseIn(2, find, reset))
+                : BorderLayout.center(search).add(BorderLayout.EAST, BoxLayout.encloseX(find, reset));
         searchBar.setUIID("SearchBar");
         Container header = BoxLayout.encloseY(new Label("Normal Bias", "Brand"), searchBar);
         header.setUIID("Header");
         add(BorderLayout.NORTH, header);
 
         tracks.setScrollableY(true);
+        tracks.setUIID("LibraryPanel");
         pageBack.addActionListener(e -> load(Math.max(0, offset - LibraryApi.PAGE_SIZE)));
         pageNext.addActionListener(e -> load(offset + LibraryApi.PAGE_SIZE));
         Container library = BorderLayout.center(tracks).add(BorderLayout.SOUTH,
-                BorderLayout.center(pageInfo).add(BorderLayout.EAST, BoxLayout.encloseX(pageBack, pageNext)));
+                compact ? BoxLayout.encloseY(pageInfo, GridLayout.encloseIn(2, pageBack, pageNext))
+                        : BorderLayout.center(pageInfo).add(BorderLayout.EAST, BoxLayout.encloseX(pageBack, pageNext)));
+        library.setUIID("LibraryPanel");
         queue.setScrollableY(true);
         Button clear = new Button("Clear queue");
         clear.addActionListener(e -> player.clear());
         Container queuePanel = BorderLayout.center(queue).add(BorderLayout.SOUTH, clear);
+        queuePanel.setUIID("LibraryPanel");
         tabs.setTabPlacement(Component.TOP);
         tabs.addTab("Library", library);
         tabs.addTab("Queue (0)", queuePanel);
@@ -69,6 +76,7 @@ public final class LibraryForm extends Form {
         status.setFocusable(false);
         status.setUIID("Status");
         seek.setEditable(true);
+        seek.setPreferredH(CN.convertToPixels(4));
         seek.addPointerPressedListener(e -> seeking = true);
         seek.addPointerReleasedListener(e -> seeking = false);
         seek.setMinValue(0);
@@ -79,7 +87,8 @@ public final class LibraryForm extends Form {
         previous.addActionListener(e -> player.previous());
         next.addActionListener(e -> player.next());
         retry.addActionListener(e -> player.retry());
-        Container controls = BoxLayout.encloseX(previous, play, next, retry);
+        Container controls = compact ? GridLayout.encloseIn(2, previous, play, next, retry)
+                : BoxLayout.encloseX(previous, play, next, retry);
         Container footer = BoxLayout.encloseY(title, artist, BorderLayout.center(seek).add(BorderLayout.EAST, time), controls, status);
         footer.setUIID("PlayerPanel");
         add(BorderLayout.SOUTH, footer);
@@ -129,7 +138,8 @@ public final class LibraryForm extends Form {
         listen.addActionListener(e -> player.playTrack(track));
         enqueue.addActionListener(e -> player.enqueue(track));
         Container detail = BoxLayout.encloseY(new Label(track.title(), "TrackTitle"), new Label(track.description(), "Muted"));
-        Container row = BorderLayout.center(detail).add(BorderLayout.EAST, BoxLayout.encloseX(
+        Container row = BorderLayout.center(detail).add(
+                CN.getDisplayWidth() < CN.convertToPixels(100) ? BorderLayout.SOUTH : BorderLayout.EAST, BoxLayout.encloseX(
                 new Label(formatTime(track.durationMs()), "Muted"), listen, enqueue));
         row.setUIID("TrackRow");
         return row;

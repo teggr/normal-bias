@@ -2,6 +2,7 @@ package dev.normalbias.client.player;
 
 import com.codename1.io.JSONParser;
 import com.codename1.system.NativeLookup;
+import com.codename1.ui.CN;
 import dev.normalbias.client.Track;
 import dev.normalbias.client.net.LibraryApi;
 import java.io.StringReader;
@@ -11,7 +12,7 @@ import java.util.Map;
 public final class Player {
     private final LibraryApi api;
     private final Runnable changed;
-    private final BrowserAudio audio = NativeLookup.create(BrowserAudio.class);
+    private final BrowserAudio audio = CN.isSimulator() ? new SimulatorAudio() : NativeLookup.create(BrowserAudio.class);
     public final PlaybackQueue queue = new PlaybackQueue();
     private boolean loading;
     private boolean playing;

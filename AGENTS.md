@@ -4,6 +4,18 @@
 
 Read [docs/project-brief.md](docs/project-brief.md) before planning or changing this repository. It is the canonical record of the project's purpose, agreed constraints, current scope and open decisions. The [README](README.md) is the entry point.
 
+## Required skill for Codename One work
+
+Before planning, editing or verifying the Codename One client, read and apply the official [codename-one authoring skill](.agent-skills/codename-one/SKILL.md), then the references relevant to the task. A discovery link lives at `.agents/skills/codename-one`; the canonical directory preserves upstream tool paths. See [upstream provenance](.agent-skills/codename-one/UPSTREAM.md) for the pinned source and refresh policy.
+
+These Normal Bias rules take precedence over generic upstream examples:
+
+- The app directory is `client/`, a separate Maven reactor; the repository root reactor builds only the Spring Boot API and upload CLI. Keep the existing Spring Boot backend, Java/Maven stack and local-only defaults. Upstream's Codename One Backend and Gradle instructions do not describe this project.
+- Use the Java 21 JDK; client common sources target Java 17. Codename One and its plugin remain pinned to **7.0.282**. Check API/goal availability against that version before using examples from the current upstream skill. Do not upgrade dependencies or regenerate the app to install or refresh a skill.
+- Build the browser client with `./client/build-web.sh`; use the commands and same-origin static serving in [docs/client-poc.md](docs/client-poc.md). This project has no Maven wrapper or separate simulator module. Use `./client/run-simulator.sh` for `cn1:run`; the pinned plugin lacks `cn1:agent`, but the simulator MCP socket and `Sim.java` were verified with `-Dcn1.mcp.port`. See [docs/simulator-poc.md](docs/simulator-poc.md). Cloud tooling remains unconfigured. Do not add cloud credentials/connections or submit builds as part of skill setup.
+- Keep UI, API access and queue policy in Java and preserve the documented browser audio bridge. Browser verification does not establish built-in media-adapter, mobile, background audio or CarPlay support. Read the native-interface reference before platform glue changes and the CSS reference before theme changes.
+- Follow the existing browser smoke tests and required UI recording workflow for visible changes. Simulator screenshots alone do not verify browser audio. Scope tests to the change and report actual results and limitations.
+
 ## Required skill for cloud task handoffs
 
 For every cloud task, read and apply [ui-demo-recording](.agents/skills/ui-demo-recording/SKILL.md) before finishing. UI features and UI bug fixes require a short, verified recording of the final behaviour; audio-related flows require the client's actual sound. Deliver the video in the handoff and record the checks in `docs/verification.md`. For work without a visible UI effect, a recording blocker or an explicit user exclusion, document the specific reason instead. This is a completion requirement, not a request to deploy the app or add an approval step.
@@ -35,6 +47,6 @@ Do not leave required documentation updates as follow-up work or rely on chat hi
 
 ## Current repository state
 
-Java 21 / Maven reactor with Spring Boot API (`api`) and Java upload CLI (`cli`). Run `mvn clean verify` from the repository root. See [docs/local-poc.md](docs/local-poc.md) for the API contract, local commands and limitations. The optional Codename One web client has its own Maven reactor in `client/`; use `./client/build-web.sh` and see [docs/client-poc.md](docs/client-poc.md). UI/API access/queue policy stay in Java; the browser audio native-interface glue is the documented workaround for a framework media failure. Do not claim this verifies the built-in media adapter or mobile playback.
+Java 21 / Maven reactor with Spring Boot API (`api`) and Java upload CLI (`cli`). Run `mvn clean verify` from the repository root. See [docs/local-poc.md](docs/local-poc.md) for the API contract, local commands and limitations. The optional Codename One web client has its own Maven reactor in `client/`; use `./client/build-web.sh` and see [docs/client-poc.md](docs/client-poc.md). UI/API access/queue policy stay in Java; the browser audio native-interface glue is the documented workaround for a framework media failure. The desktop simulator uses the framework media API with FFmpeg/Java Sound; `./client/demo-simulator.sh` prepares a disposable synthetic demonstration. Do not claim this verifies the built-in media adapter or mobile playback.
 
 See [docs/storage-reliability.md](docs/storage-reliability.md) for Flyway migrations, durable operation recovery and online inspection. Inspections run through the API with paginated findings; do not reintroduce the removed offline doctor command. Add new migrations rather than editing applied scripts. Preserve pending-operation evidence and quarantined files. Backup/restore is deferred to deployment.
