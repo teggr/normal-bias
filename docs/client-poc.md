@@ -60,3 +60,13 @@ CHROMIUM_PATH=/usr/bin/chromium npm --prefix client/tests test
 The Node/Playwright script is test orchestration, not application code or a client build tool. It launches the packaged API on a random loopback port with a new temporary data directory, generates 28 synthetic 12-second MP3s, and drives the actual generated client in headless Chromium. It checks empty library, search/reset, pagination, playback progress, pause/resume, seek, queue navigation/completion, HTTP 206 delivery, forced audio/catalogue failures and recovery, queue clearing and resource release. It blocks service workers to exercise the freshly built assets. It saves a screenshot under `client/target/`; failed runs retain temporary API data/logs for diagnosis. It never opens an existing catalogue or personal music. Test processes stop afterward. Set `CI=1` only in a sandboxed CI environment that requires Chromium's `--no-sandbox` launch flag.
 
 See [verification](verification.md) for the actual environment/results and remaining gaps. Chromium success does not establish Firefox/Safari support, device background audio, system media controls or CarPlay feasibility.
+
+## Agent guidance
+
+Before client work, apply the [official Codename One authoring skill](../.agent-skills/codename-one/SKILL.md) and the project-specific rules in [AGENTS.md](../AGENTS.md). Its references and Java tools are vendored from a pinned upstream revision with [provenance and refresh instructions](../.agent-skills/codename-one/UPSTREAM.md). The current upstream skill can describe newer features than our pinned 7.0.282 release; verify compatibility before using a goal or API. Installing the skill does not configure simulator/cloud MCP, add a Maven wrapper or change the client build.
+
+For the proposed move to a physical device, see the [native build readiness review](native-build-readiness.md). This review does not change the web PoC’s supported platforms.
+
+## Desktop simulator
+
+The authorised simulator increment now provides local playback through the framework media API and compact phone-screen layouts. Use `./client/demo-simulator.sh` for a disposable synthetic library, or `./client/run-simulator.sh` for an existing loopback API. See the [simulator guide](simulator-poc.md) for prerequisites, audio/proxy setup, tested commands and limits. This does not add Android/iOS implementations of BrowserAudio or establish native background playback.

@@ -1,11 +1,22 @@
 #Constants {
-    includeNativeBool: true;
+    includeNativeBool: false;
     defaultSourceDPIInt: "0";
 }
 Form { background-color: #101821; }
+/* Restore structural containers' transparent defaults across simulator themes. */
+Container { background-color: transparent; border: none; padding: 0; margin: 0; }
 Toolbar, TitleArea { background-color: #17232e; }
 Title { color: #f3ede0; font-family: "native:MainBold"; font-size: 5mm; }
 Label, TextArea { color: #f3ede0; font-family: "native:MainRegular"; font-size: 3mm; }
+Label, TextArea, TrackTitle, Muted, NowTitle, Brand {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+Header, SearchBar, PlayerPanel, TrackRow, TabsContainer {
+    border: none;
+}
 Button {
     color: #101821;
     background-color: #e5b96e;
@@ -19,7 +30,8 @@ Button {
 Button.pressed { background-color: #cda15b; }
 Button.disabled { color: #78818b; background-color: #28343f; border: 1px solid #28343f; }
 TextField { color: #f3ede0; background-color: #243340; padding: 2mm; margin: 1mm; }
-SearchBar { padding: 2mm; }
+SearchBar { background-color: #17232e; padding: 2mm; }
+Slider { background-color: #34424e; border: none; padding: 0; margin: 2mm 0; }
 TrackRow { background-color: #17232e; padding: 2mm; margin: 1mm 3mm; border-bottom: 1px solid #34424e; }
 TrackTitle { color: #f3ede0; font-family: "native:MainBold"; font-size: 3.5mm; }
 Muted { color: #acbac6; font-size: 2.8mm; }
@@ -27,6 +39,7 @@ NowTitle { color: #f3ede0; font-family: "native:MainBold"; font-size: 4mm; }
 PlayerPanel { background-color: #1c2b38; padding: 3mm; }
 Status { color: #e5b96e; background-color: #1c2b38; border: none; padding: 1mm; font-size: 2.8mm; }
 TabsContainer { background-color: #101821; }
+LibraryPanel { background-color: #101821; border: none; padding: 0; margin: 0; }
 Tab { color: #acbac6; background-color: #17232e; padding: 2mm 4mm; }
 Tab.selected { color: #e5b96e; background-color: #243340; }
 
