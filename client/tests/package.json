@@ -1,0 +1,7 @@
+{
+  "name": "normal-bias-browser-checks",
+  "private": true,
+  "description": "Test orchestration only; the application is authored in Java/Codename One.",
+  "scripts": { "test": "node browser-smoke.cjs" },
+  "devDependencies": { "playwright-core": "1.57.0" }
+}

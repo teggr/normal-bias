@@ -8,9 +8,9 @@ Read [docs/project-brief.md](docs/project-brief.md) before planning or changing 
 
 - Follow the latest explicit user instructions. Keep the project brief aligned with approved changes; do not promote suggestions to decisions.
 - The agreed stack is Java, Maven, Spring Boot, H2 and deploy4j deployment to a single-instance VPS. Do not substitute a serverless API or another language/build system.
-- Start API-first. Do not begin with a client implementation simply because earlier discussions mentioned Codename One or CarPlay.
+- The API-first milestones are implemented. Robin authorised a Codename One client PoC on 2026-11-19: web/JavaScript first, using the existing API; supporting API changes are in scope. Mobile and native media verification follow later.
 - Cloudflare object storage remains an option, not a final decision.
-- Robin explicitly authorised the first local PoC on 2026-11-17, superseding the earlier hold. Keep deployment and listening clients out of this implementation.
+- Robin explicitly authorised the first local PoC on 2026-11-17, superseding the earlier hold. Deployment remains out of scope; the web listening-client PoC was subsequently authorised on 2026-11-19.
 - Preserve existing work. Keep changes scoped to the requested task.
 - Never commit credentials, personal music files, database files or production secrets.
 - When implementation begins, document the actual build/test commands and verify relevant changes. Report checks honestly, including those not run or blocked. Do not invent commands or claim deployment/device support without verification.
@@ -31,6 +31,6 @@ Do not leave required documentation updates as follow-up work or rely on chat hi
 
 ## Current repository state
 
-Java 21 / Maven reactor with Spring Boot API (`api`) and Java upload CLI (`cli`). Run `mvn clean verify` from the repository root. See [docs/local-poc.md](docs/local-poc.md) for the API contract, local commands and limitations.
+Java 21 / Maven reactor with Spring Boot API (`api`) and Java upload CLI (`cli`). Run `mvn clean verify` from the repository root. See [docs/local-poc.md](docs/local-poc.md) for the API contract, local commands and limitations. The optional Codename One web client has its own Maven reactor in `client/`; use `./client/build-web.sh` and see [docs/client-poc.md](docs/client-poc.md). UI/API access/queue policy stay in Java; the browser audio native-interface glue is the documented workaround for a framework media failure. Do not claim this verifies the built-in media adapter or mobile playback.
 
 See [docs/storage-reliability.md](docs/storage-reliability.md) for Flyway migrations, durable operation recovery and online inspection. Inspections run through the API with paginated findings; do not reintroduce the removed offline doctor command. Add new migrations rather than editing applied scripts. Preserve pending-operation evidence and quarantined files. Backup/restore is deferred to deployment.
