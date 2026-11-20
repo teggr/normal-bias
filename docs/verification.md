@@ -218,6 +218,19 @@ The bundled tone is the only committed binary fixture. Large synthetic cancellat
 ## Not tested / not delivered
 
 No 30 GB load test, Robin's real collection, Windows/macOS execution, real listening clients/device playback, full malicious-MP3 corpus, forced power-loss/crash recovery, concurrent service instances, public/remote access, authentication, production dependency security audit, deployment, VPS/deploy4j or R2. No byte-level resumable upload protocol. Cross-resource crash atomicity and automatic orphan reconciliation remain limitations documented in [local-poc.md](local-poc.md).
+# Local device trial plan — 2026-11-20
+
+- Added `docs/local-device-trial.md` at the user's request, with a baseline simulator check, packaging-first Android/iPhone paths, explicit private development API connectivity, required native playback implementation and a physical-device acceptance checklist. Linked it from README and the native readiness review. Project brief reviewed; no target platform or new implementation decision has been approved.
+- Checked the plan against client Maven profiles, simulator launcher and the vendored build reference. Native source-generation commands are explicitly candidates to validate against 7.0.282, not tested commands. `git diff --check` passed. No build, SDK installation, native generation, signing or device tests were run for this documentation task.
+- UI recording not applicable: this task delivers a proposed trial plan and documentation links, with no application UI change. Actual device playback evidence is an explicit step in the plan.
+
+# Repository sync and next-step review — 2026-11-20
+
+- Clean task branch `work` fast-forwarded from `7086be0` to `origin/main` at `d137316` with `git fetch --prune origin` and `git merge --ff-only origin/main`. This includes merged PR #5, the Graphite reference refinement.
+- Reviewed the project brief, client guide, native build readiness, recorded Graphite verification and current player/API-origin selection. Corrected the brief's stale PR-pending status. README and operating guides were reviewed; their commands and supported-platform limits require no change for this sync.
+- Proposed next sequence: final visual review of the merged UI, select a first physical-device target, implement native foreground playback and a deliberate private development API connection, then verify device playback before evaluating background/system controls. This is a planning recommendation, not a new approved implementation milestone or platform choice.
+- `git diff --check` passed. No application build, browser, simulator, playback or device tests were run for this sync; prior results remain historical evidence. UI recording is not applicable: only repository synchronization and documentation changed, with no new application UI change in this task.
+
 # Design proposal review — 2026-11-19
 
 - Fast-forwarded clean task branch from `68d5d8e` to fetched `origin/main` `7086be0` using `git fetch origin` and `git merge --ff-only origin/main`.

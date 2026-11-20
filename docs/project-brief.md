@@ -80,7 +80,7 @@ On 2026-11-19 Robin narrowed the immediate next step to a demoable simulator exp
 
 - **Implemented:** API-first milestones, web listening PoC and desktop simulator demo. The Graphite refinement now provides a full compact player face, wide player sidebar, recessed artwork, tactile wheel and circular controls, thin seek rail, and spacious dark library/queue rows. UI and queue policy remain Java/Codename One; API contracts and the browser audio bridge are unchanged.
 - **Verified on 2026-11-19:** web build and two queue tests; browser browsing/search, real playback, pause/resume, immediate playing/paused seeks, queue transitions, errors/retry and responsive resizing. Final browser screenshots, simulator layout and a 24-second recording with actual client audio were checked. See [verification](verification.md#graphite-reference-refinement--2026-11-19).
-- **Review pending:** the refined implementation is being submitted as a PR at Robin's request. The revised design direction was approved; final visual acceptance of the refined application remains pending. No merge or deployment is included.
+- **Merged:** PR #5 merged the refined implementation into `main` at `d137316`; the checkout was fast-forwarded to that revision on 2026-11-20. The revised design direction was approved; final visual acceptance of the refined application remains pending. No deployment or fresh playback verification was performed during this sync.
 - **Remaining:** real catalogue cover artwork; physical Android/iOS builds and media integration; safe-area/back, large-text and screen-reader checks; installed-PWA caching and background/headset/CarPlay validation. Favourite/repeat/volume remain proposals, not delivered features.
 
 ## Open decisions

@@ -7,6 +7,7 @@ A self hosted music service
 - [Project brief and agreed constraints](docs/project-brief.md)
 - [Web listening-client PoC](docs/client-poc.md)
 - [Desktop simulator demo](docs/simulator-poc.md)
+- [Local device trial plan](docs/local-device-trial.md)
 - [Instructions for coding agents](AGENTS.md)
 - [Official Codename One authoring skill](.agent-skills/codename-one/SKILL.md)
 - [Cloud UI demonstration recording skill](.agents/skills/ui-demo-recording/SKILL.md)
