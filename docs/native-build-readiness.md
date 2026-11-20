@@ -1,5 +1,7 @@
 # First native build: readiness review
 
+For the proposed local-computer trial, including Android USB API forwarding and the iPhone/Xcode path, see the [local device trial plan](local-device-trial.md). Native generation and physical-device playback remain unverified; the cloud sequence below is an alternative, not a prerequisite for that local trial.
+
 Reviewed 2026-11-19 against merged web PoC `0b20307` plus the local Codename One skill installation. Robin requested starting to investigate Step 4 (reach a device). Target platform and account/signing setup are not yet confirmed; the sequence below is a proposal, not a claim of implemented mobile support.
 
 ## Simulator follow-up
