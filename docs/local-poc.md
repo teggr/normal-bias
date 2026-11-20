@@ -109,3 +109,17 @@ See [verification record](verification.md) for observed results from the task en
 ## Accepted album covers — 2026-11-20
 
 The service automatically looks up missing artwork in the background, including the existing catalogue and later uploads. It preserves embedded/existing fetched covers and original audio/tags. Flyway V3 stores recoverable cover assets/provenance; V4 adds durable checks/retries and the global revision used for passive client refresh. The earlier explicit match/preview/accept API remains compatible but is not exposed by the listening client. Track JSON retains `artworkRevision`; Range streaming and metadata edit contracts are unchanged. See [album-artwork.md](album-artwork.md) for automatic selection, bounded batches, delayed retries, opt-out configuration and API routes.
+
+## Library views (2026-11-20)
+
+`GET /api/library/albums` and `GET /api/library/artists` return `{items, offset, limit, total}` with the existing pagination bounds (default 50, maximum 200). Each item contains `{artist, album, trackCount, trackId}`: `trackId` is a deterministic representative (minimum track ID) for the existing artwork endpoint. Artist rows have an empty album value. Totals count groups, and trackCount counts songs in each group. Empty catalogues return empty pages.
+
+Albums group by exact catalogue artist and album values; artists group by exact artist. Null and empty metadata share the empty-string key, displayed as Unknown in the client. Case variants remain distinct. Results sort case-insensitively by artist then album with exact-text ties. These are live projections: edits/uploads/deletions appear on the next request without a migration or reimport. Grouping uses track artist; there is no separate album-artist/disc/track-number model yet.
+
+Both endpoints accept literal case-insensitive substring `q` (up to 1024 characters): artist name for Artists, artist or album name for Albums. Optional `artist` filters groups by exact value. Existing `GET /api/tracks` additionally accepts exact `artist` and `album` filters combined with `q`; omitted filters preserve existing behaviour, while an explicitly empty value selects missing metadata. Track ordering remains creation time then ID. Names are query parameters and must be URL encoded, including ampersands, percent signs and non-ASCII text.
+
+```sh
+curl 'http://127.0.0.1:8080/api/library/artists?limit=25'
+curl 'http://127.0.0.1:8080/api/library/albums?artist=Example%20Artist'
+curl 'http://127.0.0.1:8080/api/tracks?artist=Example%20Artist&album=Example%20Album'
+```

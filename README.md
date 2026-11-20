@@ -15,7 +15,7 @@ A self hosted music service
 - [Cloud UI demonstration recording skill](.agents/skills/ui-demo-recording/SKILL.md)
 - [Storage migrations, recovery and online inspection](docs/storage-reliability.md)
 
-The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated listing/search, catalogue metadata editing and track deletion. Java 21 JDK and Maven 3.6.3+ are required.
+The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated song, album and artist views, listing/search, catalogue metadata editing and track deletion. Java 21 JDK and Maven 3.6.3+ are required.
 
 ```sh
 mvn clean verify
@@ -41,7 +41,7 @@ java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
   --spring.web.resources.static-locations="file:$(pwd)/client/target/web/"
 ```
 
-Open `http://127.0.0.1:8080/` to browse/search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. The separate [local iPhone trial](docs/local-device-trial.md) now has a local signing/install route, private development origin and framework media adapter. The service automatically fills missing covers in the background using MusicBrainz and Cover Art Archive, without matching controls in the listening app or rewriting MP3s. See the [artwork guide](docs/album-artwork.md). The prior native increment preserves iPhone audio across backgrounding and displays embedded ID3 covers from the API; physical acceptance and platform limits are tracked in [verification](docs/verification.md).
+Open `http://127.0.0.1:8080/` to browse All songs, Albums or Artists, search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. The separate [local iPhone trial](docs/local-device-trial.md) now has a local signing/install route, private development origin and framework media adapter. The service automatically fills missing covers in the background using MusicBrainz and Cover Art Archive, without matching controls in the listening app or rewriting MP3s. See the [artwork guide](docs/album-artwork.md). The prior native increment preserves iPhone audio across backgrounding and displays embedded ID3 covers from the API; physical acceptance and platform limits are tracked in [verification](docs/verification.md).
 
 ## Simulator demo
 

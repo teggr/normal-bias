@@ -183,7 +183,7 @@ java -jar cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar "$HOME/Uploads" http://1
 
 Exact-file duplicates are reused. Stop that loopback service before restarting the private command above; never run two APIs against the same data directory. Do not run the disposable `demo-device-api.sh` on an occupied port or point its cleanup at this retained library. There is no new public bind, cloud build, deployment or change to normal API defaults.
 
-The UI remains a paginated track catalogue. Search for `Oasis`, `Roxy Music` or an album title to inspect that album; it does not yet group albums. The latest API extracts embedded ID3v2 JPEG/PNG covers on demand, including existing imports. Tracks without usable art retain their title-based generated sleeves. The (…) player action now navigates directly to Queue, with track information on the header info action.
+The updated client offers paginated **All songs**, **Albums** and **Artists** views. Open an artist to browse its albums, then open an album for songs; album groups use exact catalogue artist + album names. Search is inside Library, beneath the graphite view buttons, with amber text for the selected view. The search well matches the player metadata inset. Queue/Now Playing hide library search. The latest API extracts embedded ID3v2 JPEG/PNG covers on demand, including existing imports. Tracks without usable art retain their title-based generated sleeves. The (…) player action now navigates directly to Queue, with track information on the header info action.
 
 ## Background/audio-artwork acceptance — 2026-11-20
 
@@ -220,3 +220,13 @@ After installing the corrected client, leave it open while a synthetic service g
 
 
 The pinned local iOS generator can report “Sources have not changed” and reuse an existing Xcode project after changing only the bundled trial origin/build settings. When deliberately changing those settings, remove only the ignored `client/common/target/client-common-0.1.0-SNAPSHOT-ios-source/` generated directory before regenerating, then verify the generated `NormalBias-src/normalbias-trial-origin.txt` and the signed app's `CFBundleIdentifier`/display name before installation. Do not reuse a temporary test bundle identity as the normal app. A second app used during the refresh investigation was removed after Robin noticed it; the delivered app keeps `dev.normalbias.client` / Normal Bias and the retained service origin.
+
+### Library-view update installed — 2026-11-20
+
+The updated All songs/Albums/Artists client, inset search and graphite view buttons were locally signed, installed and launched on the existing iPhone 15 Plus. Use the same private origin, `http://192.168.1.205:18082`. The service now runs the API and web assets from `/Users/robintegg/.codex/worktrees/784f/normal-bias`, while retaining `/Users/robintegg/.codex/worktrees/71a0/normal-bias/data/device-trial-albums`. Do not replace that directory with a new worktree's empty catalogue. Service PID/log and restart arguments are recorded in verification. All 26 tracks/metadata and 24 real covers were retained; no upload was repeated.
+
+For this Personal Team route, the local Maven `ios-source` generation explicitly overrides `-Dcodename1.arg.ios.carplay.audio=false`, as in the earlier successful native invocation in verification. The generic `build-ios-trial.sh` helper does not apply that override to the repository's enabled CarPlay hint, so use the recorded native command for the current signing route. Browser/static output remains the previously verified local web build. Fresh phone visual/playback acceptance remains for the user's trial.
+
+### Fixed native player header — 2026-11-20
+
+The follow-up installed a shared Java layout correction: explicit content safe-area handling and a fixed Back/Now Playing/Information header above the scrolling player body. Device Hub observed both controls restored beneath the iPhone status area; the Library brand is visible again too. Browser regression additionally forces the body to scroll in a short viewport and exercises Information/Back. The existing API/library remains running unchanged. Physical visibility is directly verified, and Robin confirmed both header buttons work; detailed evidence is recorded in verification.

@@ -6,16 +6,15 @@ import com.codename1.ui.layouts.Layout;
 
 /** Proportions of the reference player; dimensions follow the available width. */
 final class PlayerFace extends Container {
-    PlayerFace(Component header, Component artwork, Component metadata, Component timeline, Component controls, Component status) {
+    PlayerFace(Component artwork, Component metadata, Component timeline, Component controls, Component status) {
         setUIID("PlayerFace");
         setLayout(new Layout() {
             @Override public Dimension getPreferredSize(Container p) {
                 int w = p.getWidth() > 0 ? p.getWidth() : Math.min(CN.getDisplayWidth(), CN.convertToPixels(62));
-                return new Dimension(w, w * 202 / 100 + (status.isHidden() ? 0 : status.getPreferredH()));
+                return new Dimension(w, w * 184 / 100 + (status.isHidden() ? 0 : status.getPreferredH()));
             }
             @Override public void layoutContainer(Container p) {
                 int w = p.getWidth(), inset = w * 4 / 100, y = 0;
-                place(header, inset, y, w - 2 * inset, w * 18 / 100); y += w * 18 / 100;
                 place(artwork, 0, y, w, w * 78 / 100); y += w * 78 / 100;
                 place(metadata, inset, y + w * 3 / 100, w - 2 * inset, w * 17 / 100); y += w * 23 / 100;
                 place(timeline, inset, y, w - 2 * inset, w * 13 / 100); y += w * 13 / 100;
@@ -26,6 +25,6 @@ final class PlayerFace extends Container {
                 c.setX(x); c.setY(y); c.setWidth(w); c.setHeight(h);
             }
         });
-        add(header).add(artwork).add(metadata).add(timeline).add(controls).add(status);
+        add(artwork).add(metadata).add(timeline).add(controls).add(status);
     }
 }

@@ -37,7 +37,7 @@ public final class LibraryForm extends Form {
     private final Button pageNext = new Button("More");
     private final Tabs tabs = new Tabs();
     private final Container body = new Container(new BorderLayout());
-    private final Container playerPanel = new Container(BoxLayout.y());
+    private final Container playerPanel = new Container(new BorderLayout());
     private final Container miniPlayer = new Container(new BorderLayout());
     private final Button miniTitle = new Button("Now Playing");
     private final Button miniPlay = new Button();
@@ -47,6 +47,13 @@ public final class LibraryForm extends Form {
     private final Container pagingBar = new Container();
     private final Button find = new Button("Search");
     private final Button reset = new Button("Reset");
+    private final LibraryViewButton[] viewButtons = new LibraryViewButton[3];
+    private String libraryView = "songs";
+    private String selectedArtist;
+    private String selectedAlbum;
+    private final Button libraryUp = new Button("Library views");
+    private final Container libraryLocationBar;
+    private final Label libraryLocation = new Label("All songs", "Muted");
     private boolean compact;
     private boolean layoutReady;
     private int requestVersion;
@@ -58,6 +65,7 @@ public final class LibraryForm extends Form {
     public LibraryForm(LibraryApi api) {
         super("Normal Bias", new BorderLayout());
         this.api = api;
+        getContentPane().setSafeArea(true);
         compact = CN.getDisplayWidth() < CN.convertToPixels(120);
         player = new Player(api, this::refreshPlayer);
         car = new CarListening(api, player);
@@ -70,7 +78,7 @@ public final class LibraryForm extends Form {
         search.addActionListener(e -> searchLibrary());
         reset.addActionListener(e -> { search.setText(""); searchLibrary(); });
         searchBar.setUIID("SearchBar");
-        header.add(new Label("Normal Bias", "Brand")).add(searchBar);
+        header.add(new Label("Normal Bias", "Brand"));
         pageInfo.setUIID("PageInfo");
         pageBack.setUIID("PagingButton");
         pageNext.setUIID("PagingButton");
@@ -82,7 +90,33 @@ public final class LibraryForm extends Form {
         tracks.setUIID("LibraryPanel");
         pageBack.addActionListener(e -> load(Math.max(0, offset - LibraryApi.PAGE_SIZE)));
         pageNext.addActionListener(e -> load(offset + LibraryApi.PAGE_SIZE));
-        Container library = BorderLayout.center(tracks).add(BorderLayout.SOUTH, pagingBar);
+        Container views = new Container(new GridLayout(1, 3));
+        String[] names = {"All songs", "Albums", "Artists"};
+        String[] values = {"songs", "albums", "artists"};
+        for (int i = 0; i < names.length; i++) {
+            final String value = values[i];
+            LibraryViewButton choice = new LibraryViewButton(names[i]);
+            viewButtons[i] = choice;
+            choice.setActive(i == 0);
+            choice.addActionListener(e -> {
+                for (LibraryViewButton button : viewButtons) button.setActive(button == choice);
+                libraryView = value; selectedArtist = null; selectedAlbum = null;
+                search.setText(""); query = ""; load(0);
+            });
+            views.add(choice);
+        }
+        libraryUp.setUIID("PagingButton");
+        libraryUp.addActionListener(e -> {
+            if (selectedAlbum != null) {
+                selectedAlbum = null;
+                if (libraryView.equals("albums")) selectedArtist = null;
+            }
+            else selectedArtist = null;
+            search.setText(""); query = ""; load(0);
+        });
+        libraryLocationBar = BorderLayout.center(libraryLocation).add(BorderLayout.WEST, libraryUp);
+        Container library = BorderLayout.center(tracks).add(BorderLayout.SOUTH, pagingBar)
+                .add(BorderLayout.NORTH, BoxLayout.encloseY(views, searchBar, libraryLocationBar));
         library.setUIID("LibraryPanel");
         queue.setScrollableY(true);
         queue.setScrollVisible(false);
@@ -142,9 +176,15 @@ public final class LibraryForm extends Form {
                 .add(BorderLayout.WEST, back).add(BorderLayout.EAST, info);
         playerHeader.setUIID("PlayerHeader");
         playerPanel.setUIID("PlayerPanel");
-        playerPanel.setScrollableY(true);
-        playerPanel.setScrollVisible(false);
-        playerPanel.add(new PlayerFace(playerHeader, cover, metadata, timeline, wheel, status));
+        // Keep navigation outside the scrolling face: native focus/scroll must not
+        // move Back/Information above the safe area on shorter phone viewports.
+        playerHeader.setPreferredH(CN.convertToPixels(12));
+        Container playerContent = new Container(BoxLayout.y());
+        playerContent.setUIID("PlayerPanel");
+        playerContent.setScrollableY(true);
+        playerContent.setScrollVisible(false);
+        playerContent.add(new PlayerFace(cover, metadata, timeline, wheel, status));
+        playerPanel.add(BorderLayout.NORTH, playerHeader).add(BorderLayout.CENTER, playerContent);
         miniTitle.setUIID("MiniTitle");
         miniTitle.addActionListener(e -> tabs.setSelectedIndex(2));
         icon(miniPlay, "Play", FontImage.MATERIAL_PLAY_ARROW, "MiniPlay");
@@ -219,6 +259,8 @@ public final class LibraryForm extends Form {
     }
 
     private void updatePlayerChrome(int selectedIndex) {
+        searchBar.setHidden(selectedIndex != 0);
+        searchBar.setVisible(selectedIndex == 0);
         boolean fullPlayer = compact && selectedIndex == 2;
         header.setHidden(fullPlayer);
         header.setVisible(!fullPlayer);
@@ -241,10 +283,44 @@ public final class LibraryForm extends Form {
         pageInfo.setText("Loading library…");
         rowArtwork.clear();
         tracks.removeAll();
-        tracks.add(new Label("Loading tracks…", "Muted"));
+        tracks.add(new Label("Loading library…", "Muted"));
+        boolean grouped = !libraryView.equals("songs") && selectedAlbum == null;
+        boolean artistList = libraryView.equals("artists") && selectedArtist == null;
+        boolean inGroup = selectedArtist != null || selectedAlbum != null;
+        libraryLocationBar.setHidden(!inGroup);
+        libraryLocationBar.setVisible(inGroup);
+        libraryUp.setHidden(!inGroup);
+        libraryUp.setVisible(selectedArtist != null || selectedAlbum != null);
+        libraryLocation.setText(selectedAlbum != null ? display(selectedAlbum, "Unknown album")
+                : selectedArtist != null ? display(selectedArtist, "Unknown artist")
+                : libraryView.equals("songs") ? "All songs" : libraryView.equals("albums") ? "Albums" : "Artists");
         updatePaging();
         revalidate();
-        api.list(query, requestedOffset, page -> {
+        java.util.function.Consumer<String> failure = message -> {
+            if (version != requestVersion) return;
+            busy = false;
+            tracks.removeAll();
+            TextArea error = new TextArea(message);
+            error.setEditable(false);
+            Button reload = new Button("Retry library");
+            reload.addActionListener(e -> load(requestedOffset));
+            tracks.add(error).add(reload);
+            pageInfo.setText("Library unavailable");
+            updatePaging(); revalidate();
+        };
+        if (grouped) {
+            api.groups(artistList ? "artists" : "albums", query, requestedOffset, selectedArtist, page -> {
+                if (version != requestVersion) return;
+                busy = false; offset = page.offset(); total = page.total();
+                tracks.removeAll(); rowArtwork.clear();
+                if (page.items().isEmpty()) tracks.add(new Label("No " + (artistList ? "artists" : "albums") + " found.", "Muted"));
+                for (LibraryApi.Group group : page.items()) tracks.add(groupRow(group, artistList));
+                pageInfo.setText(total == 0 ? "0 shown" : (offset + 1) + "–" + (offset + page.items().size()) + " of " + total);
+                tracks.scrollRectToVisible(0, 0, 1, 1, tracks); updatePaging(); revalidate();
+            }, failure);
+            return;
+        }
+        api.list(query, requestedOffset, selectedArtist, selectedAlbum, page -> {
             if (version != requestVersion) return;
             busy = false;
             offset = page.offset();
@@ -259,22 +335,33 @@ public final class LibraryForm extends Form {
             // service revision so late catalogue responses cannot invalidate cover callbacks.
             player.refreshArtwork();
             pageInfo.setText(page.items().isEmpty() ? "0 shown · " + total + " tracks" : (offset + 1) + "–" + (offset + page.items().size()) + " of " + total);
+            tracks.scrollRectToVisible(0, 0, 1, 1, tracks);
             updatePaging();
             revalidate();
-        }, message -> {
-            if (version != requestVersion) return;
-            busy = false;
-            tracks.removeAll();
-            TextArea error = new TextArea(message);
-            error.setEditable(false);
-            Button reload = new Button("Retry library");
-            reload.addActionListener(e -> load(requestedOffset));
-            tracks.add(error).add(reload);
-            pageInfo.setText("Library unavailable");
-            updatePaging();
-            revalidate();
-        });
+        }, failure);
     }
+    private static String display(String text, String fallback) { return text == null || text.isEmpty() ? fallback : text; }
+    private Container groupRow(LibraryApi.Group group, boolean artistList) {
+        String name = artistList ? display(group.artist(), "Unknown artist") : display(group.album(), "Unknown album");
+        Button open = new Button(name, "TrackTitle");
+        open.setAccessibilityText("Open " + name);
+        open.getSemantics().setLabel("Open " + name);
+        open.addActionListener(e -> {
+            selectedArtist = group.artist();
+            selectedAlbum = artistList ? null : group.album();
+            search.setText(""); query = ""; load(0);
+        });
+        String subtitle = (artistList ? "" : display(group.artist(), "Unknown artist") + " · ")
+                + group.trackCount() + (group.trackCount() == 1 ? " song" : " songs");
+        RecordArtwork art = new RecordArtwork(true);
+        art.setTrack(new Track(group.trackId(), name, group.artist(), group.album(), 0), api);
+        rowArtwork.add(art);
+        Container row = BorderLayout.center(BoxLayout.encloseY(open, new Label(subtitle, "Muted")))
+                .add(BorderLayout.WEST, art);
+        row.setLeadComponent(open); row.setUIID("TrackRow");
+        return row;
+    }
+
     private Container trackRow(Track track) {
         Button listen = new Button(track.title(), "TrackTitle");
         listen.getSemantics().setLabel("Play " + track.title());
