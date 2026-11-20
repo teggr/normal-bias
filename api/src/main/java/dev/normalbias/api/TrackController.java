@@ -12,7 +12,22 @@ import java.net.URI;
 @RequestMapping("/api/tracks")
 public class TrackController {
     private final TrackStore store;
-    public TrackController(TrackStore store) { this.store = store; }
+    private final EmbeddedArtwork artwork;
+    public TrackController(TrackStore store, EmbeddedArtwork artwork) { this.store = store; this.artwork = artwork; }
+
+    @GetMapping("/{id}/artwork")
+    public ResponseEntity<byte[]> artwork(@PathVariable String id, HttpServletRequest request) throws IOException {
+        byte[] image = artwork.get(id);
+        if (image == null) return ResponseEntity.notFound().build();
+        String etag = "\"" + id + "-art-v1\"";
+        var response = ResponseEntity.ok().contentType(MediaType.IMAGE_PNG)
+                .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(1)).cachePrivate()).eTag(etag)
+                .header("X-Content-Type-Options", "nosniff");
+        if (etag.equals(request.getHeader("If-None-Match"))) {
+            return ResponseEntity.status(304).eTag(etag).build();
+        }
+        return response.body(image);
+    }
 
     @PostMapping(consumes = "audio/mpeg", produces = "application/json")
     public ResponseEntity<Track> upload(HttpServletRequest request,

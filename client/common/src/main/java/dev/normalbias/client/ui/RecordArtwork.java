@@ -1,15 +1,34 @@
 package dev.normalbias.client.ui;
 
 import com.codename1.ui.*;
+import dev.normalbias.client.Track;
+import dev.normalbias.client.net.LibraryApi;
 import com.codename1.ui.geom.Dimension;
 
-/** Original, deterministic sleeve illustration; no claim of extracted album art. */
+/** Embedded cover with an original deterministic sleeve when art is absent or unavailable. */
 final class RecordArtwork extends Component {
     private final boolean thumbnail;
     private int variation = 1;
     private Image cached;
     private int cachedSize;
     RecordArtwork(boolean thumbnail) { this.thumbnail = thumbnail; setUIID("Artwork"); setFocusable(false); }
+    private String trackId;
+    private Image embedded;
+    void setTrack(Track track, LibraryApi api) {
+        setIdentity(track == null ? null : track.title());
+        String nextId = track == null ? null : track.id();
+        if (nextId == null ? trackId == null : nextId.equals(trackId)) return;
+        trackId = nextId;
+        embedded = null;
+        cached = null;
+        repaint();
+        if (track != null) api.artwork(track, image -> {
+            if (!track.id().equals(trackId)) return; // Late cover cannot replace a newer selection.
+            embedded = image;
+            cached = null;
+            repaint();
+        });
+    }
     void setIdentity(String identity) {
         int next = identity == null ? 1 : (identity.hashCode() & 0x7fffffff) % 4;
         if (next != variation) { variation = next; cached = null; repaint(); }
@@ -43,6 +62,13 @@ final class RecordArtwork extends Component {
             }
             art.fillRect(size / 8, size * 84 / 100, size / 5, Math.max(1, size / 150));
             art.fillRect(size * 69 / 100, size * 84 / 100, size / 6, Math.max(1, size / 150));
+            if (embedded != null) {
+                // Preserve aspect ratio: center-crop to the square sleeve, never stretch.
+                float scale = (float) size / Math.min(embedded.getWidth(), embedded.getHeight());
+                int width = Math.max(size, Math.round(embedded.getWidth() * scale));
+                int height = Math.max(size, Math.round(embedded.getHeight() * scale));
+                art.drawImage(embedded, (size - width) / 2, (size - height) / 2, width, height);
+            }
             Image mask = Image.createImage(size, size, 0);
             Graphics mg = mask.getGraphics(); mg.setAntiAliased(true); mg.setColor(0xffffff);
             if (thumbnail) mg.fillArc(0, 0, size, size, 0, 360);

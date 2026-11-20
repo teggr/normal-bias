@@ -35,10 +35,6 @@ public class NormalBias extends Lifecycle {
         }
         library.show();
     }
-    // This trial deliberately releases native media when leaving the foreground.
-    @Override public void stop() {
-        if (!CN.isSimulator() && "ios".equals(CN.getPlatformName()) && library != null) library.disposePlayer();
-        super.stop();
-    }
+    // Backgrounding preserves the active media and queue; destruction still releases them.
     @Override public void destroy() { if (library != null) library.disposePlayer(); }
 }

@@ -26,6 +26,7 @@ async function click(page, name, index = 0, role = 'button') {
     const box = await item.boundingBox();
     assert.ok(box, 'Control bounds: ' + name);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    if (process.env.RECORD_DEMO) await delay(650); // Readable evidence pacing, outside asserted seek timing.
 }
 async function text(page, value) {
     await until(() => page.getByText(value, {exact:true}).count().then(n => n > 0), value);
@@ -54,10 +55,14 @@ async function seed(origin) {
     let result = spawnSync('ffmpeg', ['-hide_banner','-loglevel','error','-f','lavfi','-i',
         'sine=frequency=440:duration=12','-codec:a','libmp3lame','-b:a','64k','-y',base]);
     assert.equal(result.status, 0, 'FFmpeg synthetic fixture');
+    const cover = path.join(work, 'cover.png');
+    result = spawnSync('ffmpeg', ['-hide_banner','-loglevel','error','-f','lavfi','-i',
+        'color=c=0xdd3366:s=320x240','-frames:v','1','-y',cover]);
+    assert.equal(result.status, 0, 'synthetic embedded cover');
     for (let i = 0; i < 28; i++) {
         const filename = `tone-${String(i).padStart(2,'0')}.mp3`;
         const file = path.join(work, filename);
-        result = spawnSync('ffmpeg', ['-hide_banner','-loglevel','error','-i',base,'-codec','copy',
+        result = spawnSync('ffmpeg', ['-hide_banner','-loglevel','error','-i',base,...(i === 0 ? ['-i',cover,'-map','0:a','-map','1:v','-disposition:v','attached_pic'] : []),'-codec','copy',
             '-metadata',`title=Synthetic track ${String(i).padStart(2,'0')}`,
             '-metadata','artist=Normal Bias tests','-metadata','album=Browser fixtures','-y',file]);
         assert.equal(result.status, 0);
@@ -82,12 +87,14 @@ async function seed(origin) {
         try { return (await fetch(origin + '/api/tracks')).ok; } catch { return false; }
     }, 'API startup');
     browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',
-        headless:true, args: process.env.CI ? ['--no-sandbox'] : []});
+        headless:true, args: [...(process.env.CI ? ['--no-sandbox'] : []), '--window-size=1280,1000']});
     const context = await browser.newContext({viewport:{width:1180,height:780}, serviceWorkers:'block'});
     const page = await context.newPage();
     currentPage = page;
     const errors = [];
     const ranges = [];
+    const covers = [];
+    page.on('response', response => { if (response.url().endsWith('/artwork')) covers.push(response); });
     page.on('pageerror', error => errors.push(String(error)));
     page.on('response', response => {
         if (response.url().includes('/audio') && response.status() === 206) ranges.push(response.url());
@@ -123,6 +130,7 @@ async function seed(origin) {
     }
     console.log('PASS Search button, Enter and Reset reveal Library from Queue');
 
+    const stopCapture = process.env.RECORD_DEMO ? await require('./capture-demo.cjs').start(page, path.resolve(process.env.RECORD_DEMO)) : null;
     await click(page, '+ Queue', 0);
     await text(page, 'Queue (1)');
     await click(page, '+ Queue', 0);
@@ -132,6 +140,13 @@ async function seed(origin) {
     await click(page, 'Play Synthetic track 00');
     await until(async () => (await audio(page)).some(a => !a.paused && a.time > 0.3), 'audio advancing');
     const firstSrc = (await audio(page))[0].src;
+    await until(() => Promise.resolve(covers.some(r => r.status() === 200)), 'embedded artwork delivered');
+    const embedded = covers.find(r => r.status() === 200);
+    assert.equal(embedded.headers()['content-type'], 'image/png');
+    assert.ok(covers.some(r => r.status() === 404), 'missing covers use fallback sleeves');
+    await delay(400);
+    await page.screenshot({path:path.join(repo,'client/target/browser-artwork.png')});
+    console.log('PASS embedded cover and missing-art fallback endpoints');
     await click(page, 'Pause');
     await until(async () => (await audio(page))[0].paused, 'pause');
     const pausedAt = (await audio(page))[0].time;
@@ -180,6 +195,7 @@ async function seed(origin) {
     // Allow the canvas repaint to finish after the tab animation.
     await delay(600);
     await page.screenshot({path:path.join(repo,'client/target/browser-smoke.png')});
+    if (stopCapture) await stopCapture();
     await page.setViewportSize({width:390,height:844});
     await until(() => page.getByRole('radio', {name:'Now Playing', exact:true}).count().then(n => n === 1), 'compact player tab');
     await delay(600);

@@ -72,6 +72,67 @@ class ApiIntegrationTest {
         return send(HttpRequest.newBuilder(uri("/api/tracks/" + id)).DELETE().build());
     }
 
+    private byte[] withArtwork(byte[] image, String mime) throws Exception {
+        Path input = directory.resolve("input.mp3");
+        Files.write(input, tone);
+        var mp3 = new com.mpatric.mp3agic.Mp3File(input);
+        mp3.getId3v2Tag().setAlbumImage(image, mime);
+        Path output = directory.resolve(UUID.randomUUID() + ".mp3");
+        mp3.save(output.toString());
+        return Files.readAllBytes(output);
+    }
+
+    @Test void embeddedArtworkIsDerivedForExistingTracksAndKeepsAudioImmutable() throws Exception {
+        for (String format : List.of("png", "jpg")) {
+            var image = new java.awt.image.BufferedImage(800, 400, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            var graphics = image.createGraphics();
+            graphics.setColor(java.awt.Color.ORANGE);
+            graphics.fillRect(0, 0, 800, 400);
+            graphics.dispose();
+            var output = new ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(image, format, output);
+            byte[] tagged = withArtwork(output.toByteArray(), "image/" + format);
+            var uploaded = upload(tagged, "audio/mpeg");
+            assertEquals(201, uploaded.statusCode());
+            String id = json.readTree(uploaded.body()).get("id").asText();
+            // Artwork is extracted only at GET, so previously imported MP3s work too.
+            var cover = get("/api/tracks/" + id + "/artwork");
+            assertEquals(200, cover.statusCode());
+            assertEquals("image/png", cover.headers().firstValue("Content-Type").orElseThrow());
+            var decoded = javax.imageio.ImageIO.read(new ByteArrayInputStream(cover.body()));
+            assertEquals(512, decoded.getWidth());
+            assertEquals(256, decoded.getHeight());
+            String etag = cover.headers().firstValue("ETag").orElseThrow();
+            assertEquals(304, send(HttpRequest.newBuilder(uri("/api/tracks/" + id + "/artwork"))
+                    .header("If-None-Match", etag).GET().build()).statusCode());
+            var head = send(HttpRequest.newBuilder(uri("/api/tracks/" + id + "/artwork"))
+                    .method("HEAD", HttpRequest.BodyPublishers.noBody()).build());
+            assertEquals(200, head.statusCode());
+            assertEquals(0, head.body().length);
+            assertEquals(200, patch(id, "{\"title\":\"Changed\"}").statusCode());
+            assertEquals(200, upload(tagged, "audio/mpeg").statusCode());
+            assertArrayEquals(cover.body(), get("/api/tracks/" + id + "/artwork").body());
+            assertArrayEquals(tagged, get("/api/tracks/" + id + "/audio").body());
+            assertEquals(204, delete(id).statusCode());
+            assertEquals(404, get("/api/tracks/" + id + "/artwork").statusCode());
+        }
+    }
+
+    @Test void absentInvalidAndOversizedArtworkIsOptional() throws Exception {
+        String plain = uploadedId();
+        assertEquals(404, get("/api/tracks/" + plain + "/artwork").statusCode());
+        for (byte[] invalid : List.of("not an image".getBytes(StandardCharsets.UTF_8), new byte[]{(byte)137, 80, 78, 71})) {
+            String id = json.readTree(upload(withArtwork(invalid, "image/png"), "audio/mpeg").body()).get("id").asText();
+            assertEquals(404, get("/api/tracks/" + id + "/artwork").statusCode());
+            assertEquals(200, get("/api/tracks/" + id + "/audio").statusCode());
+        }
+        var huge = new java.awt.image.BufferedImage(4097, 1, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var output = new ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(huge, "png", output);
+        assertNull(EmbeddedArtwork.normalize(output.toByteArray()));
+        assertEquals(404, get("/api/tracks/not-an-id/artwork").statusCode());
+    }
+
     @Test void searchFiltersFieldsLiterallyAndPaginates() throws Exception {
         String id = uploadedId();
         for (String term : List.of("SYNTHETIC", "bias", "fixtures", "tone.mp3", "  synthetic  ")) {

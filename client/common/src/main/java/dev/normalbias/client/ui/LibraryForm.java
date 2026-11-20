@@ -260,7 +260,7 @@ public final class LibraryForm extends Form {
         enqueue.addActionListener(e -> player.enqueue(track));
         Container copy = BoxLayout.encloseY(listen, new Label(track.artist(), "Muted"));
         RecordArtwork art = new RecordArtwork(true);
-        art.setIdentity(track.title());
+        art.setTrack(track, api);
         Container detail = BorderLayout.center(copy).add(BorderLayout.WEST, art);
         detail.setLeadComponent(listen);
         Container row = BorderLayout.center(detail).add(BorderLayout.EAST, enqueue);
@@ -289,9 +289,9 @@ public final class LibraryForm extends Form {
         Track current = player.queue.current();
         title.setText(current == null ? "Nothing playing" : current.title());
         artist.setText(current == null ? "Your library" : current.artist());
-        cover.setIdentity(current == null ? null : current.title());
-        metadataCover.setIdentity(current == null ? null : current.title());
-        miniCover.setIdentity(current == null ? null : current.title());
+        cover.setTrack(current, api);
+        metadataCover.setTrack(current, api);
+        miniCover.setTrack(current, api);
         miniArtist.setText(current == null ? "Choose a track" : current.artist());
         status.setText(player.status());
         String state = player.status();

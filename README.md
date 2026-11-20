@@ -39,7 +39,7 @@ java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
   --spring.web.resources.static-locations="file:$(pwd)/client/target/web/"
 ```
 
-Open `http://127.0.0.1:8080/` to browse/search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. The separate [local iPhone trial](docs/local-device-trial.md) now has a local signing/install route, private development origin and foreground media adapter; foreground playback, queue controls and catalogue recovery were confirmed on an iPhone 15 Plus, with remaining device-evidence and platform limits recorded separately.
+Open `http://127.0.0.1:8080/` to browse/search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. The separate [local iPhone trial](docs/local-device-trial.md) now has a local signing/install route, private development origin and framework media adapter. The latest increment preserves iPhone audio across backgrounding and displays embedded ID3 covers from the API; physical acceptance and platform limits are tracked in [verification](docs/verification.md).
 
 ## Simulator demo
 
@@ -50,3 +50,7 @@ With Java 21, Maven, Bash, FFmpeg/FFprobe, curl and desktop sound available:
 ```
 
 This prepares a disposable local library with two synthetic tracks and launches the Codename One desktop simulator. No cloud account or signing is needed. See the [simulator guide](docs/simulator-poc.md) for connecting to an existing API, proxy troubleshooting and verification limits.
+
+## Progress and next steps
+
+See the [project brief](docs/project-brief.md#current-progress-and-next-proposal--2026-11-20) for the completed mobile/audio/artwork checkpoint and [verification](docs/verification.md) for actual checks. The [album matching and missing artwork proposal](docs/album-matching-proposal.md) tracks proposed milestones for identifying albums, previewing/accepting fetched covers, persistent artwork and later bulk backfill. It is a proposal; automatic external artwork lookup is not implemented.
