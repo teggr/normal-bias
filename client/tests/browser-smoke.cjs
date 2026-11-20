@@ -111,20 +111,19 @@ async function seed(origin) {
     await text(page, 'Queue (1)'); // duplicate does not grow the queue
     await click(page, '+ Queue', 1);
     await text(page, 'Queue (2)');
-    await click(page, 'Play', 0);
+    await click(page, 'Play Synthetic track 00');
     await until(async () => (await audio(page)).some(a => !a.paused && a.time > 0.3), 'audio advancing');
     const firstSrc = (await audio(page))[0].src;
-    await text(page, 'Playing');
     await click(page, 'Pause');
     await until(async () => (await audio(page))[0].paused, 'pause');
     const pausedAt = (await audio(page))[0].time;
     await delay(600);
     assert.ok(Math.abs((await audio(page))[0].time - pausedAt) < 0.1, 'paused time stays still');
-    await click(page, 'Play', 25); // footer follows 25 catalogue Play buttons
+    await click(page, 'Play'); // central transport retains its accessible action name
     await until(async () => !(await audio(page))[0].paused, 'resume');
     const seek = await page.getByRole('slider').boundingBox();
     await page.mouse.click(seek.x + seek.width * 0.6, seek.y + seek.height / 2);
-    await until(async () => (await audio(page))[0].time > 5, 'seek via UI');
+    await until(async () => Math.abs((await audio(page))[0].time - 7.2) < 1, 'seek promptly reaches the chosen position', 2000);
     await click(page, 'Next');
     await until(async () => (await audio(page)).some(a => a.src !== firstSrc && !a.paused), 'queue next');
     await click(page, 'Previous');
@@ -157,12 +156,43 @@ async function seed(origin) {
     await click(page, 'Library', 0, 'radio');
     await until(() => page.getByRole('radio', {name:'Library', exact:true}).getAttribute('aria-checked').then(value => value === 'true'), 'library tab selected');
     await until(async () => {
-        const bounds = await page.getByRole('button', {name:'Play', exact:true}).first().boundingBox();
+        const bounds = await page.getByRole('button', {name:'Play Synthetic track 00', exact:true}).first().boundingBox();
         return bounds && bounds.x > 0 && bounds.x + bounds.width < 1180;
     }, 'library tab transition complete');
     // Allow the canvas repaint to finish after the tab animation.
     await delay(600);
     await page.screenshot({path:path.join(repo,'client/target/browser-smoke.png')});
+    await page.setViewportSize({width:390,height:844});
+    await until(() => page.getByRole('radio', {name:'Now Playing', exact:true}).count().then(n => n === 1), 'compact player tab');
+    await delay(600);
+    await click(page, '+ Queue', 0);
+    await text(page, 'Queue (1)');
+    await click(page, 'Play Synthetic track 00');
+    await until(async () => (await audio(page)).some(a => !a.paused && a.time > 0.2), 'compact playback');
+    await click(page, 'Now Playing', 0, 'radio');
+    await until(async () => {
+        const box = await page.getByRole('button', {name:'Back to library', exact:true}).boundingBox();
+        return box && box.x >= 0 && box.y >= 0 && box.y < 100;
+    }, 'compact player opens without browsing chrome');
+    await delay(600);
+    await click(page, 'Pause');
+    await until(async () => (await audio(page))[0].paused, 'compact pause');
+    const compactSeek = await page.getByRole('slider').boundingBox();
+    await page.mouse.click(compactSeek.x + compactSeek.width * 0.55, compactSeek.y + compactSeek.height / 2);
+    await until(async () => Math.abs((await audio(page))[0].time - 6.6) < 0.8, 'paused compact seek changes position promptly', 2000);
+    assert.equal((await audio(page))[0].paused, true, 'seeking does not resume paused playback');
+    await page.screenshot({path:path.join(repo,'client/target/browser-compact.png')});
+    await click(page, 'Queue', 0);
+    await until(() => page.getByRole('radio', {name:'Queue (1)', exact:true}).getAttribute('aria-checked').then(v => v === 'true'), 'wheel opens queue');
+    await click(page, 'Clear queue');
+    await text(page, 'Queue (0)');
+    await page.setViewportSize({width:1180,height:780});
+    await until(() => page.getByRole('radio', {name:'Now Playing', exact:true}).count().then(n => n === 0), 'wide player restored');
+    await click(page, 'Library', 0, 'radio');
+    await delay(600);
+    await click(page, '+ Queue', 0);
+    await text(page, 'Queue (1)');
+    console.log('PASS compact/wide resize, queue actions and wheel navigation');
     assert.deepEqual(errors, [], 'no uncaught page errors');
     console.log('PASS clear releases audio; no uncaught page errors');
     console.log('Browser smoke PASS');

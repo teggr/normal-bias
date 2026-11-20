@@ -1,0 +1,140 @@
+<div id="nb-review" aria-label="Normal Bias design review">
+<style>
+#nb-review { --nb-bg:light-dark(#f5f3ee,#171819);--nb-surface:light-dark(#fff,#222426);--nb-raised:light-dark(#eae7e0,#2d3032);--nb-ink:light-dark(#202224,#f4f1ea);--nb-muted:light-dark(#626661,#adb0ad);--nb-line:light-dark(#d5d3cc,#3b3f41);--nb-edge:light-dark(#747873,#858b8f);--nb-accent:light-dark(#805900,#e8bb57);--nb-gold:#e8bb57;--nb-error:light-dark(#a82d26,#ffaca5);color-scheme:light dark; }
+#nb-review .nb {font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--nb-ink);background:var(--nb-bg);border:1px solid var(--nb-line);border-radius:12px;overflow:hidden;box-sizing:border-box;}
+#nb-review .nb *{box-sizing:border-box;}
+#nb-review .stage{min-height:690px;padding-top:8px;}
+#nb-review .nb h1,#nb-review .nb h2,#nb-review .nb p{margin:0;}
+#nb-review .nb h1{font-size:28px;letter-spacing:-.8px;font-weight:650;line-height:1.2;}
+#nb-review .nb h2{font-size:20px;font-weight:600;letter-spacing:-.4px;}
+#nb-review .nb small,#nb-review .sub{font-size:13px;color:var(--nb-muted);}
+#nb-review .nb button,#nb-review .nb input{font:inherit;color:inherit;}
+#nb-review .nb button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 12px;border:0;background:transparent;border-radius:8px;white-space:nowrap;}
+#nb-review .nb button:hover{background:var(--nb-raised);}
+#nb-review .nb button:focus-visible,#nb-review .nb input:focus-visible{outline:2px solid var(--nb-accent);outline-offset:3px;}
+#nb-review .nb button:disabled{opacity:.4;}
+#nb-review .nb .primary{background:var(--nb-gold);color:#202224;}
+#nb-review .nb .primary:hover{background:#f1ca75;}
+#nb-review .nb .neutral{background:var(--nb-raised);}
+#nb-review .nb .active{color:var(--nb-accent);background:var(--nb-raised);}
+#nb-review .nb .round{border-radius:50%;width:56px;height:56px;padding:0;}
+#nb-review .nb svg{flex-shrink:0;}
+#nb-review .top{display:flex;align-items:center;gap:24px;padding:16px 24px;border-bottom:1px solid var(--nb-line);flex-wrap:wrap;}
+#nb-review .brand{font-weight:650;letter-spacing:-.5px;font-size:18px;margin-right:auto;}
+#nb-review .brand em{font-style:normal;color:var(--nb-accent);}
+#nb-review .label{font-size:11px;letter-spacing:1.5px;font-weight:600;color:var(--nb-muted);text-transform:uppercase;}
+#nb-review .workspace{display:grid;grid-template-columns:minmax(0,1fr) 260px;min-height:452px;}
+#nb-review .library{padding:28px 24px;min-width:0;}
+#nb-review .heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;}
+#nb-review .search{display:flex;align-items:center;gap:10px;background:var(--nb-surface);border:1px solid var(--nb-edge);border-radius:8px;padding:0 12px;margin:20px 0 12px;}
+#nb-review .search input{background:transparent;border:0;padding:12px 0;width:100%;min-width:0;outline-offset:0;}
+#nb-review .track{display:flex;align-items:center;gap:12px;padding:12px 0;min-height:68px;border-bottom:1px solid var(--nb-line);}
+#nb-review .track .details{flex:1;min-width:0;}
+#nb-review .track strong{display:block;font-size:15px;font-weight:550;overflow-wrap:anywhere;}
+#nb-review .track .time{font-size:12px;color:var(--nb-muted);font-variant-numeric:tabular-nums;}
+#nb-review .track.is-current strong{color:var(--nb-accent);}
+#nb-review .art{background:#343b3d;position:relative;overflow:hidden;border-radius:6px;aspect-ratio:1;display:flex;align-items:end;padding:12%;color:#f4f1ea;}
+#nb-review .art:before{content:"";position:absolute;width:140%;height:48%;background:repeating-linear-gradient(0deg,#e8bb57 0 3px,transparent 3px 13px);transform:rotate(-28deg);left:-20%;top:24%;}
+#nb-review .art span{position:relative;font-size:13px;letter-spacing:2px;font-weight:650;}
+#nb-review .thumb{width:42px;flex-shrink:0;padding:0;}
+#nb-review .art.cool:before{background:repeating-linear-gradient(0deg,#a7bec6 0 3px,transparent 3px 13px);transform:rotate(28deg);}
+#nb-review .art.rust:before{background:repeating-linear-gradient(0deg,#d99474 0 3px,transparent 3px 13px);}
+#nb-review .art.sage:before{background:repeating-linear-gradient(0deg,#b8c5a1 0 3px,transparent 3px 13px);transform:rotate(55deg);}
+#nb-review .now{padding:28px 24px;background:var(--nb-surface);border-left:1px solid var(--nb-line);}
+#nb-review .now .art{margin:20px 0;}
+#nb-review .now h2{margin-bottom:4px;}
+#nb-review .dock{padding:18px 24px;background:var(--nb-surface);border-top:1px solid var(--nb-line);display:grid;grid-template-columns:minmax(150px,1fr) minmax(220px,1.5fr) 1fr;gap:20px;align-items:center;}
+#nb-review .dock-meta{display:flex;align-items:center;gap:12px;}
+#nb-review .transport{display:flex;justify-content:center;align-items:center;gap:12px;}
+#nb-review .seek{display:flex;gap:12px;align-items:center;margin-top:14px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--nb-muted);}
+#nb-review input[type=range]{accent-color:var(--nb-accent);min-width:0;flex:1;width:100%;}
+#nb-review .footnote{font:12px/1.5 system-ui,sans-serif;color:var(--nb-muted);padding:12px 0;}
+#nb-review .pager{display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:8px;}
+#nb-review .phone{max-width:370px;margin:0 auto;border-radius:24px;}
+#nb-review .statusbar{padding:16px 24px 8px;display:flex;justify-content:space-between;font-size:13px;font-weight:600;}
+#nb-review .phonebar{display:flex;justify-content:space-between;align-items:center;padding:0 12px;}
+#nb-review .phonebody{padding:16px 24px 24px;}
+#nb-review .phonebody>.art{width:100%;max-width:280px;margin:0 auto 24px;}
+#nb-review .phonebody h1{font-size:26px;margin-bottom:6px;}
+#nb-review .phone .transport{gap:28px;margin:20px 0;}
+#nb-review .phone .round{width:68px;height:68px;}
+#nb-review .phone .seek{margin-top:24px;}
+#nb-review .home-indicator{background:var(--nb-ink);height:4px;width:110px;border-radius:4px;margin:12px auto;}
+#nb-review .android{font-family:Roboto,"Segoe UI",sans-serif;border-radius:20px;}
+#nb-review .android button{min-width:48px;min-height:48px;border-radius:16px;}
+#nb-review .android .phonebody{padding:16px 20px;}
+#nb-review .android .phonebody h1{font-weight:500;}
+#nb-review .android .search{border-radius:24px;}
+#nb-review .mini{display:flex;align-items:center;gap:10px;padding:12px;background:var(--nb-raised);margin:12px 12px 0;border-radius:12px;}
+#nb-review .mini .details{flex:1;}
+#nb-review .bottom-nav{display:flex;justify-content:space-around;border-top:1px solid var(--nb-line);padding:8px 12px;margin-top:12px;}
+#nb-review .bottom-nav button{flex-direction:column;font-size:12px;gap:4px;min-width:90px;}
+#nb-review .bottom-nav .active{background:transparent;}
+#nb-review .bottom-nav .active i,#nb-review .bottom-nav .active svg{background:var(--nb-raised);border-radius:12px;}
+#nb-review .sheet{padding:24px;background:var(--nb-surface);border-top:1px solid var(--nb-line);}
+#nb-review .sheet[hidden],#nb-review [hidden]{display:none!important;}
+#nb-review .specimens{padding:28px;}
+#nb-review .swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:24px 0 32px;}
+#nb-review .swatch{height:54px;border:1px solid var(--nb-line);border-radius:6px;margin-bottom:8px;}
+#nb-review .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;}
+#nb-review .spec-row{padding:16px 0;border-bottom:1px solid var(--nb-line);display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+#nb-review .error{color:var(--nb-error);}
+#nb-review .notice{min-height:20px;color:var(--nb-muted);font-size:12px;}
+@media(max-width:760px){#nb-review .workspace{grid-template-columns:1fr;}#nb-review .now{display:none;}#nb-review .dock{grid-template-columns:1fr 1fr;}#nb-review .dock-end{display:none;}#nb-review .top{gap:8px;padding:12px 16px;}#nb-review .library{padding:20px 16px;}#nb-review .spec-grid{grid-template-columns:1fr;}#nb-review .stage{min-height:780px;}}
+@media(max-width:470px){#nb-review .dock{grid-template-columns:1fr;}#nb-review .track{gap:8px;flex-wrap:wrap;}#nb-review .track .details{min-width:100px;}#nb-review .track .time{display:none;}#nb-review .track button{padding:8px;}#nb-review .thumb{width:32px;}#nb-review .swatches{grid-template-columns:repeat(3,1fr);}#nb-review .specimens{padding:20px;}#nb-review .stage{min-height:900px;}}
+</style>
+<div class="viz-carousel" aria-label="Quiet Hi-Fi platform mockups">
+<section data-variant="Desktop library" class="stage">
+<div class="nb desktop" aria-label="Desktop library proposal">
+<header class="top"><span class="brand">normal bias<em>.</em></span><button class="active cursor-interaction" data-view="library">Library</button><button class="cursor-interaction" data-view="queue">Queue <span class="qcount">3</span></button></header>
+<div class="workspace"><main class="library"><div class="heading"><div><div class="label">Your collection</div><h1 class="view-title">Library</h1></div><small class="result-count">4 tracks · sample library</small></div>
+<label class="search"><i data-lucide="search" aria-hidden="true"></i><input aria-label="Search sample library" placeholder="Search title, artist or album"></label>
+<div class="rows">
+<div class="track is-current" data-title="Soft Signal" data-artist="Northline" data-album="After Hours"><div class="art thumb" aria-hidden="true"></div><div class="details"><strong>Soft Signal</strong><small>Northline · After Hours</small></div><span class="time">4:32</span><button data-select="Soft Signal" aria-label="Play Soft Signal" class="cursor-interaction"><i data-lucide="play" aria-hidden="true"></i></button><button data-add="Soft Signal" aria-label="Add Soft Signal to queue" class="cursor-interaction"><i data-lucide="list-plus" aria-hidden="true"></i></button></div>
+<div class="track" data-title="Glasshouse" data-artist="Parallel" data-album="In Colour"><div class="art thumb cool" aria-hidden="true"></div><div class="details"><strong>Glasshouse</strong><small>Parallel · In Colour</small></div><span class="time">3:48</span><button data-select="Glasshouse" aria-label="Play Glasshouse" class="cursor-interaction"><i data-lucide="play" aria-hidden="true"></i></button><button data-add="Glasshouse" aria-label="Add Glasshouse to queue" class="cursor-interaction"><i data-lucide="list-plus" aria-hidden="true"></i></button></div>
+<div class="track" data-title="Slow Motion" data-artist="The Satellites" data-album="Daylight"><div class="art thumb rust" aria-hidden="true"></div><div class="details"><strong>Slow Motion</strong><small>The Satellites · Daylight</small></div><span class="time">5:06</span><button data-select="Slow Motion" aria-label="Play Slow Motion" class="cursor-interaction"><i data-lucide="play" aria-hidden="true"></i></button><button data-add="Slow Motion" aria-label="Add Slow Motion to queue" class="cursor-interaction"><i data-lucide="list-plus" aria-hidden="true"></i></button></div>
+<div class="track" data-title="First Light" data-artist="Fjord" data-album="Open Water"><div class="art thumb sage" aria-hidden="true"></div><div class="details"><strong>First Light</strong><small>Fjord · Open Water</small></div><span class="time">4:15</span><button data-select="First Light" aria-label="Play First Light" class="cursor-interaction"><i data-lucide="play" aria-hidden="true"></i></button><button data-add="First Light" aria-label="Add First Light to queue" class="cursor-interaction"><i data-lucide="list-plus" aria-hidden="true"></i></button></div>
+</div><p class="empty" hidden>No tracks match. Clear the search to see your library.</p><div class="pager"><small class="list-note">All 4 sample tracks</small><button class="cursor-interaction" data-clear-search>Clear search</button></div><p class="notice" aria-live="polite">Design preview · controls are silent</p></main>
+<aside class="now"><div class="label">Now playing</div><div class="art"><span>NORTHLINE<br>AFTER HOURS</span></div><h2 class="current-title">Soft Signal</h2><p class="current-artist sub">Northline · After Hours</p><div class="spec-row"><small>Geometric artwork fallback</small></div></aside></div>
+<footer class="dock"><div class="dock-meta"><div class="art thumb" aria-hidden="true"></div><div><strong class="current-title">Soft Signal</strong><div class="sub current-artist">Northline · After Hours</div></div></div><div><div class="transport"><button data-step="-1" aria-label="Previous track" class="cursor-interaction" disabled><i data-lucide="skip-back" aria-hidden="true"></i></button><button class="primary round cursor-interaction" data-toggle aria-label="Play"><i data-lucide="play" aria-hidden="true"></i></button><button data-step="1" aria-label="Next track" class="cursor-interaction"><i data-lucide="skip-forward" aria-hidden="true"></i></button></div><label class="seek"><span class="elapsed">1:28</span><input type="range" min="0" max="272" value="88" aria-label="Playback position"><span class="duration">4:32</span></label></div><div class="dock-end" style="text-align:right"><small>Session queue</small><p class="sub"><span class="qcount">3</span> tracks</p></div></footer></div>
+<div class="footnote">Desktop / web · proposed layout · fictional sample music</div>
+</section>
+<section data-variant="iOS player" class="stage viz-dotted-background" hidden>
+<div class="nb phone ios" aria-label="iOS now playing concept"><div class="statusbar"><span>9:41</span><span>••• ▰</span></div><div class="phonebar"><span class="label">Normal Bias</span><span class="sub">Now playing</span></div><main class="phonebody"><div class="art"><span>NORTHLINE<br>AFTER HOURS</span></div><h1>Soft Signal</h1><p class="sub">Northline · After Hours</p><label class="seek"><span class="elapsed">1:28</span><input type="range" min="0" max="272" value="88" aria-label="iOS playback position"><span>4:32</span></label><div class="transport"><button aria-label="Previous track" disabled><i data-lucide="skip-back" aria-hidden="true"></i></button><button class="primary round cursor-interaction" data-toggle aria-label="Play"><i data-lucide="play" aria-hidden="true"></i></button><button data-mobile-next class="cursor-interaction" aria-label="Next track"><i data-lucide="skip-forward" aria-hidden="true"></i></button></div><div class="pager"><small class="mobile-state" aria-live="polite">Paused · silent preview</small><button data-sheet class="cursor-interaction"><i data-lucide="list-music" aria-hidden="true"></i>Queue</button></div></main><section class="sheet" hidden><div class="heading"><h2>Up next</h2><button data-sheet class="cursor-interaction">Done</button></div><p>Glasshouse</p><small>Parallel · In Colour</small><div class="spec-row">Slow Motion <small>The Satellites</small></div><small>Session queue · cleared on reload</small></section><div class="home-indicator" aria-hidden="true"></div></div><div class="footnote" style="text-align:center">iOS concept · system typography, player sheet, 44 pt targets</div>
+</section>
+<section data-variant="Android library" class="stage viz-dotted-background" hidden>
+<div class="nb phone android" aria-label="Android library concept"><div class="statusbar"><span>9:41</span><span>••• ▰</span></div><header class="phonebar"><span class="brand">normal bias<em>.</em></span></header><main class="phonebody"><h1>Library</h1><label class="search"><i data-lucide="search" aria-hidden="true"></i><input placeholder="Search your music" aria-label="Search Android sample library"></label><div class="android-rows"><div class="track" data-match="soft signal northline"><div class="art thumb" aria-hidden="true"></div><div class="details"><strong>Soft Signal</strong><small>Northline</small></div><button data-mobile-select="Soft Signal" aria-label="Play Soft Signal" class="cursor-interaction"><i data-lucide="play" aria-hidden="true"></i></button></div><div class="track" data-match="glasshouse parallel"><div class="art thumb cool" aria-hidden="true"></div><div class="details"><strong>Glasshouse</strong><small>Parallel</small></div><button data-mobile-select="Glasshouse" aria-label="Play Glasshouse" class="cursor-interaction"><i data-lucide="play" aria-hidden="true"></i></button></div><div class="track" data-match="slow motion satellites"><div class="art thumb rust" aria-hidden="true"></div><div class="details"><strong>Slow Motion</strong><small>The Satellites</small></div><button data-mobile-select="Slow Motion" aria-label="Play Slow Motion" class="cursor-interaction"><i data-lucide="play" aria-hidden="true"></i></button></div></div><p class="mobile-state notice" aria-live="polite">3 sample tracks · silent preview</p></main><div class="mini"><div class="art thumb" aria-hidden="true"></div><div class="details"><strong class="mobile-title">Soft Signal</strong><div class="sub mobile-artist">Northline</div></div><button class="cursor-interaction" data-toggle aria-label="Play"><i data-lucide="play" aria-hidden="true"></i></button></div><nav class="bottom-nav" aria-label="Android navigation"><button class="active cursor-interaction" data-android-tab="library"><i data-lucide="library" aria-hidden="true"></i>Library</button><button class="cursor-interaction" data-android-tab="queue"><i data-lucide="list-music" aria-hidden="true"></i>Queue</button></nav><div class="home-indicator" aria-hidden="true"></div></div><div class="footnote" style="text-align:center">Android concept · Material conventions, tonal navigation, 48 dp targets</div>
+</section>
+<section data-variant="System and states" class="stage" hidden>
+<div class="nb specimens" aria-label="Design system components"><div class="label">Quiet Hi-Fi</div><h1>One identity. Native expression.</h1><div class="swatches"><div><div class="swatch" style="background:var(--nb-bg)"></div><small>Canvas</small></div><div><div class="swatch" style="background:var(--nb-surface)"></div><small>Surface</small></div><div><div class="swatch" style="background:var(--nb-ink)"></div><small>Ink</small></div><div><div class="swatch" style="background:var(--nb-muted)"></div><small>Secondary</small></div><div><div class="swatch" style="background:var(--nb-gold)"></div><small>Amber</small></div></div><div class="spec-grid"><section><h2>Controls</h2><div class="spec-row"><button class="primary cursor-interaction" data-toggle>Play</button><button class="neutral cursor-interaction" data-example>Add to queue</button><button disabled>Next</button></div><div class="spec-row"><span class="label">Spacing</span><span>4 / 8 / 12 / 16 / 24 / 32</span></div><div class="spec-row"><h1>Library</h1><span>System sans · quiet hierarchy</span></div><div class="spec-row"><div class="art thumb" aria-hidden="true"></div><span>Original artwork fallback</span></div></section><section><h2>Useful states</h2><div class="spec-row"><i data-lucide="loader" aria-hidden="true"></i><span>Buffering…</span><button data-example class="cursor-interaction">Retry track</button></div><div class="spec-row"><span class="error">Couldn't load this track.</span><button data-example class="cursor-interaction">Retry track</button></div><div class="spec-row"><span>No tracks match your search.</span><button data-example class="cursor-interaction">Clear search</button></div><div class="spec-row"><span>Your library is empty.</span><small>Add MP3s using the uploader to begin.</small></div></section></div><p class="notice specimen-notice" aria-live="polite">State specimens · no requests or audio</p></div><div class="footnote">System appearance · flat surfaces · semantic colours · accessible targets</div>
+</section></div>
+<script>
+(()=>{
+const root=document.getElementById('nb-review');
+const state={appearance:'System',density:'Comfortable'};
+const renderDesign=()=>{root.style.colorScheme=state.appearance==='System'?'light dark':state.appearance.toLowerCase();root.querySelectorAll('.track').forEach(r=>r.style.minHeight=state.density==='Compact'?'60px':'72px');};
+renderDesign();
+if(globalThis.Tweak){const t=new Tweak({container:root,onChange:renderDesign});t.addSelect(state,'appearance',{options:['System','Dark','Light'],label:'Appearance'});t.addSelect(state,'density',{options:['Comfortable','Compact'],label:'Row density'});}
+const desktop=root.querySelector('.desktop');const rows=[...desktop.querySelectorAll('.track')];let queue=['Soft Signal','Glasshouse','Slow Motion'], current='Soft Signal',view='library';
+const artists={'Soft Signal':'Northline','Glasshouse':'Parallel','Slow Motion':'The Satellites','First Light':'Fjord'};
+const lengths={'Soft Signal':272,'Glasshouse':228,'Slow Motion':306,'First Light':255};
+const format=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
+function updateList(){let n=0;const q=desktop.querySelector('input:not([type=range])').value.toLowerCase();rows.forEach(r=>{const show=(view==='library'||queue.includes(r.dataset.title))&&r.textContent.toLowerCase().includes(q);r.hidden=!show;if(show)n++;});desktop.querySelector('.empty').hidden=n!==0;desktop.querySelector('.result-count').textContent=n+(n===1?' track':' tracks')+' · sample '+view;desktop.querySelector('.view-title').textContent=view==='library'?'Library':'Queue';desktop.querySelector('.list-note').textContent=view==='library'?'All matching sample tracks':'Session queue · cleared on reload';desktop.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));desktop.querySelectorAll('.qcount').forEach(e=>e.textContent=queue.length);}
+function selectTrack(title){current=title;if(!queue.includes(title))queue.push(title);const row=rows.find(r=>r.dataset.title===title);desktop.querySelectorAll('.current-title').forEach(e=>e.textContent=title);desktop.querySelectorAll('.current-artist').forEach(e=>e.textContent=row.dataset.artist+' · '+row.dataset.album);rows.forEach(r=>r.classList.toggle('is-current',r===row));desktop.querySelector('.now .art span').textContent=row.dataset.artist.toUpperCase()+' / '+row.dataset.album.toUpperCase();desktop.querySelector('.duration').textContent=format(lengths[title]);const range=desktop.querySelector('[type=range]');range.max=lengths[title];range.value=0;desktop.querySelector('.elapsed').textContent='0:00';desktop.querySelector('[data-step="-1"]').disabled=queue.indexOf(title)===0;desktop.querySelector('[data-step="1"]').disabled=queue.indexOf(title)===queue.length-1;desktop.querySelector('.notice').textContent='Selected '+title+' · silent preview';updateList();}
+root.querySelectorAll('[data-toggle]').forEach(b=>b.addEventListener('click',()=>{const playing=b.dataset.playing!=='true';b.dataset.playing=String(playing);b.setAttribute('aria-label',playing?'Pause':'Play');b.innerHTML='<i data-lucide="'+(playing?'pause':'play')+'" aria-hidden="true"></i>';if(globalThis.lucide)lucide.createIcons();const scope=b.closest('.nb');const out=scope.querySelector('.mobile-state,.notice');if(out)out.textContent=(playing?'Playing state':'Paused')+' · silent preview';}));
+desktop.querySelector('input:not([type=range])').addEventListener('input',updateList);
+desktop.querySelector('[data-clear-search]').addEventListener('click',()=>{desktop.querySelector('input:not([type=range])').value='';updateList();});
+desktop.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{view=b.dataset.view;updateList();}));
+desktop.querySelectorAll('[data-select]').forEach(b=>b.addEventListener('click',()=>selectTrack(b.dataset.select)));
+desktop.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>{if(!queue.includes(b.dataset.add))queue.push(b.dataset.add);desktop.querySelector('.notice').textContent=b.dataset.add+' is in your queue';updateList();}));
+desktop.querySelectorAll('[data-step]').forEach(b=>b.addEventListener('click',()=>{const title=queue[queue.indexOf(current)+Number(b.dataset.step)];if(title)selectTrack(title);}));
+root.querySelectorAll('[type=range]').forEach(r=>r.addEventListener('input',()=>r.closest('.seek').querySelector('.elapsed').textContent=format(Number(r.value))));
+root.querySelectorAll('[data-sheet]').forEach(b=>b.addEventListener('click',()=>{const sheet=b.closest('.phone').querySelector('.sheet');sheet.hidden=!sheet.hidden;}));
+const ios=root.querySelector('.ios');ios.querySelector('[data-mobile-next]').addEventListener('click',()=>{ios.querySelector('h1').textContent='Glasshouse';ios.querySelector('.phonebody>.sub').textContent='Parallel · In Colour';ios.querySelector('.phonebody>.art span').textContent='PARALLEL / IN COLOUR';const seek=ios.querySelector('[type=range]');seek.max=228;seek.value=0;ios.querySelector('.elapsed').textContent='0:00';ios.querySelector('.seek span:last-child').textContent='3:48';ios.querySelector('.mobile-state').textContent='Next track selected · silent preview';ios.querySelector('[data-mobile-next]').disabled=true;});
+const android=root.querySelector('.android');android.querySelector('input').addEventListener('input',e=>{let count=0;android.querySelectorAll('[data-match]').forEach(r=>{r.hidden=!r.dataset.match.includes(e.target.value.toLowerCase());if(!r.hidden)count++;});android.querySelector('.mobile-state').textContent=count?count+' matching tracks':'No tracks match your search.';});
+android.querySelectorAll('[data-mobile-select]').forEach(b=>b.addEventListener('click',()=>{android.querySelector('.mobile-title').textContent=b.dataset.mobileSelect;android.querySelector('.mobile-artist').textContent=artists[b.dataset.mobileSelect];android.querySelector('.mobile-state').textContent='Selected '+b.dataset.mobileSelect+' · silent preview';}));
+android.querySelectorAll('[data-android-tab]').forEach(b=>b.addEventListener('click',()=>{const isQueue=b.dataset.androidTab==='queue';android.querySelector('h1').textContent=isQueue?'Queue':'Library';android.querySelector('.search').hidden=isQueue;android.querySelectorAll('[data-match]').forEach(r=>r.hidden=false);android.querySelector('.mobile-state').textContent=isQueue?'3 queued tracks · cleared on reload':'3 sample tracks · silent preview';android.querySelectorAll('[data-android-tab]').forEach(x=>x.classList.toggle('active',x===b));}));
+root.querySelectorAll('[data-example]').forEach(b=>b.addEventListener('click',()=>root.querySelector('.specimen-notice').textContent=b.textContent+' — state specimen only; no request sent.'));
+})();
+</script>
+</div>
