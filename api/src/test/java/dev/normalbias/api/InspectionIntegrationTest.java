@@ -97,7 +97,7 @@ class InspectionIntegrationTest {
         var rows = new ArrayList<Object[]>();
         for (int i = 0; i < 14000; i++) rows.add(new Object[]{String.format("%064x", i), "tone.mp3", "Song " + i,
                 null, null, 1000, tone.length, OffsetDateTime.parse("2026-11-18T00:00:00Z")});
-        db.batchUpdate("INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows);
+        db.batchUpdate("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows);
         String path = start("quick");
         assertEquals(14000, get("/api/tracks?limit=1").get("total").asLong());
         JsonNode status = completed(path);

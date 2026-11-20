@@ -105,3 +105,7 @@ See [verification record](verification.md) for observed results from the task en
 - mp3agic 0.9.1 is a small pure-Java parser whose upstream is no longer actively maintained. Review parser/dependency maintenance and hardening before expanding beyond trusted local PoC use.
 - No general automatic repair/import of ambiguous files or missing source material. Missing/truncated stored files fail streaming until repaired; do not edit storage behind the running service.
 - VPS/deploy4j and optional Cloudflare R2 remain future directions, not delivered features.
+
+## Accepted album covers — 2026-11-20
+
+The additive album-artwork API now supports metadata-only MusicBrainz matching, CAA previews and explicit acceptance for selected track IDs. Track JSON adds `artworkRevision`; artwork ETags now identify image content, and uncovered responses are not cached. Original audio IDs/bytes, metadata edit contracts and Range streaming remain unchanged. Flyway V3 stores accepted images/provenance separately, with recoverable local publication; this does not modify embedded tags. See [album-artwork.md](album-artwork.md) for the exact routes, revision checks, provider limits, storage and deferred bulk work.

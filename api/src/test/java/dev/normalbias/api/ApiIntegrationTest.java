@@ -249,7 +249,7 @@ class ApiIntegrationTest {
             rows.add(new Object[]{String.format("%064x", i), "track-" + i + ".mp3", "Song " + i,
                     "Artist " + (i % 140), "Album " + (i % 700), 1000L, 8686L, created});
         }
-        db.batchUpdate("INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows);
+        db.batchUpdate("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows);
         var timings = new ArrayList<Double>();
         for (int repetition = 0; repetition < 10; repetition++) {
             for (String query : List.of("sOnG", "Artist 139", "Album 699", "track-13999.mp3", "absent")) {

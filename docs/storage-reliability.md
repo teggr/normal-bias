@@ -79,3 +79,9 @@ Inspection is report-only: it never moves, deletes, imports or rewrites music or
 ## Verification
 
 Run `mvn clean verify` using Java 21. Tests use temporary file-backed H2 and synthetic audio only. They cover fresh/legacy migrations, checksum rejection, durable operation replay, preservation on failure and duplicate repair. Online checks cover quick/full detection, HTTP run lifecycle/failure/retention, paginated findings across 14,000 rows, active-upload exclusion and deterministic concurrent hashing with deletion/re-upload or audio repair. See [verification.md](verification.md) for actual results and remaining gaps.
+
+## Album artwork storage (V3) — 2026-11-20
+
+V3 adds track metadata/artwork revisions and separate `artwork_assets`, `album_selections`, `album_members` tables. Accepted image bytes are a durable recovery source in H2; the API atomically materializes normalized PNG files under the separate `artwork/` directory before committing associations/revisions/provenance in one transaction. Startup reconstructs missing or corrupt artwork files before serving requests. A failed or stale acceptance preserves the last committed associations; unfinished acceptance is not silently replayed as approval. Lookup jobs expire and must be restarted. Audio upload/deletion intents retain their existing recovery semantics; no offline inspection/repair command is added.
+
+Deleting a track cascades its artwork association but never deletes a shared asset or selection provenance. Unreferenced assets and selection evidence remain retained until a later explicit cleanup policy. Online audio inspection still scans `music/`; it does not validate artwork sidecars. Backup/restore remains deferred. See [album artwork](album-artwork.md) for the API, recovery limits and original-byte guarantees.

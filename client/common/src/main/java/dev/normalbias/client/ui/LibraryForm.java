@@ -131,7 +131,11 @@ public final class LibraryForm extends Form {
         back.addActionListener(e -> tabs.setSelectedIndex(0));
         HardwareButton info = new HardwareButton("Player information", FontImage.MATERIAL_INFO_OUTLINE, false);
         info.setUIID("HeaderHardware");
-        info.addActionListener(e -> showDetails());
+        info.addActionListener(e -> {
+            Track current = player.queue.current();
+            if (current == null) showDetails();
+            else new ArtworkForm(api, current, this, () -> { player.refreshArtwork(); load(offset); }, player::poll).show();
+        });
         Container playerHeader = BorderLayout.center(new Label("Now Playing", "PlayerHeading"))
                 .add(BorderLayout.WEST, back).add(BorderLayout.EAST, info);
         playerHeader.setUIID("PlayerHeader");
@@ -263,7 +267,11 @@ public final class LibraryForm extends Form {
         art.setTrack(track, api);
         Container detail = BorderLayout.center(copy).add(BorderLayout.WEST, art);
         detail.setLeadComponent(listen);
-        Container row = BorderLayout.center(detail).add(BorderLayout.EAST, enqueue);
+        Button artwork = new Button();
+        icon(artwork, "Find album artwork", FontImage.MATERIAL_IMAGE, "RowAction");
+        artwork.addActionListener(e -> new ArtworkForm(api, track, this,
+                () -> { player.refreshArtwork(); load(offset); }, player::poll).show());
+        Container row = BorderLayout.center(detail).add(BorderLayout.EAST, BoxLayout.encloseX(artwork, enqueue));
         row.setUIID("TrackRow");
         return row;
     }

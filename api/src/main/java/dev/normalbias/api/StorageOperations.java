@@ -89,7 +89,7 @@ public class StorageOperations {
         }
         transaction.executeWithoutResult(status -> {
             if (db.queryForObject("SELECT COUNT(*) FROM tracks WHERE id = ?", Integer.class, track.id()) == 0) {
-                db.update("INSERT INTO tracks VALUES (?, ?, ?, ?, ?, ?, ?, ?)", track.id(), track.filename(),
+                db.update("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", track.id(), track.filename(),
                         track.title(), track.artist(), track.album(), track.durationMs(), track.sizeBytes(), track.createdAt());
             }
             db.update("DELETE FROM pending_uploads WHERE id = ?", track.id());
@@ -99,7 +99,7 @@ public class StorageOperations {
 
     void recover() throws IOException {
         for (String id : db.queryForList("SELECT id FROM pending_deletions ORDER BY id", String.class)) finishDeletion(id);
-        var uploads = db.query("SELECT * FROM pending_uploads ORDER BY id", (r, n) ->
+        var uploads = db.query("SELECT *, 'embedded' AS artwork_revision FROM pending_uploads ORDER BY id", (r, n) ->
                 new PendingUpload(TrackStore.ROW.mapRow(r, n), r.getString("staging_name")));
         for (var upload : uploads) finishUpload(upload.track(), upload.name());
 
