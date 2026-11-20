@@ -79,6 +79,8 @@ Sources checked 2026-11-20: [Codename One car API](https://www.codenameone.com/b
 
 Robin requested saving this work in a separate PR for later continuation. A different Apple account is an option to investigate, not a selected account or authorisation to switch now. No further account changes, purchase or entitlement submission are part of this checkpoint.
 
+Saved in [draft PR #10](https://github.com/teggr/normal-bias/pull/10), branch `codex/carplay-poc`, based on `main` after merged album-art PR #9. The PR remains unmerged; its account/profile and native runtime gates are intentional resume checkpoints.
+
 When resuming:
 
 1. Choose an Apple account/team Robin owns or is authorised to develop under. Check its membership, role, agreements and CarPlay audio capability before assuming it can grant access; a different free account alone is not evidence that the restriction disappears.

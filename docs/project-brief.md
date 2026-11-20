@@ -111,6 +111,8 @@ CarPlay account follow-up (2026-11-20): after Robin signed in and personally acc
 
 Robin requested recording this checkpoint and opening a separate CarPlay PR for later continuation. Using a different authorised Apple account/team remains an option to investigate; no account is selected and switching accounts, purchasing membership or submitting an entitlement request is not part of this checkpoint. The CarPlay guide records the resume sequence and native acceptance gates.
 
+Review checkpoint: [draft PR #10](https://github.com/teggr/normal-bias/pull/10) on `codex/carplay-poc`, based on `4be1625` after merged album-art PR #9. The changes remain separate from artwork implementation; fresh post-rebase API/CLI, client/web and browser checks pass. Native CarPlay remains unverified and the PR is unmerged.
+
 ## Desktop simulator increment
 
 On 2026-11-19 Robin narrowed the immediate next step to a demoable simulator experience before a physical-device build. The Java client now has simulator-only framework media playback, a loopback API-origin launch override and compact layouts for phone skins while preserving wide browser layouts and its browser audio bridge. Local network failures remain inline without automatic cloud reporting/account prompts. A launcher and disposable synthetic-demo helper are provided; see [simulator guide](simulator-poc.md) for the tested launch and runtime limits. The Linux simulator was exercised with a software sound output and recorded with actual decoded application audio. At that simulator checkpoint no cloud account, native build, signing, deployment or physical-device verification had been performed. The subsequent local iPhone foreground trial above now shares its framework adapter and verifies private API reachability.
