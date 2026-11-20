@@ -97,7 +97,7 @@ Robin explicitly approved restarting the existing private trial service at `192.
 ## Current progress and next proposal — 2026-11-20
 
 - **Completed and verified:** iPhone background playback/locked queue advance; embedded-cover API/client; native title/artist/artwork, play/pause/next/previous and paused/playing lock-screen seek. The current increment passed 38 API/CLI tests, five client tests, browser audio/navigation regressions, local web generation and signed iPhone build/install. Physical results and limitations are in [verification](verification.md).
-- **Review checkpoint:** Robin requested a PR for the work delivered so far on `codex/background-audio-artwork`. No merge or deployment is requested.
+- **Review checkpoint:** [PR #8](https://github.com/teggr/normal-bias/pull/8) is open for the delivered work and next-step proposal on `codex/background-audio-artwork`. No merge or deployment is requested.
 - **Next-step progress tracking:** Robin requested the [album matching and missing artwork proposal](album-matching-proposal.md). It contains milestone statuses and acceptance gates. The proposal is written; matching implementation and bulk backfill have not started. Its providers, grouping rules, schema/API details and automatic-selection policy remain recommendations for review, rather than approved implementation decisions.
 - **Still outside verified scope:** Android, CarPlay, call/headphone interruption recovery, prolonged background reliability and a saved physical-device recording with sound. The final synthetic browser recording includes actual application audio; its limits are recorded separately.
 

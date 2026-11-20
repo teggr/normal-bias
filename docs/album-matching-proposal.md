@@ -16,7 +16,7 @@ Robin requested a next-step proposal and progress tracking after the background 
 | Album candidate matching / preview / acceptance | Not started | Next proposed implementation milestone |
 | Automatic bulk artwork backfill | Deferred | Follow after single-album matching and cache refresh are verified |
 
-The completed implementation and this proposal are being submitted together for review. The PR is a review checkpoint, not a merge or deployment. The project brief records the current review link once created.
+The completed implementation and this proposal are submitted together in [PR #8](https://github.com/teggr/normal-bias/pull/8). The PR is a review checkpoint, not a merge or deployment.
 
 ## Problem and recommended first milestone
 
