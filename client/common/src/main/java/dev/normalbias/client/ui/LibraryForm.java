@@ -7,11 +7,14 @@ import com.codename1.ui.util.UITimer;
 import dev.normalbias.client.Track;
 import dev.normalbias.client.net.LibraryApi;
 import dev.normalbias.client.player.Player;
+import dev.normalbias.client.car.CarListening;
+import com.codename1.car.Car;
 
 /** A small listening surface; all state changes occur on the Codename One EDT. */
 public final class LibraryForm extends Form {
     private final LibraryApi api;
     private final Player player;
+    private final CarListening car;
     private final TextField search = new TextField("", "Search title, artist or album", 30, TextField.ANY);
     private final Container tracks = new Container(BoxLayout.y());
     private final Container queue = new Container(BoxLayout.y());
@@ -56,6 +59,8 @@ public final class LibraryForm extends Form {
         this.api = api;
         compact = CN.getDisplayWidth() < CN.convertToPixels(120);
         player = new Player(api, this::refreshPlayer);
+        car = new CarListening(api, player);
+        Car.setApplication(car);
         getToolbar().setHidden(true);
         getToolbar().setVisible(false);
         icon(find, "Search", FontImage.MATERIAL_SEARCH, "SearchAction");
@@ -294,6 +299,7 @@ public final class LibraryForm extends Form {
         pageNext.setVisible(total > LibraryApi.PAGE_SIZE);
     }
     private void refreshPlayer() {
+        if (car != null) car.refresh();
         Track current = player.queue.current();
         title.setText(current == null ? "Nothing playing" : current.title());
         artist.setText(current == null ? "Your library" : current.artist());
@@ -349,6 +355,8 @@ public final class LibraryForm extends Form {
         return seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
     }
     public void disposePlayer() {
+        Car.endSession();
+        Car.setApplication(null);
         player.release();
         refreshPlayer();
     }

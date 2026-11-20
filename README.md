@@ -9,6 +9,7 @@ A self hosted music service
 - [Album matching and missing artwork](docs/album-artwork.md)
 - [Desktop simulator demo](docs/simulator-poc.md)
 - [Local device trial plan](docs/local-device-trial.md)
+- [CarPlay feasibility PoC and signing gate](docs/carplay-poc.md)
 - [Instructions for coding agents](AGENTS.md)
 - [Official Codename One authoring skill](.agent-skills/codename-one/SKILL.md)
 - [Cloud UI demonstration recording skill](.agents/skills/ui-demo-recording/SKILL.md)

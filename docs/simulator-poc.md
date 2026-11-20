@@ -2,6 +2,8 @@
 
 The Codename One Java client can now run in its desktop simulator with a phone skin, a local API and streamed audio. This is the desktop JVM simulator, not an Android emulator or the Apple iOS simulator; it does not establish native device, background playback or CarPlay support.
 
+The separately authorised [CarPlay PoC](carplay-poc.md) exercises the framework's simulated head unit against the same Java player. Its guide covers the Car menu, repeatable desktop probe, local iOS preparation and the Apple signing gate.
+
 ## Run the disposable demonstration
 
 Install a Java 21 JDK, Maven 3.6.3+, Bash, FFmpeg (`ffmpeg` and `ffprobe`) and `curl`, all on PATH. Use a graphical desktop with a working Java Sound output device. No Codename One cloud account or signing assets are required.
