@@ -7,8 +7,10 @@ import com.codename1.ui.CN;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Uses the framework media implementation in the desktop simulator and the foreground iPhone trial. */
+/** Uses the framework media implementation in the desktop simulator and the iPhone background playback. */
 final class FrameworkAudio implements BrowserAudio {
+    private final Runnable stateChanged;
+    FrameworkAudio(Runnable stateChanged) { this.stateChanged = stateChanged; }
     private Media media;
     private int generation;
     private boolean loading;
@@ -27,7 +29,7 @@ final class FrameworkAudio implements BrowserAudio {
         CN.startThread(() -> {
             try {
                 MediaManager.createMediaAsync(url, false, () -> CN.callSerially(() -> {
-                    if (request == generation) { ended = true; wantPlay = false; }
+                    if (request == generation) { ended = true; wantPlay = false; stateChanged.run(); }
                 })).ready(created -> CN.callSerially(() -> {
                     if (request != generation) { created.cleanup(); return; }
                     media = created;
@@ -57,6 +59,7 @@ final class FrameworkAudio implements BrowserAudio {
                     if (request == generation) {
                         loading = false;
                         if (!wantPlay) media.pause();
+                        stateChanged.run();
                     }
                 })).except(failure -> CN.callSerially(() -> {
                     if (request == generation) fail();

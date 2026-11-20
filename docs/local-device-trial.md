@@ -2,7 +2,7 @@
 
 Proposed 2026-11-20 against `d137316`. This is a trial plan, not a verified native-build guide. The selected target is an iPhone 15 Plus running iOS 27.2.1 (selected 2026-11-20). Keep Java 21, Maven and Codename One 7.0.282; do not upgrade the framework just to follow newer examples.
 
-Goal: build on your own computer, install on one physical phone, and browse and play a disposable synthetic library without deploying the service. Start with foreground playback; background audio and CarPlay need separate trials. This increment releases iPhone audio when leaving the foreground and refreshes the stopped controls; returning requires pressing Play/Retry and restarts the selected track.
+Goal: build on your own computer, install on one physical phone, and browse and play a disposable synthetic library without deploying the service. The original foreground trial is complete. The 2026-11-20 follow-up retains audio when switching apps or locking the iPhone, and adds embedded covers; the acceptance checklist below records the remaining physical checks. CarPlay remains separate.
 
 ## 1. Establish the working local baseline
 
@@ -133,7 +133,7 @@ Capture a short recording of the final app with actual sound for playback eviden
 
 ## 6. Decide the following increment from the results
 
-If foreground listening passes, test screen lock/background playback, headset/system commands, metadata and interruption handling as the next milestone. Real artwork, persistent playlists, deployment and CarPlay remain separate decisions. If packaging or playback fails, retain the exact failure and make that the next bounded investigation.
+If foreground listening passes, test screen lock/background playback, headset/system commands, metadata and interruption handling as the next milestone. Background playback and embedded artwork were subsequently authorised; persistent playlists, deployment and CarPlay remain separate decisions. If packaging or playback fails, retain the exact failure and make that the next bounded investigation.
 
 ## Status of this plan
 
@@ -163,12 +163,13 @@ See [verification](verification.md) for actual results and remaining gates, and 
 
 Robin explicitly authorised the 24 MP3s in `$HOME/Uploads` for a private two-album listening trial. They were uploaded with the Java CLI (12 Oasis, 12 Roxy Music), together with the existing two synthetic clips, into the ignored `data/device-trial-albums/` directory. All 24 source-file SHA-256 hashes match imported catalogue IDs. The source files are unchanged. No real music is committed or used in automated test fixtures/recordings.
 
-The phone's same private endpoint now serves this retained 26-track library. It is **not** the disposable demo helper: stopping the API preserves the catalogue and audio. Start it from the repository root with Java 21, adjusting the private bind if needed (an address change also requires rebuilding the phone's origin):
+The phone's same private endpoint now serves this retained 26-track library. It is **not** the disposable demo helper: stopping the API preserves the catalogue and audio. Start it from the repository root with Java 21, adjusting the private bind if needed (an address change also requires rebuilding the phone's origin). When working in another Git worktree, point `NORMALBIAS_TRIAL_DATA_DIR` at the **existing** retained library rather than creating an empty catalogue in the new checkout. The 2026-11-20 follow-up uses the earlier worktree's library, as recorded in [verification](verification.md). Stop the current service before opening the same directory elsewhere:
 
 ```sh
+export NORMALBIAS_TRIAL_DATA_DIR="${NORMALBIAS_TRIAL_DATA_DIR:-$PWD/data/device-trial-albums}"
 java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
   --server.address=192.168.1.205 --server.port=18082 \
-  --normalbias.data-dir="$PWD/data/device-trial-albums" \
+  --normalbias.data-dir="$NORMALBIAS_TRIAL_DATA_DIR" \
   --spring.web.resources.static-locations="file:$PWD/client/target/web/"
 ```
 
@@ -180,4 +181,23 @@ java -jar cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar "$HOME/Uploads" http://1
 
 Exact-file duplicates are reused. Stop that loopback service before restarting the private command above; never run two APIs against the same data directory. Do not run the disposable `demo-device-api.sh` on an occupied port or point its cleanup at this retained library. There is no new public bind, cloud build, deployment or change to normal API defaults.
 
-The UI remains a paginated track catalogue. Search for `Oasis`, `Roxy Music` or an album title to inspect that album; it does not yet group albums or extract their covers. Artwork remains title-based generated sleeves. The (…) player action now navigates directly to Queue, with track information on the header info action.
+The UI remains a paginated track catalogue. Search for `Oasis`, `Roxy Music` or an album title to inspect that album; it does not yet group albums. The latest API extracts embedded ID3v2 JPEG/PNG covers on demand, including existing imports. Tracks without usable art retain their title-based generated sleeves. The (…) player action now navigates directly to Queue, with track information on the header info action.
+
+## Background/audio-artwork acceptance — 2026-11-20
+
+The shared Java framework adapter now survives lifecycle `stop()`; `destroy()`, Clear queue and replacement still clean up. `codename1.arg.ios.background_modes=music` generates `UIBackgroundModes` containing `audio`. The pinned iOS port configures `AVAudioSessionCategoryPlayback`. Completion invokes the Java player's poll on the EDT so queue advance does not depend on the visible form's timer. Returning to the app shows the same player/queue. The follow-up adds iOS MediaPlayer lock-screen controls and coherent title/artist/album/artwork through a narrow native interface. Commands return to the same Java player on the EDT. Previous/Next are enabled only within the finite queue, system seek uses milliseconds, paused metadata has rate zero, and clear/queue completion removes system metadata and command targets. Automatic interruption recovery remains separate.
+
+After building/signing/installing with the commands above, test on the physical phone:
+
+1. Play and switch to another app for at least 30 seconds; confirm uninterrupted sound and continued position on return.
+2. Play and lock for at least 30 seconds; confirm uninterrupted sound and continued position after unlock.
+3. Queue two tracks, seek close to the end of the first, lock, and confirm the second starts while locked. Repeat app switching across a transition; confirm the queue finishes once at its boundary.
+4. Pause, switch/lock/return; confirm it stays paused. Recheck foreground seek/next/previous and Clear queue.
+5. Check real covers in Library, Now Playing and mini-player. Switch quickly between covered/uncovered tracks; confirm fallback replaces the prior art and late requests cannot overwrite the current selection.
+6. Confirm search, pagination, catalogue failure/retry and audio retry still work. Network loss, calls/headphones and system commands require separately recorded results; do not infer them from these checks.
+
+Capture synthetic-only phone evidence with actual sound where supported; do not record personal music. See [verification](verification.md) for the installed build and acceptance results.
+
+The retained-library artwork check distinguishes embedded art from missing tags: all 12 Roxy Music files contain an embedded image; the 12 Oasis MP3s and two synthetic demo clips contain none. Generated sleeves for those 14 files are expected. Search for `Roxy` to check extraction. No external cover download or tag-writing fallback has been added. Native lock-screen metadata is updated on track/state/duration/queue-boundary changes and explicit seeks; iOS advances its own elapsed clock between updates so routine Java polling does not overwrite an in-progress scrub gesture. The selected track's catalogue duration remains available until the native adapter reports a positive duration, including after background queue transitions.
+
+Final physical acceptance on 2026-11-20: Robin confirmed lock-screen seeking works both paused (position jumps and remains paused) and playing after the final build. Background app switching, screen lock, queue advance while locked, paused-state preservation, system play/next/previous and stopping sound on Clear were separately confirmed. The agent directly checked native covered-track rendering and lock-screen metadata/pause through Device Hub. These results apply to the selected iPhone 15 Plus / iOS 27.2.1; they do not establish Android, CarPlay, calls/headphones, long-term background reliability or a saved physical-device recording with sound.

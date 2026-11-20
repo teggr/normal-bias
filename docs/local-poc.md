@@ -33,11 +33,18 @@ The data directory contains `catalogue.mv.db`, `.normal-bias.lock`, `music/<sha2
 | `DELETE /api/tracks/{id}` | Removes catalogue entry and stored audio; 204 with no body, or 404 (including repeat deletion). |
 | `GET /api/tracks/{id}/audio` | Exact stored bytes, `audio/mpeg`, `Content-Length`, `Accept-Ranges: bytes`, SHA-256 ETag. |
 | `HEAD /api/tracks/{id}/audio` | Same stream headers without a body. |
+| `GET/HEAD /api/tracks/{id}/artwork` | Derived embedded cover as `image/png`, or 404 for missing/invalid/unsupported art or unknown track. HEAD omits body. Private one-day cache and versioned ETag; matching `If-None-Match` returns 304. |
 | `POST /api/inspections?mode=quick` | Starts a background quick/full check; 202 with run status and Location; 409 if busy. |
 | `GET /api/inspections/{id}` | Run state/progress/counts/error; 404 for unknown/evicted runs. |
 | `GET /api/inspections/{id}/findings?offset=0&limit=50` | Paginated findings and run state; default 50, maximum 200. |
 
-Track JSON: `id` (lowercase SHA-256 of complete file bytes), `filename` (basename), `title`, nullable `artist`/`album`, `durationMs`, `sizeBytes`, `createdAt` (UTC). ID3v2 is preferred over ID3v1; missing title falls back to filename. Metadata strings are capped at 1024 characters. No artwork extraction or tag editing.
+Track JSON: `id` (lowercase SHA-256 of complete file bytes), `filename` (basename), `title`, nullable `artist`/`album`, `durationMs`, `sizeBytes`, `createdAt` (UTC). ID3v2 is preferred over ID3v1; missing title falls back to filename. Metadata strings are capped at 1024 characters. Embedded artwork is served separately; no image bytes or new fields are added to catalogue JSON. No embedded-tag rewriting.
+
+### Embedded covers
+
+Artwork is read on demand from the existing immutable MP3's leading ID3v2 tag, including files imported before this endpoint existed. No reimport, migration, external cover lookup or durable sidecar files are needed. The server reads at most a 16 MiB tag, accepts at most 8 MiB of JPEG/PNG cover data, and checks dimensions before decoding (maximum 4096 per dimension and 16 million pixels). Missing, malformed, unsupported or excessive art returns 404 so clients can use a fallback. A storage I/O failure remains a server failure rather than an invented cover.
+
+Images are resized proportionally to at most 512 pixels on their longest edge, encoded as PNG without source metadata, and cached in a 16-entry in-memory LRU, including missing-art results. Extraction is serialized to bound simultaneous decoding memory and does not hold the upload/deletion monitor. Track existence is checked before serving cached covers, including after deletion. Deleting audio removes its embedded artwork with it. Catalogue edits and exact-file duplicates do not change the cover or original audio. Cache contents disappear on restart and regenerate from the stored MP3.
 
 ### Listing, searching and managing tracks
 
@@ -93,7 +100,7 @@ See [verification record](verification.md) for observed results from the task en
 ## Remaining limitations and future work
 
 - No public exposure: no authentication, authorisation, TLS, quotas or adversarial upload hardening. Loopback defaults do not protect against other local processes.
-- No playlists, artwork, embedded-tag rewriting, transcoding, native mobile listening client or remote uploader.
+- No playlists, embedded-tag rewriting, transcoding or remote uploader. The optional local iPhone client has a separate trial guide and verification scope.
 - No 30 GB load/performance run, real collection validation, device playback testing or abrupt power-loss testing. Recovery is tested through deterministic interrupted-operation states and restarts.
 - mp3agic 0.9.1 is a small pure-Java parser whose upstream is no longer actively maintained. Review parser/dependency maintenance and hardening before expanding beyond trusted local PoC use.
 - No general automatic repair/import of ambiguous files or missing source material. Missing/truncated stored files fail streaming until repaired; do not edit storage behind the running service.

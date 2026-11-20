@@ -4,6 +4,11 @@ import com.codename1.io.ConnectionRequest;
 import com.codename1.io.JSONParser;
 import com.codename1.io.NetworkManager;
 import com.codename1.ui.CN;
+import com.codename1.ui.Image;
+import java.io.ByteArrayOutputStream;
+import com.codename1.ui.EncodedImage;
+import java.util.LinkedHashMap;
+import java.util.HashMap;
 import dev.normalbias.client.Track;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -26,6 +31,58 @@ public final class LibraryApi {
     }
 
     public String audioUrl(Track track) { return origin + "/api/tracks/" + track.id() + "/audio"; }
+
+    private final Map<String, Image> covers = new LinkedHashMap<>();
+    private final Map<String, List<Consumer<Image>>> pendingCovers = new HashMap<>();
+
+    /** EDT-only, shared across library/player/mini-player. Missing art preserves the sleeve. */
+    public void artwork(Track track, Consumer<Image> loaded) {
+        String id = track.id();
+        if (covers.containsKey(id)) { loaded.accept(covers.get(id)); return; }
+        if (pendingCovers.containsKey(id)) { pendingCovers.get(id).add(loaded); return; }
+        List<Consumer<Image>> listeners = new ArrayList<>();
+        listeners.add(loaded);
+        pendingCovers.put(id, listeners);
+        ConnectionRequest request = new ConnectionRequest() {
+            private byte[] bytes;
+            private boolean delivered;
+            private void finish(boolean cache) {
+                if (delivered) return;
+                delivered = true;
+                CN.callSerially(() -> {
+                    Image image = null;
+                    try { if (bytes != null && bytes.length > 0) image = EncodedImage.create(bytes); }
+                    catch (RuntimeException ignored) { }
+                    if (cache) {
+                        covers.put(id, image);
+                        if (covers.size() > 32) covers.remove(covers.keySet().iterator().next());
+                    }
+                    List<Consumer<Image>> callbacks = pendingCovers.remove(id);
+                    if (callbacks != null) for (Consumer<Image> callback : callbacks) callback.accept(image);
+                });
+            }
+            @Override protected void readResponse(InputStream input) throws IOException {
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                int count;
+                while ((count = input.read(buffer, 0, buffer.length)) != -1) {
+                    if (output.size() + count > 2 * 1024 * 1024) throw new IOException("Artwork response too large");
+                    output.write(buffer, 0, count);
+                }
+                bytes = output.toByteArray();
+                if (bytes.length == 0) throw new IOException("Empty artwork response");
+            }
+            @Override protected void postResponse() { finish(true); }
+            @Override protected void handleErrorResponseCode(int code, String message) { finish(code == 404); }
+            @Override protected void handleException(Exception ex) { finish(false); }
+        };
+        request.setUrl(origin + "/api/tracks/" + id + "/artwork");
+        request.setPost(false);
+        request.setHttpMethod("GET");
+        request.setReadTimeout(15000);
+        request.setTimeout(15000);
+        NetworkManager.getInstance().addToQueue(request);
+    }
 
     public record Page(List<Track> items, int offset, int limit, int total) {}
 
