@@ -105,3 +105,5 @@ The browser increment is implemented: candidates/previews/explicit acceptance, i
 Milestone 1 is intentionally scoped to explicit track snapshots and existing catalogue evidence, rather than new tag extraction or a permanent album entity. Milestone 4 remains **partially accepted**: browser verified, shared iOS refresh path implemented but no new native build/install/physical lock-screen refresh/background/system-seek checks, following Robin's explicit exclusion. Existing phone results predate this change and are not new acceptance. Bulk matching, automatic acceptance, richer evidence/backfill, representative group art and cleanup remain deferred.
 
 Review checkpoint: [PR #9](https://github.com/teggr/normal-bias/pull/9) is open for this increment. No merge performed.
+
+Additional authorised manual API check used `/Users/robintegg/Uploads`: all 12 Roxy tracks returned embedded covers; all 12 Oasis tracks returned missing artwork. All original/served audio hashes match, with no fetched-cover acceptance or provider calls. See the dated verification record. Automated fixtures and recordings remain synthetic-only.
