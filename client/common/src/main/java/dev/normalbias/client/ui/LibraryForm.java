@@ -60,9 +60,9 @@ public final class LibraryForm extends Form {
         getToolbar().setVisible(false);
         icon(find, "Search", FontImage.MATERIAL_SEARCH, "SearchAction");
         icon(reset, "Reset", FontImage.MATERIAL_CLOSE, "SearchAction");
-        find.addActionListener(e -> { query = search.getText().trim(); load(0); });
-        search.addActionListener(e -> { query = search.getText().trim(); load(0); });
-        reset.addActionListener(e -> { search.setText(""); query = ""; load(0); });
+        find.addActionListener(e -> searchLibrary());
+        search.addActionListener(e -> searchLibrary());
+        reset.addActionListener(e -> { search.setText(""); searchLibrary(); });
         searchBar.setUIID("SearchBar");
         header.add(new Label("Normal Bias", "Brand")).add(searchBar);
         pageInfo.setUIID("PageInfo");
@@ -112,8 +112,8 @@ public final class LibraryForm extends Form {
         retry.addActionListener(e -> player.retry());
         HardwareButton showLibrary = new HardwareButton("Library", FontImage.MATERIAL_LIBRARY_MUSIC, true);
         HardwareButton showQueue = new HardwareButton("Queue", FontImage.MATERIAL_QUEUE_MUSIC, true);
-        HardwareButton more = new HardwareButton("Track details", FontImage.MATERIAL_MORE_HORIZ, true);
-        more.addActionListener(e -> showDetails());
+        HardwareButton more = new HardwareButton("Open queue", FontImage.MATERIAL_MORE_HORIZ, true);
+        more.addActionListener(e -> tabs.setSelectedIndex(1));
         showLibrary.addActionListener(e -> tabs.setSelectedIndex(0));
         showQueue.addActionListener(e -> tabs.setSelectedIndex(1));
         TransportWheel wheel = new TransportWheel(previous, play, next, more, showQueue, retry, showLibrary);
@@ -208,6 +208,12 @@ public final class LibraryForm extends Form {
         getContentPane().setUIID(fullPlayer ? "PlayerPanel" : "LibraryPanel");
     }
 
+    private void searchLibrary() {
+        query = search.getText().trim();
+        tabs.setSelectedIndex(0);
+        load(0);
+    }
+
     private void load(int requestedOffset) {
         int version = ++requestVersion;
         busy = true;
@@ -254,7 +260,7 @@ public final class LibraryForm extends Form {
         enqueue.addActionListener(e -> player.enqueue(track));
         Container copy = BoxLayout.encloseY(listen, new Label(track.artist(), "Muted"));
         RecordArtwork art = new RecordArtwork(true);
-        art.setIdentity(track.id());
+        art.setIdentity(track.title());
         Container detail = BorderLayout.center(copy).add(BorderLayout.WEST, art);
         detail.setLeadComponent(listen);
         Container row = BorderLayout.center(detail).add(BorderLayout.EAST, enqueue);
@@ -283,9 +289,9 @@ public final class LibraryForm extends Form {
         Track current = player.queue.current();
         title.setText(current == null ? "Nothing playing" : current.title());
         artist.setText(current == null ? "Your library" : current.artist());
-        cover.setIdentity(current == null ? null : current.id());
-        metadataCover.setIdentity(current == null ? null : current.id());
-        miniCover.setIdentity(current == null ? null : current.id());
+        cover.setIdentity(current == null ? null : current.title());
+        metadataCover.setIdentity(current == null ? null : current.title());
+        miniCover.setIdentity(current == null ? null : current.title());
         miniArtist.setText(current == null ? "Choose a track" : current.artist());
         status.setText(player.status());
         String state = player.status();
@@ -334,5 +340,8 @@ public final class LibraryForm extends Form {
         int seconds = Math.max(0, ms / 1000);
         return seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
     }
-    public void disposePlayer() { player.release(); }
+    public void disposePlayer() {
+        player.release();
+        refreshPlayer();
+    }
 }

@@ -6,12 +6,12 @@ import com.codename1.ui.geom.Dimension;
 /** Original, deterministic sleeve illustration; no claim of extracted album art. */
 final class RecordArtwork extends Component {
     private final boolean thumbnail;
-    private int variation;
+    private int variation = 1;
     private Image cached;
     private int cachedSize;
     RecordArtwork(boolean thumbnail) { this.thumbnail = thumbnail; setUIID("Artwork"); setFocusable(false); }
     void setIdentity(String identity) {
-        int next = identity == null ? 0 : (identity.hashCode() & 0x7fffffff) % 4;
+        int next = identity == null ? 1 : (identity.hashCode() & 0x7fffffff) % 4;
         if (next != variation) { variation = next; cached = null; repaint(); }
     }
     @Override protected Dimension calcPreferredSize() {
@@ -28,7 +28,7 @@ final class RecordArtwork extends Component {
             Graphics art = sleeve.getGraphics();
             art.setAntiAliased(true);
             art.setColor(0xeee8db); art.fillRect(0, 0, size, size);
-            int[] colors = {0xeebd40, 0xdf754c, 0x79919c, 0xa3a878};
+            int[] colors = {0x79919c, 0xeebd40, 0xdf754c, 0xa3a878};
             art.setColor(colors[variation]);
             art.fillArc(size / 5, size / 8, size * 3 / 5, size * 3 / 5, 0, 360);
             art.setColor(0x202323);

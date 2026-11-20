@@ -60,6 +60,19 @@
 
     <!-- The following are profiles to cover special cases -->
     <profiles>
+        <!-- Explicit local iPhone trial only; ordinary web/simulator builds omit this origin. -->
+        <profile>
+            <id>native-trial</id>
+            <build>
+                <resources>
+                    <resource><directory>src/main/resources</directory></resource>
+                    <resource>
+                        <directory>src/trial/resources</directory>
+                        <filtering>true</filtering>
+                    </resource>
+                </resources>
+            </build>
+        </profile>
 
         <!-- A profile to install Codename One support libraries to your home directory
             if they aren't installed yet. -->
