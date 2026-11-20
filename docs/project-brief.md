@@ -12,7 +12,7 @@ The listening targets are desktop web, mobile and eventually CarPlay. Following 
 
 ## Agreed constraints
 
-- **Language:** 100% Java is the agreed application-language goal. The current PoCs have documented platform-glue exceptions: narrow native JavaScript audio glue works around a failure in Codename One's built-in browser media adapter, and a small Objective-C iOS MediaPlayer bridge supplies system commands/metadata absent from the pinned port. UI, API access and queue policy remain Java; these are bounded integration exceptions rather than a decision to replace the client stack.
+- **Language:** 100% Java is the agreed application-language goal. The current PoCs have documented platform-glue exceptions: narrow native JavaScript audio glue works around a failure in Codename One's built-in browser media adapter, and a small Objective-C iOS MediaPlayer bridge supplies system commands/metadata absent from the pinned port. The local CarPlay PoC also makes bounded corrections to generated Objective-C scene dispatch and bridge object ownership. UI models, API access and queue policy remain Java; these are bounded integration exceptions rather than a decision to replace the client stack.
 - **Build:** Maven.
 - **Backend:** Spring Boot.
 - **Eventual deployment:** deploy4j to a VPS. Deployment is deferred and is not part of the initial PoC.
@@ -100,6 +100,16 @@ Robin explicitly approved restarting the existing private trial service at `192.
 - **Earlier review checkpoint:** [PR #8](https://github.com/teggr/normal-bias/pull/8) merged as `e33e28b`; the fetched-artwork increment starts from that state. Deployment remains out of scope.
 - **Next-step progress tracking:** Robin requested the [album matching and missing artwork proposal](album-matching-proposal.md). It contains milestone statuses and acceptance gates. Its first increment is now authorised and implemented with API/browser evidence, as recorded below and in the proposal progress table. Bulk backfill and automatic acceptance remain deferred; physical fetched-artwork refresh was excluded from this session.
 - **Still outside verified scope:** Android, CarPlay, call/headphone interruption recovery, prolonged background reliability and a saved physical-device recording with sound. The final synthetic browser recording includes actual application audio; its limits are recorded separately.
+
+## CarPlay feasibility trial authorised 2026-11-20
+
+Robin authorised the Java CarPlay prototype, desktop head-unit verification and local iOS source/build/signing investigation before paying for Apple membership. A real CarPlay unit is available; the current phone uses unpaid developer testing. Keep this separate from the other agent's album-art work, reuse the existing player/queue/API and preserve mobile styling. CarPlay renders system templates rather than mobile forms, so this bounded PoC adds template descriptions without a new theme or playback engine. Its navigation is a feasibility choice, not a final product decision.
+
+Pinned 7.0.282's Java API and desktop head-unit flow work, including synthetic audio, finite queue actions and retryable catalogue failure. Local iOS generation/unsigned compilation work with reproducible generated-output fixes for scene configuration/dispatch, signing entitlements and native image-table ownership. The current development signing setup rejects the CarPlay audio entitlement. No membership purchase, Apple account/profile changes, cloud build or installation was performed. Native CarPlay runtime, Apple's simulator and the real head unit remain unverified. See the [CarPlay guide](carplay-poc.md) for commands, workarounds and the entitlement gate. Native Now Playing reuses embedded-art support; no artwork provider, matching, grouping or fallback logic changed.
+
+CarPlay account follow-up (2026-11-20): after Robin signed in and personally accepted Apple's developer registration agreement, the CarPlay request URL redirected to an account-access denial. The current free account cannot access the request form. No CarPlay submission, membership purchase or paid enrollment is authorised or performed. The [CarPlay guide](carplay-poc.md) distinguishes this observed denial from Apple's membership/entitlement requirements and the remaining approval uncertainty.
+
+Robin requested recording this checkpoint and opening a separate CarPlay PR for later continuation. Using a different authorised Apple account/team remains an option to investigate; no account is selected and switching accounts, purchasing membership or submitting an entitlement request is not part of this checkpoint. The CarPlay guide records the resume sequence and native acceptance gates.
 
 ## Desktop simulator increment
 

@@ -1,5 +1,7 @@
 # Local device trial plan
 
+For the separately authorised 2026-11-20 CarPlay feasibility trial, use the [CarPlay guide](carplay-poc.md). Desktop head-unit verification and unsigned native compilation do not establish entitled-device or real-unit CarPlay support; the current signing profile rejects the audio entitlement.
+
 Proposed 2026-11-20 against `d137316`. This is a trial plan, not a verified native-build guide. The selected target is an iPhone 15 Plus running iOS 27.2.1 (selected 2026-11-20). Keep Java 21, Maven and Codename One 7.0.282; do not upgrade the framework just to follow newer examples.
 
 Goal: build on your own computer, install on one physical phone, and browse and play a disposable synthetic library without deploying the service. The original foreground trial is complete. The 2026-11-20 follow-up retains audio when switching apps or locking the iPhone, and adds embedded covers; the acceptance checklist below records the remaining physical checks. CarPlay remains separate.
