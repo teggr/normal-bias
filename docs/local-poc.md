@@ -33,7 +33,7 @@ The data directory contains `catalogue.mv.db`, `.normal-bias.lock`, `music/<sha2
 | `DELETE /api/tracks/{id}` | Removes catalogue entry and stored audio; 204 with no body, or 404 (including repeat deletion). |
 | `GET /api/tracks/{id}/audio` | Exact stored bytes, `audio/mpeg`, `Content-Length`, `Accept-Ranges: bytes`, SHA-256 ETag. |
 | `HEAD /api/tracks/{id}/audio` | Same stream headers without a body. |
-| `GET/HEAD /api/tracks/{id}/artwork` | Derived embedded cover as `image/png`, or 404 for missing/invalid/unsupported art or unknown track. HEAD omits body. Private one-day cache and versioned ETag; matching `If-None-Match` returns 304. |
+| `GET/HEAD /api/tracks/{id}/artwork` | Embedded cover first, then fetched cover as `image/png`; otherwise 404. HEAD omits body. Private `no-cache`, image-content ETag and conditional 304; missing covers use `no-store`. |
 | `POST /api/inspections?mode=quick` | Starts a background quick/full check; 202 with run status and Location; 409 if busy. |
 | `GET /api/inspections/{id}` | Run state/progress/counts/error; 404 for unknown/evicted runs. |
 | `GET /api/inspections/{id}/findings?offset=0&limit=50` | Paginated findings and run state; default 50, maximum 200. |
@@ -108,4 +108,4 @@ See [verification record](verification.md) for observed results from the task en
 
 ## Accepted album covers — 2026-11-20
 
-The additive album-artwork API now supports metadata-only MusicBrainz matching, CAA previews and explicit acceptance for selected track IDs. Track JSON adds `artworkRevision`; artwork ETags now identify image content, and uncovered responses are not cached. Original audio IDs/bytes, metadata edit contracts and Range streaming remain unchanged. Flyway V3 stores accepted images/provenance separately, with recoverable local publication; this does not modify embedded tags. See [album-artwork.md](album-artwork.md) for the exact routes, revision checks, provider limits, storage and deferred bulk work.
+The service automatically looks up missing artwork in the background, including the existing catalogue and later uploads. It preserves embedded/existing fetched covers and original audio/tags. Flyway V3 stores recoverable cover assets/provenance; V4 adds durable checks/retries and the global revision used for passive client refresh. The earlier explicit match/preview/accept API remains compatible but is not exposed by the listening client. Track JSON retains `artworkRevision`; Range streaming and metadata edit contracts are unchanged. See [album-artwork.md](album-artwork.md) for automatic selection, bounded batches, delayed retries, opt-out configuration and API routes.

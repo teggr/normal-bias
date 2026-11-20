@@ -94,12 +94,13 @@ The server derives bounded PNG covers from embedded ID3v2 JPEG/PNG images throug
 
 Robin explicitly approved restarting the existing private trial service at `192.168.1.205:18082` against the same retained two-album library during this task. That library remains in the earlier local worktree; it was not copied into Git or replaced with test data. Automated tests and the demo recording use a disposable synthetic catalogue.
 
-## Current progress and next proposal — 2026-11-20
+## Current progress and review checkpoint — 2026-11-20
 
-- **Completed and verified:** iPhone background playback/locked queue advance; embedded-cover API/client; native title/artist/artwork, play/pause/next/previous and paused/playing lock-screen seek. That earlier increment passed 38 API/CLI tests, five client tests, browser audio/navigation regressions, local web generation and signed iPhone build/install. Physical results and limitations are in [verification](verification.md).
-- **Earlier review checkpoint:** [PR #8](https://github.com/teggr/normal-bias/pull/8) merged as `e33e28b`; the fetched-artwork increment starts from that state. Deployment remains out of scope.
-- **Next-step progress tracking:** Robin requested the [album matching and missing artwork proposal](album-matching-proposal.md). It contains milestone statuses and acceptance gates. Its first increment is now authorised and implemented with API/browser evidence, as recorded below and in the proposal progress table. Bulk backfill and automatic acceptance remain deferred; physical fetched-artwork refresh was excluded from this session.
-- **Still outside verified scope:** Android, CarPlay, call/headphone interruption recovery, prolonged background reliability and a saved physical-device recording with sound. The final synthetic browser recording includes actual application audio; its limits are recorded separately.
+- **Latest delivered:** automatic service-side missing-cover lookup for existing tracks/uploads; durable checks/retries and provider cooldown handling; removal of manual artwork controls; bounded client caches, stale-request recovery and immediate foreground revision checks. Current operation/selection policy is in [the artwork guide](album-artwork.md); the original manual-selection proposal is historical.
+- **Verification:** 59 API + 3 CLI tests and 15 client tests passed during implementation. Normal refresh, blocked revision notifications and browser playback/navigation regressions passed. A signed iPhone Library check directly observed missing covers become fetched covers in the already-open app. Exact commands, dates, recordings and limitations are in [verification](verification.md).
+- **Current phone/service:** one updated Normal Bias app is installed; the temporary test app was removed. The retained private service/library is restored with 26 tracks and all 24 real-album covers available. Personal MP3s, H2 data, signing material and generated recordings remain outside Git.
+- **Review state:** [PR #11](https://github.com/teggr/normal-bias/pull/11) is open on `codex/automatic-artwork-refresh`, based on merged main `6162c1e` (PR #10). It records the automatic artwork/refresh checkpoint and verification limits; no merge or deployment is requested.
+- **Remaining acceptance:** fresh physical playback/Now Playing/mini-player/lock-screen/background-return artwork transitions, Android, interruptions and prolonged background reliability. Earlier system-control/background-audio evidence remains historical; the new phone result verifies foreground Library cover arrival.
 
 ## CarPlay feasibility trial authorised 2026-11-20
 
@@ -111,7 +112,7 @@ CarPlay account follow-up (2026-11-20): after Robin signed in and personally acc
 
 Robin requested recording this checkpoint and opening a separate CarPlay PR for later continuation. Using a different authorised Apple account/team remains an option to investigate; no account is selected and switching accounts, purchasing membership or submitting an entitlement request is not part of this checkpoint. The CarPlay guide records the resume sequence and native acceptance gates.
 
-Review checkpoint: [draft PR #10](https://github.com/teggr/normal-bias/pull/10) on `codex/carplay-poc`, based on `4be1625` after merged album-art PR #9. The changes remain separate from artwork implementation; fresh post-rebase API/CLI, client/web and browser checks pass. Native CarPlay remains unverified and the PR is unmerged.
+Review checkpoint: [PR #10](https://github.com/teggr/normal-bias/pull/10) merged as `6162c1e`, after merged album-art PR #9. Native CarPlay remains unverified because the entitlement/signing gate is unresolved; the current artwork follow-up starts from that merged main state.
 
 ## Desktop simulator increment
 
@@ -163,3 +164,32 @@ Implementation is complete on `codex/album-matching`, based on freshly fetched m
 The implementation is submitted in [PR #9](https://github.com/teggr/normal-bias/pull/9), without merge. API/browser checks pass; the explicit iPhone exclusion and deferred bulk work remain part of its scope.
 
 Robin subsequently requested validating embedded artwork against the real Uploads albums. A separate disposable loopback API confirmed 12/12 Roxy embedded covers and 12/12 Oasis missing covers; all 24 source/served audio hashes match. No external lookup, fetched-cover acceptance, iPhone interaction or change to the retained trial service/library occurred. This bounded manual check does not change the synthetic-only automated-fixture/recording rule.
+
+
+## Latest local phone/service refresh — 2026-11-20
+
+Robin requested the latest app on the existing iPhone and the service running with the authorised Roxy Music/Oasis albums. Merged main `6162c1e` was locally built, signed, installed and launched on the iPhone 15 Plus, with CarPlay disabled for the existing Personal Team signing route. The latest API and matching web assets now serve the same retained private library at `192.168.1.205:18082`: 12 Roxy Music tracks, 12 Oasis tracks and two synthetic clips. All 24 original upload hashes already matched catalogue IDs, so no re-upload was needed. The existing V3 artwork migration applied successfully. This supersedes the earlier artwork session's no-install checkpoint only for build/install/launch; fresh physical fetched-cover refresh and playback acceptance are still unverified. No new UI implementation, cloud build, public deployment or CarPlay entitlement/account change was performed. See [verification](verification.md) for commands, checks and service lifecycle details.
+
+
+## Automatic service-side artwork correction — authorised 2026-11-20
+
+After seeing the picture icon on the updated phone, Robin clarified that artwork work belongs in the service background and is not wanted in the listening app. This supersedes the earlier manual preview/acceptance UI and deferral of automatic backfill. Remove the picture actions and matching screen; Now Playing information returns to track details. The service automatically processes existing tracks and new uploads, preserves embedded/existing fetched covers, stores provenance separately, and retries failures without interrupting playback. It sends only artist/album metadata to the existing providers.
+
+The bounded implementation matches normalized artist/album names, first narrows to matching local group track counts where available (to exclude same-name singles/promos), skips conflicting release groups within that set and otherwise uses provider order, and tries up to three exact release covers. This is representative album artwork, not verified edition matching. Durable per-track leases/retries and a global artwork revision are added through Flyway V4. Visible clients refresh covers passively without reopening audio or changing the queue. Unmatched/ambiguous art keeps the generated sleeve. Automatic tag rewriting, richer evidence extraction, deployment and CarPlay entitlement/account changes remain outside this increment. The [artwork guide](album-artwork.md) records configuration, batching, retry policy and limitations; [verification](verification.md) records actual browser/native/service checks.
+
+Robin explicitly approved automatically sending library artist/album names to MusicBrainz and downloading matching covers from Cover Art Archive/archive.org after automatic approval review requested that specific payload/destination consent. Audio transmission remains excluded.
+
+
+Oasis artwork retry follow-up (2026-11-20): Robin reported the covers still absent on the phone. The service still returned 404; temporary provider errors had scheduled a roughly 30-minute retry. Provider 429/503/cooldown exceptions now carry their retry deadline into durable background scheduling (at least 60 seconds, longer Retry-After respected), instead of applying the general 15-minute-to-one-day failure backoff. Artist/album matching, audio, app UI and the existing provider destinations are unchanged. Verification records the final live/phone result separately.
+
+The automatic retry subsequently succeeded at 14:46 UTC: all twelve Oasis tracks now serve the fetched cover with recorded automatic provenance, alongside all twelve unchanged Roxy embedded covers. This supersedes the previous pending-provider result. The existing paused phone session still showed placeholders after a session-preserving return; force reopening was blocked by automatic approval review because the queue is in memory, and approval was requested. Physical display refresh remains a gap until confirmed.
+
+Robin then approved force reopening the paused phone app, including clearing its one-track in-memory queue. At 14:53 UTC the restart succeeded and Device Hub directly showed the fetched Oasis cover on the physical iPhone's visible Library rows. The reported missing Oasis display is resolved after that restart; passive refresh and the intermittent browser metadata-thumbnail gap remain distinct limitations in the verification record.
+
+
+## Close artwork refresh gap — authorised 2026-11-20
+
+Robin requested closing the artwork refresh gap that required restarting the phone app after a fetched cover became available. The correction keeps the existing artwork provider/background work and Java client architecture. Revision polling is supplemented with bounded missing/error cache lifetimes, stale-request recovery, independent view delivery and immediate foreground checks. Existing views update in place rather than reloading the catalogue; active media, queue, search and scroll remain intact. Verification uses mocked providers and synthetic audio, including a blocked revision endpoint. Physical testing uses a separate temporary test app/library so the retained two-album library is preserved. Exact results and remaining limits belong in [verification](verification.md).
+
+
+Artwork-refresh correction result (2026-11-20): 15 client tests and normal/lost-notification/browser smoke checks pass; a verified synthetic recording contains actual client audio. The final signed normal app is installed. A single-app physical test showed two missing Library covers update in place after the isolated service published them, without relaunching the app; the embedded cover stayed unchanged. The temporary second test app was removed after Robin noticed it. The retained 26-track Oasis/Roxy library/service has been restored, all 24 real covers serve successfully, and the device inventory confirms only `dev.normalbias.client` remains. Foreground native Library refresh is now verified; fresh physical playback/Now Playing/mini-player/lock-screen/background-return transitions remain unverified separately. Details and final artifact are in verification.md.

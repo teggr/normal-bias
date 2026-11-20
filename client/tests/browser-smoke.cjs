@@ -80,7 +80,7 @@ async function seed(origin) {
     const origin = `http://127.0.0.1:${port}`;
     const output = fs.openSync(path.join(work, 'api.log'), 'w');
     server = spawn('java', ['-jar', path.join(repo,'api/target/normal-bias-api-0.1.0-SNAPSHOT.jar'),
-        '--server.port=' + port, '--normalbias.data-dir=' + path.join(work,'data'),
+        '--server.port=' + port, '--normalbias.artwork.background-enabled=false', '--normalbias.data-dir=' + path.join(work,'data'),
         '--spring.web.resources.static-locations=file:' + path.join(repo,'client/target/web/')],
         {stdio:['ignore',output,output]});
     await until(async () => {

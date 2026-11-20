@@ -12,6 +12,11 @@ import java.util.concurrent.*;
 
 @Component
 public class MusicBrainzProvider implements AlbumProvider {
+    static final class Unavailable extends IOException {
+        private final Instant retryAt;
+        Unavailable(String message, Instant retryAt) { super(message); this.retryAt=retryAt; }
+        Instant retryAt() { return retryAt; }
+    }
     static final String AGENT = "NormalBias/0.1 (https://github.com/teggr/normal-bias; local personal music client)";
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8))
             .followRedirects(HttpClient.Redirect.NEVER).build();
@@ -42,7 +47,8 @@ public class MusicBrainzProvider implements AlbumProvider {
     // One gate for all provider traffic, including CAA and redirects. Retries are explicit;
     // throttled providers are never hammered by a background retry loop.
     private synchronized byte[] request(URI uri, boolean image) throws IOException, InterruptedException {
-        if (System.currentTimeMillis() < blockedUntil) throw new IOException("Provider is cooling down; retry later");
+        if (System.currentTimeMillis() < blockedUntil)
+            throw new Unavailable("Provider is cooling down; retry later",Instant.ofEpochMilli(blockedUntil));
         for (int redirect = 0; redirect < 5; redirect++) {
             destination(uri, image);
             long delay = nextRequest - System.currentTimeMillis();
@@ -63,7 +69,8 @@ public class MusicBrainzProvider implements AlbumProvider {
                         catch (RuntimeException invalidDate) { }
                     }
                     blockedUntil = System.currentTimeMillis() + Math.min(seconds, 86400) * 1000;
-                    throw new IOException("Provider throttled or unavailable; retry later");
+                    throw new Unavailable("Provider HTTP " + status + " at " + uri.getHost() + "; retry later",
+                            Instant.ofEpochMilli(blockedUntil));
                 }
                 if (status == 404 && image) return null;
                 if (status >= 300 && status < 400 && image) {

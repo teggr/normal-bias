@@ -1,8 +1,10 @@
 # Album matching and missing artwork proposal
 
-Date: 2026-11-20. Status: **first end-to-end increment authorised 2026-11-20; implemented and verified through API/browser; physical artwork refresh excluded this session**.
+**Current direction — 2026-11-20:** Robin rejected the picture/matching controls in the listening app and requested automatic service-side background work. That supersedes this page's earlier manual-preview/acceptance and deferred-automation decisions. Missing artwork now fills automatically for existing tracks and uploads, with durable retries and passive client refresh. Embedded and already fetched covers are preserved. The [artwork guide](album-artwork.md) is the current operating contract; the original milestone plan and acceptance evidence below remain historical.
 
-Robin requested a next-step proposal and progress tracking after the background playback and embedded-artwork increment. Robin authorised milestones 1–4, MusicBrainz matching and Cover Art Archive covers, with explicit cover acceptance. Bulk backfill and automatic acceptance remain deferred. Original MP3s and catalogue metadata remain unchanged.
+Date: 2026-11-20. Current status: **automatic service-side filling and resilient refresh implemented; API/browser checks pass; foreground iPhone Library refresh verified**. The manual-selection plan and its original acceptance record below are historical.
+
+The original proposal followed the background playback/embedded-artwork increment and initially authorised explicit selection. Robin subsequently requested automatic service-side filling and removal of matching controls from the listening app. That later direction now governs this implementation; original MP3s and catalogue metadata remain unchanged.
 
 ## Progress and evidence
 
@@ -12,13 +14,14 @@ Robin requested a next-step proposal and progress tracking after the background 
 | Embedded artwork API and client rendering | Implemented; API/browser/phone checks passed | Roxy covers observed in Library, player and lock screen |
 | iOS system metadata, play/pause/next/previous and seeking | Implemented; physical checks passed | Robin confirmed final paused and playing lock-screen seeks |
 | Source-file artwork investigation | Complete | Roxy: 12 embedded covers; Oasis and demo clips: 14 files without embedded pictures |
-| Album matching and fetched-artwork design | Proposal written | Review the recommended first milestone and open decisions below |
-| Album candidate matching / preview / acceptance | Implemented; API/browser verified | Synthetic flow and bounded live lookup passed; iPhone excluded this session |
-| Automatic bulk artwork backfill | Deferred | Follow after single-album matching and cache refresh are verified |
+| Album matching and fetched-artwork design | Implemented; original proposal retained below | Current policy is in the artwork guide |
+| Explicit candidate matching / preview / acceptance | Compatible API retained; app workflow removed | Historical API/browser acceptance predates the automatic worker |
+| Automatic missing-cover backfill | Implemented; durable bounded batches/retries | Synthetic worker tests; live Oasis cover fetched automatically |
+| Refresh without client restart | Implemented; browser and foreground iPhone Library verified | 15 client tests; blocked-notification/audio recording; other native transitions remain separate |
 
 The earlier embedded-artwork implementation and initial proposal were delivered in [PR #8](https://github.com/teggr/normal-bias/pull/8), now merged as `e33e28b`. This fetched-artwork increment is a separate review checkpoint, without merge or deployment.
 
-## Problem and recommended first milestone
+## Original problem and recommended first milestone (historical)
 
 Normal Bias currently serves embedded ID3v2 JPEG/PNG images, otherwise showing a generated sleeve. Some original MP3s have no embedded image even when another application displays an album cover. The imported Oasis files contain artist, album, year and AMG/Windows Media identifiers but no embedded picture or artwork URL. A screenshot from another app does not establish whether its cover came from lookup, cache or a different copy of the album.
 

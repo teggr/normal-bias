@@ -34,6 +34,7 @@ public class NormalBias extends Lifecycle {
             library = new LibraryForm(new LibraryApi(page));
         }
         library.show();
+        library.resumeArtwork();
     }
     // Backgrounding preserves the active media and queue; destruction still releases them.
     @Override public void destroy() { if (library != null) library.disposePlayer(); }

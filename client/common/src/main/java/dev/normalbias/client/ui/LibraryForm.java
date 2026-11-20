@@ -12,6 +12,7 @@ import com.codename1.car.Car;
 
 /** A small listening surface; all state changes occur on the Codename One EDT. */
 public final class LibraryForm extends Form {
+    private final java.util.List<RecordArtwork> rowArtwork = new java.util.ArrayList<>();
     private final LibraryApi api;
     private final Player player;
     private final CarListening car;
@@ -136,11 +137,7 @@ public final class LibraryForm extends Form {
         back.addActionListener(e -> tabs.setSelectedIndex(0));
         HardwareButton info = new HardwareButton("Player information", FontImage.MATERIAL_INFO_OUTLINE, false);
         info.setUIID("HeaderHardware");
-        info.addActionListener(e -> {
-            Track current = player.queue.current();
-            if (current == null) showDetails();
-            else new ArtworkForm(api, current, this, () -> { player.refreshArtwork(); load(offset); }, player::poll).show();
-        });
+        info.addActionListener(e -> showDetails());
         Container playerHeader = BorderLayout.center(new Label("Now Playing", "PlayerHeading"))
                 .add(BorderLayout.WEST, back).add(BorderLayout.EAST, info);
         playerHeader.setUIID("PlayerHeader");
@@ -169,9 +166,24 @@ public final class LibraryForm extends Form {
                 revalidate();
             }
         });
-        new UITimer(() -> { player.poll(); refreshProgress(); }).schedule(500, true, this);
+        new UITimer(() -> {
+            player.poll(); refreshProgress(); refreshArtworkViews();
+            checkArtwork(false);
+        }).schedule(500, true, this);
         refreshPlayer();
         load(0);
+    }
+
+    /** Foreground return rechecks immediately; it preserves the active player and queue. */
+    public void resumeArtwork() { checkArtwork(true); refreshArtworkViews(); }
+    private void checkArtwork(boolean force) {
+        api.checkArtworkRevision(force, changed -> {
+            if (changed) { refreshArtworkViews(); player.refreshArtwork(); }
+        });
+    }
+    private void refreshArtworkViews() {
+        cover.refresh(); metadataCover.refresh(); miniCover.refresh();
+        for (RecordArtwork art : rowArtwork) art.refresh();
     }
 
     private int sidebarWidth() {
@@ -227,6 +239,7 @@ public final class LibraryForm extends Form {
         int version = ++requestVersion;
         busy = true;
         pageInfo.setText("Loading library…");
+        rowArtwork.clear();
         tracks.removeAll();
         tracks.add(new Label("Loading tracks…", "Muted"));
         updatePaging();
@@ -237,10 +250,14 @@ public final class LibraryForm extends Form {
             offset = page.offset();
             total = page.total();
             tracks.removeAll();
+            rowArtwork.clear();
             if (page.items().isEmpty()) {
                 tracks.add(new Label(query.isEmpty() ? "Your library is empty. Upload some MP3s to begin." : "No tracks match your search.", "Muted"));
             }
             for (Track track : page.items()) tracks.add(trackRow(track));
+            // Refresh all player surfaces after rebuilding the rows; artwork keys use one
+            // service revision so late catalogue responses cannot invalidate cover callbacks.
+            player.refreshArtwork();
             pageInfo.setText(page.items().isEmpty() ? "0 shown · " + total + " tracks" : (offset + 1) + "–" + (offset + page.items().size()) + " of " + total);
             updatePaging();
             revalidate();
@@ -270,13 +287,10 @@ public final class LibraryForm extends Form {
         Container copy = BoxLayout.encloseY(listen, new Label(track.artist(), "Muted"));
         RecordArtwork art = new RecordArtwork(true);
         art.setTrack(track, api);
+        rowArtwork.add(art);
         Container detail = BorderLayout.center(copy).add(BorderLayout.WEST, art);
         detail.setLeadComponent(listen);
-        Button artwork = new Button();
-        icon(artwork, "Find album artwork", FontImage.MATERIAL_IMAGE, "RowAction");
-        artwork.addActionListener(e -> new ArtworkForm(api, track, this,
-                () -> { player.refreshArtwork(); load(offset); }, player::poll).show());
-        Container row = BorderLayout.center(detail).add(BorderLayout.EAST, BoxLayout.encloseX(artwork, enqueue));
+        Container row = BorderLayout.center(detail).add(BorderLayout.EAST, enqueue);
         row.setUIID("TrackRow");
         return row;
     }

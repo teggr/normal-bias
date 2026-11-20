@@ -15,7 +15,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import static dev.normalbias.api.TrackStore.error;
 
-/** Explicit, immutable selection snapshots. No catalogue metadata or audio is rewritten. */
+/** Immutable artwork selection snapshots for background filling and compatible explicit API calls. */
 @Service
 public class AlbumArtwork {
     public record Selection(List<Track> items, int offset, int limit, long total, String warning) {}
@@ -161,7 +161,58 @@ public class AlbumArtwork {
         }
     }
     public Result accept(String id, Accept request) throws IOException {
-        Job job = job(id);
+        return persist(job(id), request, "explicit selection");
+    }
+
+    public long artworkVersion() {
+        return db.queryForObject("SELECT revision FROM artwork_version WHERE id=1", Long.class);
+    }
+
+    /** Called only by the background worker; provider I/O never holds the catalogue monitor. */
+    boolean fillMissing(List<String> ids, int albumTrackCount) throws IOException, InterruptedException {
+        Job job;
+        Track seed;
+        synchronized (tracks) {
+            seed = tracks.get(ids.getFirst());
+            for (String id : ids) {
+                Track track = tracks.get(id);
+                if (!same(seed.artist(), track.artist()) || !same(seed.album(), track.album()))
+                    throw error(HttpStatus.CONFLICT, "Album tags changed during background lookup");
+                if (get(id) != null) throw error(HttpStatus.CONFLICT, "Artwork already filled");
+            }
+            String snapshot = evidence(ids);
+            job = new Job(ids, revision(snapshot), snapshot);
+        }
+        if (matchText(seed.artist()).isEmpty() || matchText(seed.album()).isEmpty()) return false;
+        var exact = provider.search(seed.artist(), seed.album()).stream()
+                .filter(c -> matchText(seed.artist()).equals(matchText(c.artist()))
+                        && matchText(seed.album()).equals(matchText(c.title())))
+                .sorted(Comparator.comparingInt(c -> c.trackCount() == albumTrackCount ? 0 : 1))
+                .toList();
+        // A same-name single/promo is not an ambiguity when full-album track counts distinguish it.
+        if (exact.stream().anyMatch(c -> c.trackCount() == albumTrackCount))
+            exact = exact.stream().filter(c -> c.trackCount() == albumTrackCount).toList();
+        // Same-name albums in different release groups are ambiguous. Keep the fallback sleeve.
+        if (exact.stream().map(AlbumProvider.Candidate::groupId).filter(s -> s != null && !s.isBlank())
+                .distinct().count() > 1) return false;
+        job.candidates = exact;
+        for (var candidate : exact.stream().limit(3).toList()) {
+            byte[] image = provider.cover(candidate.id());
+            if (image == null) continue;
+            job.previews.put(candidate.id(), image);
+            persist(job, new Accept(candidate.id(), job.revision),
+                    "automatic background fill: exact normalized artist/album; prefer matching track count, then provider order; edition unverified");
+            return true;
+        }
+        return false;
+    }
+
+    private static String matchText(String value) {
+        return value == null ? "" : java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFKC)
+                .toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", "");
+    }
+
+    private Result persist(Job job, Accept request, String decision) throws IOException {
         if (request.candidateId() == null || job.candidates.stream().noneMatch(c -> c.id().equals(request.candidateId())))
             throw error(HttpStatus.BAD_REQUEST, "Invalid candidate");
         byte[] bytes;
@@ -179,6 +230,7 @@ public class AlbumArtwork {
                 throw error(HttpStatus.CONFLICT, "Tracks or artwork changed; match again");
             String selection = UUID.randomUUID().toString();
             String acceptedEvidence = json.writeValueAsString(Map.of("catalogueSnapshot", job.evidence,
+                    "decision", decision,
                     "release", job.candidates.stream().filter(c -> c.id().equals(request.candidateId())).findFirst().orElseThrow(),
                     "limitations", "Catalogue-only evidence; year, disc order, track list and durations not compared"));
             tx.executeWithoutResult(ignored -> {
@@ -190,6 +242,7 @@ public class AlbumArtwork {
                     db.update("MERGE INTO album_members (track_id, selection_id) KEY(track_id) VALUES (?, ?)", trackId, selection);
                     db.update("UPDATE tracks SET artwork_revision = ? WHERE id = ?", selection, trackId);
                 }
+                db.update("UPDATE artwork_version SET revision=revision+1 WHERE id=1");
             });
             job.state = "ACCEPTED"; job.message = "Cover accepted. Embedded images remain in use where present.";
             return new Result(selection, job.ids);

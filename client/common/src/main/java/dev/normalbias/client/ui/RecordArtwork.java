@@ -14,19 +14,33 @@ final class RecordArtwork extends Component {
     RecordArtwork(boolean thumbnail) { this.thumbnail = thumbnail; setUIID("Artwork"); setFocusable(false); }
     private String trackId;
     private Image embedded;
+    private Track track;
+    private LibraryApi api;
+    private boolean awaiting;
+    private long requestSerial, requestStarted, retryAt;
     void setTrack(Track track, LibraryApi api) {
+        this.track = track; this.api = api;
         setIdentity(track == null ? null : track.title());
+        refresh();
+    }
+    /** Called by the shared form timer; failures/missing images cannot freeze a view forever. */
+    void refresh() {
         String nextId = track == null ? null : api.artworkKey(track);
-        if (nextId == null ? trackId == null : nextId.equals(trackId)) return;
-        trackId = nextId;
-        embedded = null;
-        cached = null;
-        repaint();
-        if (track != null) api.artwork(track, image -> {
-            if (!api.artworkKey(track).equals(trackId) || !nextId.equals(trackId)) return; // Late cover cannot replace a newer selection.
-            embedded = image;
-            cached = null;
+        if (!(nextId == null ? trackId == null : nextId.equals(trackId))) {
+            trackId = nextId; embedded = null; cached = null; awaiting = false; retryAt = 0;
+            requestSerial++;
             repaint();
+        }
+        if (track == null || embedded != null) return;
+        long now = System.currentTimeMillis();
+        if ((awaiting && now - requestStarted < 25000) || now < retryAt) return;
+        awaiting = true; requestStarted = now;
+        long token = ++requestSerial;
+        Track requested = track;
+        api.artwork(requested, image -> {
+            if (token != requestSerial || !nextId.equals(trackId) || !nextId.equals(api.artworkKey(requested))) return;
+            awaiting = false; retryAt = System.currentTimeMillis() + 1000;
+            if (embedded != image) { embedded = image; cached = null; repaint(); }
         });
     }
     void setIdentity(String identity) {
