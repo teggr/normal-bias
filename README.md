@@ -6,6 +6,7 @@ A self hosted music service
 - [Graphite client design system and implementation](docs/design-system-proposal.md)
 - [Project brief and agreed constraints](docs/project-brief.md)
 - [Web listening-client PoC](docs/client-poc.md)
+- [Album matching and missing artwork](docs/album-artwork.md)
 - [Desktop simulator demo](docs/simulator-poc.md)
 - [Local device trial plan](docs/local-device-trial.md)
 - [Instructions for coding agents](AGENTS.md)
@@ -39,7 +40,7 @@ java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
   --spring.web.resources.static-locations="file:$(pwd)/client/target/web/"
 ```
 
-Open `http://127.0.0.1:8080/` to browse/search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. The separate [local iPhone trial](docs/local-device-trial.md) now has a local signing/install route, private development origin and framework media adapter. The latest increment preserves iPhone audio across backgrounding and displays embedded ID3 covers from the API; physical acceptance and platform limits are tracked in [verification](docs/verification.md).
+Open `http://127.0.0.1:8080/` to browse/search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. The separate [local iPhone trial](docs/local-device-trial.md) now has a local signing/install route, private development origin and framework media adapter. The latest increment adds on-demand MusicBrainz release candidates and Cover Art Archive previews with explicit cover acceptance, filling missing artwork without rewriting MP3s. See the [artwork guide](docs/album-artwork.md). The prior native increment preserves iPhone audio across backgrounding and displays embedded ID3 covers from the API; physical acceptance and platform limits are tracked in [verification](docs/verification.md).
 
 ## Simulator demo
 

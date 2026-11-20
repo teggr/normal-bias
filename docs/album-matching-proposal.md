@@ -1,8 +1,8 @@
 # Album matching and missing artwork proposal
 
-Date: 2026-11-20. Status: **proposal for review; implementation has not started**.
+Date: 2026-11-20. Status: **first end-to-end increment authorised 2026-11-20; implementation and verification in progress**.
 
-Robin requested a next-step proposal and progress tracking after the background playback and embedded-artwork increment. This document proposes the next implementation milestones. It does not add external lookups, approve a provider permanently, or change existing MP3s.
+Robin requested a next-step proposal and progress tracking after the background playback and embedded-artwork increment. Robin authorised milestones 1–4, MusicBrainz matching and Cover Art Archive covers, with explicit cover acceptance. Bulk backfill and automatic acceptance remain deferred. Original MP3s and catalogue metadata remain unchanged.
 
 ## Progress and evidence
 
@@ -13,7 +13,7 @@ Robin requested a next-step proposal and progress tracking after the background 
 | iOS system metadata, play/pause/next/previous and seeking | Implemented; physical checks passed | Robin confirmed final paused and playing lock-screen seeks |
 | Source-file artwork investigation | Complete | Roxy: 12 embedded covers; Oasis and demo clips: 14 files without embedded pictures |
 | Album matching and fetched-artwork design | Proposal written | Review the recommended first milestone and open decisions below |
-| Album candidate matching / preview / acceptance | Not started | Next proposed implementation milestone |
+| Album candidate matching / preview / acceptance | In progress | Java API/client implementation; regression, recording and physical acceptance pending |
 | Automatic bulk artwork backfill | Deferred | Follow after single-album matching and cache refresh are verified |
 
 The completed implementation and this proposal are submitted together in [PR #8](https://github.com/teggr/normal-bias/pull/8). The PR is a review checkpoint, not a merge or deployment.
@@ -28,7 +28,7 @@ Keep Spring Boot, Java 21/Maven, H2, local file storage and the current API/clie
 
 ## Matching and provider approach
 
-Recommend MusicBrainz for album/release candidates and Cover Art Archive for front images. These are provider recommendations for review, not a permanent provider decision. Use a server-side provider interface so another source can be added without changing playback or the client.
+Robin approved MusicBrainz for album/release candidates and Cover Art Archive for front images for this increment. Use a server-side provider interface so another source can be added without changing playback or the client.
 
 1. Build a provisional album membership set from existing catalogue metadata. Normalize text for comparison only; preserve displayed metadata. Prefer album artist when available. Artist plus album title is a starting grouping hint, not a reliable permanent album identity: compilations, different editions, discs and identically named albums need explicit handling. Tracks with missing or inconsistent metadata must remain separate/unmatched rather than being guessed into an album.
 2. Use existing MusicBrainz identifiers if present. Otherwise search by artist and album, then compare available year, track count, track titles/order and durations. Distinguish the album concept (release group) from a particular edition (release). Prefer a matching release's cover; a representative release-group cover should be labelled as such in the preview.
@@ -57,7 +57,7 @@ Continue serving images through the current track artwork endpoint. Its current 
 
 ## Suggested API and user flow
 
-These are proposed capabilities, not existing routes or a final API contract:
+These capabilities are now implemented; the exact routes and limits are in [album-artwork.md](album-artwork.md):
 
 - Start a match for a selected provisional album; return a job identifier/status.
 - Read paginated candidates and bounded cover previews through the service.
@@ -70,21 +70,30 @@ Keep the current track browser; this increment does not require a full album-bro
 
 | Milestone | Deliverable | Acceptance gate | Status |
 | --- | --- | --- | --- |
-| 1. Evidence and provisional albums | Additive schema/evidence, explicit membership and grouping rules | Missing metadata, compilations, duplicate album titles, edits and multi-disc examples handled without silent merges; paginated access | Proposed |
-| 2. Single-album candidate lookup | MusicBrainz/CAA integration behind a provider adapter; preview and job state | Correct/no-match/ambiguous/offline/throttled results; rate limiting and bounded retry; no audio file transmission | Proposed |
-| 3. Accept and persist a cover | Recoverable local storage, provenance, revisioned track-artwork response | Survives restart; stale acceptance rejected; original MP3 IDs/bytes unchanged; shared cover deletion is safe | Proposed |
-| 4. Client and physical acceptance | Contextual lookup/preview/accept and cache invalidation | New cover appears in Library/player/mini-player/iPhone lock screen while playback and queue continue; browser and phone checks plus required recording evidence | Proposed |
+| 1. Evidence and provisional albums | Additive schema/evidence, explicit membership and grouping rules | Missing metadata, compilations, duplicate album titles, edits and multi-disc examples handled without silent merges; paginated access | Implemented; see scoped evidence below |
+| 2. Single-album candidate lookup | MusicBrainz/CAA integration behind a provider adapter; preview and job state | Correct/no-match/ambiguous/offline/throttled results; rate limiting and bounded retry; no audio file transmission | Implemented; mocked tests and bounded live lookup pass |
+| 3. Accept and persist a cover | Recoverable local storage, provenance, revisioned track-artwork response | Survives restart; stale acceptance rejected; original MP3 IDs/bytes unchanged; shared cover deletion is safe | Implemented; recovery tests pass; final process-restart check pending |
+| 4. Client and physical acceptance | Contextual lookup/preview/accept and cache invalidation | New cover appears in Library/player/mini-player/iPhone lock screen while playback and queue continue; browser and phone checks plus required recording evidence | Implemented; final browser recording underway; iPhone explicitly excluded this session |
 | 5. Bulk missing-artwork job | Paginated progress/findings, cancellation/resume and optional conservative auto-match policy | One lookup per album, bounded work for the full collection, cached misses, retries and explicit ambiguous results | Deferred |
 
 Use synthetic local provider responses for automated tests, including known/ambiguous editions, missing images, malformed and excessive images, timeout/429/503, provider redirects, concurrent edits/deletion and process restart. Keep automated tests and recordings free of personal music. A separately documented live-provider smoke test should verify real API compatibility before claiming provider support; the Oasis album is a useful bounded manual example once that trial is authorised. Run the existing API/CLI, browser and player regressions, then the selected iPhone's artwork-refresh/background/system-seek checklist. Browser results do not establish mobile behavior.
 
-## Decisions to resolve before implementation
+## Resolved decisions and deferred work
 
-- Approve MusicBrainz plus Cover Art Archive as the first integration, with preview/accept before any automatic bulk selection.
-- Agree provisional album grouping and treatment of compilations, editions and multi-disc albums; source album artist/year/track positions are currently not persisted.
-- Decide whether representative release-group art is acceptable when a precise edition cannot be identified.
-- Confirm fetched artwork fills missing embedded art by default; decide later whether manual override/upload is needed.
-- Define the provider User-Agent contact, retry/miss-cache policy and handling of metadata changes that invalidate a prior match.
-- Decide whether milestones 1–4 should land in separate reviewable PRs. Bulk backfill is a later scope decision.
+- MusicBrainz/CAA are approved for this increment; cover acceptance is always explicit.
+- Robin approved defaulting to suggested same-artist/album tracks without a second confirmation dialog, with affected count visible and optional unchecking.
+- Catalogue-only evidence is the bounded first increment. Do not infer compilation membership or claim source year/disc/order comparison. No album merge or startup rescan is performed.
+- Only release-specific covers are offered; representative release-group fallback and manual embedded-art overrides remain deferred.
+- The repository URL supplies the provider contact; pacing, cooldown and job-cache policy are documented below.
+- One PR with staged commits is the review unit. Bulk backfill/automatic acceptance remain deferred.
+- Robin subsequently excluded iPhone access to avoid conflicting sessions and approved browser validation against a disposable API. New physical lock-screen refresh/background/seek acceptance therefore remains unverified in this session.
 
 Update this progress table and the project brief as each milestone is authorised, implemented and verified. Suggestions remain proposals until explicitly agreed.
+
+## Authorised increment — 2026-11-20
+
+Use MusicBrainz releases and Cover Art Archive release front covers. No representative release-group fallback in this increment: when the exact edition is uncertain, label the evidence limitations and require a release-specific explicit cover acceptance. Robin approved defaulting to all suggested tracks without a separate membership-confirmation step; the accept button states the affected count, and the list can be adjusted. Suggestions use matching artist/album tags only and do not create or merge permanent catalogue albums. Missing metadata stays a singleton; mixed artist/album selections are rejected. Compilations with per-track artists must be matched separately for now. The first increment intentionally uses existing catalogue evidence and does not rescan audio or claim year/disc/order comparison.
+
+Implementation stages: additive V3 schema and recoverable image publication; bounded provider adapter and job API; Java contextual client flow and revision refresh; synthetic regression/browser recording and selected-iPhone acceptance. One PR will contain reviewable staged commits; no merge. Lookup jobs expire after 15 minutes and retain at most 20 snapshots. At most one search runs at once; requests are paced at 1.1 seconds and 429/503 impose a Retry-After-aware cooldown. Retries are user-initiated. Missing covers are cached within a job, not permanently. The User-Agent identifies NormalBias/0.1 and the public repository contact URL. A bounded live Oasis lookup is authorised for artist/album metadata only; accepting a personal-library cover remains an explicit user action.
+
+Accepted selections retain candidate/release-group metadata, source URL, timestamp, normalized image hash and the catalogue/revision snapshot. Image bytes are durably staged in H2 and materialized atomically outside music storage before associations are committed. Startup reconstructs missing/corrupt image files from the durable source. A failed/stale acceptance leaves the prior association intact. Unreferenced assets/selections are retained as recovery/provenance evidence; automatic garbage collection is deferred. Deletion cascades track associations only, preserving shared covers. Accepted associations remain attached to their explicit track IDs after later metadata edits; any new in-flight acceptance is invalidated by metadata/artwork revision changes. No ID3 tags are written.

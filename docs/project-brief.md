@@ -141,3 +141,9 @@ Robin rejected the first rendered Graphite implementation as janky and requested
 ## Keeping this document current
 
 Record later user-approved constraints and decisions here. Clearly label proposals and unresolved questions. Preserve the distinction between the long-term product and the currently authorised work.
+
+## Album matching increment authorised — 2026-11-20
+
+Robin authorised the first end-to-end increment in [album matching](album-matching-proposal.md): MusicBrainz release candidates, Cover Art Archive previews, explicit acceptance and separately persisted/provenanced covers that fill missing embedded artwork. The cover must refresh Library/player/mini-player/iPhone lock screen without reopening audio or changing position/queue. Default to applying to suggested same-artist/album tracks, with count visible on acceptance and optional adjustment; no separate track-confirmation step. Incomplete/mixed metadata must not silently merge albums. Exact edition uncertainty stays visible; no automatic choice or representative release-group fallback. Existing metadata-only evidence is sufficient for this increment, with missing year/disc/order signals disclosed; no automatic audio rescan.
+
+Implementation is in progress on `codex/album-matching`, based on freshly fetched main. Bulk backfill, automatic acceptance, deployment, cloud builds and dependency upgrades remain deferred. A bounded live-provider check of the imported Oasis artist/album metadata is authorised; audio transmission is excluded. Synthetic fixtures/mocked providers are required for automated tests and recordings. Browser and selected-iPhone verification and the recording remain completion gates, with actual evidence limits recorded in verification.md. A PR is authorised after implementation/verification, without merge.

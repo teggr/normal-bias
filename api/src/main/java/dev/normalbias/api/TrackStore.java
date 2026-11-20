@@ -28,7 +28,7 @@ public class TrackStore {
     private final long maxBytes;
     static final RowMapper<Track> ROW = (r, n) -> new Track(r.getString("id"),
             r.getString("filename"), r.getString("title"), r.getString("artist"), r.getString("album"),
-            r.getLong("duration_ms"), r.getLong("size_bytes"), r.getObject("created_at", OffsetDateTime.class));
+            r.getLong("duration_ms"), r.getLong("size_bytes"), r.getObject("created_at", OffsetDateTime.class), r.getString("artwork_revision"));
 
     public TrackStore(JdbcTemplate db, StorageOperations operations,
                       @Value("${normalbias.max-upload-bytes}") long maxBytes) throws IOException {
@@ -73,7 +73,7 @@ public class TrackStore {
         String title = editedText(changes, "title", existing.title());
         String artist = editedText(changes, "artist", existing.artist());
         String album = editedText(changes, "album", existing.album());
-        db.update("UPDATE tracks SET title = ?, artist = ?, album = ? WHERE id = ?", title, artist, album, id);
+        db.update("UPDATE tracks SET title = ?, artist = ?, album = ?, metadata_revision = metadata_revision + 1 WHERE id = ?", title, artist, album, id);
         return get(id);
     }
 

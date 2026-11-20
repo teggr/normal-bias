@@ -13,15 +13,17 @@ import java.net.URI;
 public class TrackController {
     private final TrackStore store;
     private final EmbeddedArtwork artwork;
-    public TrackController(TrackStore store, EmbeddedArtwork artwork) { this.store = store; this.artwork = artwork; }
+    private final AlbumArtwork albums;
+    public TrackController(TrackStore store, EmbeddedArtwork artwork, AlbumArtwork albums) { this.store = store; this.artwork = artwork; this.albums = albums; }
 
     @GetMapping("/{id}/artwork")
     public ResponseEntity<byte[]> artwork(@PathVariable String id, HttpServletRequest request) throws IOException {
         byte[] image = artwork.get(id);
-        if (image == null) return ResponseEntity.notFound().build();
-        String etag = "\"" + id + "-art-v1\"";
+        if (image == null) image = albums.get(id);
+        if (image == null) return ResponseEntity.notFound().cacheControl(CacheControl.noStore()).build();
+        String etag = "\"" + AlbumArtwork.hash(image) + "-art-v2\"";
         var response = ResponseEntity.ok().contentType(MediaType.IMAGE_PNG)
-                .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(1)).cachePrivate()).eTag(etag)
+                .cacheControl(CacheControl.noCache().cachePrivate()).eTag(etag)
                 .header("X-Content-Type-Options", "nosniff");
         if (etag.equals(request.getHeader("If-None-Match"))) {
             return ResponseEntity.status(304).eTag(etag).build();
