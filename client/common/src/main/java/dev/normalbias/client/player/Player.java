@@ -62,11 +62,15 @@ public final class Player {
         publishedPrevious = previous;
         publishedNext = next;
     }
+    public void refreshArtwork() {
+        if (queue.current() != null) loadSystemArtwork(queue.current());
+        changed.run();
+    }
     private void loadSystemArtwork(Track track) {
         if (system == null || !system.isSupported()) return;
-        system.artwork(new byte[0]);
+        String artworkKey = api.artworkKey(track);
         api.artwork(track, image -> {
-            if (active && queue.current() != null && track.id().equals(queue.current().id())) {
+            if (active && queue.current() != null && track.id().equals(queue.current().id()) && artworkKey.equals(api.artworkKey(track))) {
                 system.artwork(image instanceof EncodedImage ? ((EncodedImage) image).getImageData() : new byte[0]);
                 syncSystem();
             }
@@ -104,6 +108,7 @@ public final class Player {
         duration = Math.max(0, queue.current().durationMs());
         status = "Loading " + queue.current().title() + "…";
         audio.open(api.audioUrl(queue.current()));
+        if (system != null && system.isSupported()) system.artwork(new byte[0]);
         loadSystemArtwork(queue.current());
         audio.play();
         syncSystem();

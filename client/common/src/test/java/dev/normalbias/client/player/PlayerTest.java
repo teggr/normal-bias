@@ -8,12 +8,13 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlayerTest {
     private static final class Audio implements BrowserAudio {
         int reportedDuration;
+        int opened, closed;
         int sought = -1;
         public boolean isSupported() { return true; }
-        public void open(String url) { }
+        public void open(String url) { opened++; }
         public void play() { }
         public void pause() { }
-        public void close() { }
+        public void close() { closed++; }
         public void seek(int milliseconds) { sought = milliseconds; }
         public String snapshot() {
             return "{\"time\":0,\"duration\":" + reportedDuration
@@ -23,6 +24,15 @@ class PlayerTest {
     private Track track(String id, int duration) { return new Track(id.repeat(64), "Synthetic", "Fixture", "Test", duration); }
     private Player player(Audio audio) { return new Player(new LibraryApi("http://127.0.0.1:8080"), () -> {}, audio); }
 
+    @Test void artworkRefreshLeavesMediaPositionAndQueueUntouched() {
+        Audio audio = new Audio(); Player player = player(audio);
+        player.playTrack(track("a", 42000)); player.enqueue(track("b", 42000)); player.seekTime(17000);
+        int opened = audio.opened, closed = audio.closed;
+        player.refreshArtwork();
+        assertEquals(opened, audio.opened); assertEquals(closed, audio.closed);
+        assertEquals(17000, player.time()); assertEquals(2, player.queue.size());
+        assertEquals("a".repeat(64), player.queue.current().id());
+    }
     @Test void systemSeekUsesCatalogueDurationWhenNativeDurationIsNotReady() {
         Audio audio = new Audio();
         Player player = player(audio);

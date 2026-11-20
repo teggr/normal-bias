@@ -94,7 +94,7 @@ async function seed(origin) {
     const errors = [];
     const ranges = [];
     const covers = [];
-    page.on('response', response => { if (response.url().endsWith('/artwork')) covers.push(response); });
+    page.on('response', response => { if (new URL(response.url()).pathname.endsWith('/artwork')) covers.push(response); });
     page.on('pageerror', error => errors.push(String(error)));
     page.on('response', response => {
         if (response.url().includes('/audio') && response.status() === 206) ranges.push(response.url());

@@ -16,14 +16,14 @@ final class RecordArtwork extends Component {
     private Image embedded;
     void setTrack(Track track, LibraryApi api) {
         setIdentity(track == null ? null : track.title());
-        String nextId = track == null ? null : track.id();
+        String nextId = track == null ? null : api.artworkKey(track);
         if (nextId == null ? trackId == null : nextId.equals(trackId)) return;
         trackId = nextId;
         embedded = null;
         cached = null;
         repaint();
         if (track != null) api.artwork(track, image -> {
-            if (!track.id().equals(trackId)) return; // Late cover cannot replace a newer selection.
+            if (!api.artworkKey(track).equals(trackId) || !nextId.equals(trackId)) return; // Late cover cannot replace a newer selection.
             embedded = image;
             cached = null;
             repaint();

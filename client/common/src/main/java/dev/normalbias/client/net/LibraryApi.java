@@ -32,12 +32,65 @@ public final class LibraryApi {
 
     public String audioUrl(Track track) { return origin + "/api/tracks/" + track.id() + "/audio"; }
 
+    private final Map<String, String> revisions = new HashMap<>();
+    public String artworkKey(Track track) { return track.id() + "?v=" + revisions.getOrDefault(track.id(), "embedded"); }
+    public void invalidateArtwork(List<String> ids, String revision) {
+        for (String id : ids) revisions.put(id, revision);
+        covers.clear();
+    }
+    public void json(String path, String body, Consumer<Map<String, Object>> success, Consumer<String> failure) {
+        ConnectionRequest request = new ConnectionRequest() {
+            private Map<String, Object> result;
+            private boolean delivered;
+            private void fail(String text) { if (!delivered) { delivered = true; CN.callSerially(() -> failure.accept(text)); } }
+            @Override protected void readResponse(InputStream input) throws IOException {
+                result = new JSONParser().parseJSON(new InputStreamReader(input, "UTF-8"));
+            }
+            @Override protected void postResponse() { if (!delivered) { delivered = true; CN.callSerially(() -> success.accept(result)); } }
+            @Override protected void handleErrorResponseCode(int code, String message) {
+                fail(code == 409 || code == 410 ? "Tracks or artwork changed, or lookup expired. Start a fresh match." :
+                        "Artwork request failed (HTTP " + code + "). Check tags/connection and retry.");
+            }
+            @Override protected void handleException(Exception ex) { fail("Cannot reach the artwork service. Retry later."); }
+        };
+        request.setUrl(origin + path);
+        request.setPost(body != null);
+        request.setHttpMethod(body == null ? "GET" : "POST");
+        if (body != null) { request.setContentType("application/json"); request.setRequestBody(body); }
+        request.setTimeout(15000); request.setReadTimeout(20000);
+        NetworkManager.getInstance().addToQueue(request);
+    }
+    public void preview(String path, Consumer<Image> loaded) {
+        ConnectionRequest request = new ConnectionRequest() {
+            private byte[] bytes;
+            @Override protected void readResponse(InputStream input) throws IOException {
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                byte[] buffer = new byte[8192]; int count;
+                while ((count = input.read(buffer)) != -1) {
+                    if (output.size() + count > 2 * 1024 * 1024) throw new IOException("Preview too large");
+                    output.write(buffer, 0, count);
+                }
+                bytes = output.toByteArray();
+            }
+            @Override protected void postResponse() { CN.callSerially(() -> {
+                Image image = null;
+                try { if (bytes != null) image = EncodedImage.create(bytes); } catch (RuntimeException ignored) { }
+                loaded.accept(image);
+            }); }
+            @Override protected void handleErrorResponseCode(int code, String message) { CN.callSerially(() -> loaded.accept(null)); }
+            @Override protected void handleException(Exception ex) { CN.callSerially(() -> loaded.accept(null)); }
+        };
+        request.setUrl(origin + path); request.setPost(false); request.setHttpMethod("GET");
+        request.setTimeout(15000); request.setReadTimeout(20000);
+        NetworkManager.getInstance().addToQueue(request);
+    }
+
     private final Map<String, Image> covers = new LinkedHashMap<>();
     private final Map<String, List<Consumer<Image>>> pendingCovers = new HashMap<>();
 
     /** EDT-only, shared across library/player/mini-player. Missing art preserves the sleeve. */
     public void artwork(Track track, Consumer<Image> loaded) {
-        String id = track.id();
+        String id = artworkKey(track);
         if (covers.containsKey(id)) { loaded.accept(covers.get(id)); return; }
         if (pendingCovers.containsKey(id)) { pendingCovers.get(id).add(loaded); return; }
         List<Consumer<Image>> listeners = new ArrayList<>();
@@ -76,7 +129,7 @@ public final class LibraryApi {
             @Override protected void handleErrorResponseCode(int code, String message) { finish(code == 404); }
             @Override protected void handleException(Exception ex) { finish(false); }
         };
-        request.setUrl(origin + "/api/tracks/" + id + "/artwork");
+        request.setUrl(origin + "/api/tracks/" + track.id() + "/artwork?v=" + revisions.getOrDefault(track.id(), "embedded"));
         request.setPost(false);
         request.setHttpMethod("GET");
         request.setReadTimeout(15000);
@@ -104,6 +157,7 @@ public final class LibraryApi {
                     for (Object item : (List<?>) json.get("items")) {
                         Map<?, ?> row = (Map<?, ?>) item;
                         String id = (String) row.get("id");
+                        if (row.get("artworkRevision") != null) revisions.put(id, (String) row.get("artworkRevision"));
                         if (id == null || id.length() != 64) throw new IllegalArgumentException("Invalid track ID");
                         tracks.add(new Track(id, (String) row.get("title"), (String) row.get("artist"),
                                 (String) row.get("album"), ((Number) row.get("durationMs")).intValue()));
