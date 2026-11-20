@@ -33,6 +33,9 @@ public final class Player {
         system = !CN.isSimulator() && "ios".equals(CN.getPlatformName())
                 ? NativeLookup.create(SystemAudio.class) : null;
         if (system != null && system.isSupported()) SystemAudioEvents.bind(this);
+        api.onArtworkLoaded(id -> {
+            if (active && queue.current() != null && id.equals(queue.current().id())) refreshArtwork();
+        });
     }
     // Platform-independent regression checks use the same player policy with a fake audio adapter.
     Player(LibraryApi api, Runnable changed, BrowserAudio audio) {

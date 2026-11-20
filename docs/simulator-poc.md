@@ -56,3 +56,5 @@ No MCP connection is added to the user's account. The simulator's built-in recor
 The managed Linux desktop used for verification had no physical sound output. A task-local PulseAudio software sink plus ALSA plugin supplied a real-time Java Sound output; the framework recorder captured actual decoded application PCM through its audio tap. This machine setup is not an application dependency or a claim of speaker/headphone output. On a developer machine, use its normal sound output. A missing output device is a concrete playback blocker, not evidence of successful sound playback.
 
 See [verification.md](verification.md) for test results, recording checks and outstanding device work.
+
+The disposable synthetic demo helper explicitly disables automatic external artwork lookup (`--normalbias.artwork.background-enabled=false`). Ordinary retained-library service launches enable it by default; the mocked-provider browser fixture tests automatic filling independently.

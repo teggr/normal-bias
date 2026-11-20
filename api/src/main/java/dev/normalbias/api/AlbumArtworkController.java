@@ -9,6 +9,11 @@ import java.io.IOException;
 public class AlbumArtworkController {
     private final AlbumArtwork service;
     public AlbumArtworkController(AlbumArtwork service) { this.service = service; }
+    @GetMapping("/revision")
+    public ResponseEntity<java.util.Map<String, String>> revision() {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(java.util.Map.of("revision", Long.toString(service.artworkVersion())));
+    }
     @GetMapping("/suggestions/{trackId}")
     public AlbumArtwork.Selection suggestions(@PathVariable String trackId, @RequestParam(defaultValue="0") int offset,
             @RequestParam(defaultValue="50") int limit) { return service.suggestions(trackId, offset, limit); }

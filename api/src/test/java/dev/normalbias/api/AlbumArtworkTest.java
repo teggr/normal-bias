@@ -27,6 +27,10 @@ class AlbumArtworkTest {
             new AlbumProvider.Candidate(RELEASE, "Album", "Artist", "1994", "GB", "Original", 2, "group", "https://musicbrainz.org/release/"+RELEASE),
             new AlbumProvider.Candidate("22222222-2222-2222-2222-222222222222", "Album", "Artist", "2014", "GB", "Deluxe", 40, "group", "https://musicbrainz.org/release/other"));
     boolean offline;
+    java.time.Instant retryAt;
+    int searches, covers;
+    Runnable beforeCover = () -> {};
+    Set<String> missingCovers = new HashSet<>();
     @BeforeEach void setup() throws Exception {
         var source = new DriverManagerDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", "");
         Flyway.configure().dataSource(source).load().migrate();
@@ -39,8 +43,13 @@ class AlbumArtworkTest {
     }
     AlbumArtwork make() throws IOException {
         return new AlbumArtwork(tracks, db, tx, new AlbumProvider() {
-            public List<Candidate> search(String artist, String album) throws IOException { if (offline) throw new IOException("503"); return candidates; }
-            public byte[] cover(String id) { return image; }
+            public List<Candidate> search(String artist, String album) throws IOException {
+                searches++;
+                if (offline && retryAt!=null) throw new MusicBrainzProvider.Unavailable("503",retryAt);
+                if (offline) throw new IOException("503");
+                return candidates;
+            }
+            public byte[] cover(String id) { covers++; beforeCover.run(); return missingCovers.contains(id) ? null : image; }
         }, storage);
     }
     @AfterEach void close() throws Exception { service.stop(); storage.close(); }

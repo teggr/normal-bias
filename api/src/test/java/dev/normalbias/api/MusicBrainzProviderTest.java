@@ -41,8 +41,11 @@ class MusicBrainzProviderTest {
         assertTrue(receivedQuery.contains("release:\"Album\" AND artist:\"Artist\"")); assertTrue(receivedQuery.contains("limit=10"));
     }
     @Test void throttlingHonoursCooldownWithoutAutomaticRetries() throws Exception {
-        status=429; headers.put("Retry-After","120"); assertThrows(IOException.class,()->provider.search("Artist","Album"));
-        assertThrows(IOException.class,()->provider.search("Artist","Album")); assertEquals(1,calls.get());
+        status=429; headers.put("Retry-After","120");
+        var first=assertThrows(MusicBrainzProvider.Unavailable.class,()->provider.search("Artist","Album"));
+        assertTrue(first.retryAt().isAfter(java.time.Instant.now().plusSeconds(118)));
+        var next=assertThrows(MusicBrainzProvider.Unavailable.class,()->provider.search("Artist","Album"));
+        assertEquals(first.retryAt(),next.retryAt());assertEquals(1,calls.get());
     }
     @Test void unavailableAndMalformedAndExcessiveResponsesFailBoundedly() throws Exception {
         status=503; assertThrows(IOException.class,()->provider.search("Artist","Album")); assertEquals(1,calls.get());

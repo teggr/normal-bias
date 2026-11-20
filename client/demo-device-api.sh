@@ -26,7 +26,7 @@ start_api() {
     local host=$1 ready=false
     : > "$work_dir/api.log"
     java -jar "$repo_dir/api/target/normal-bias-api-0.1.0-SNAPSHOT.jar" \
-        --server.address="$host" --server.port="$trial_port" --normalbias.data-dir="$work_dir/data" > "$work_dir/api.log" 2>&1 &
+        --server.address="$host" --server.port="$trial_port" --normalbias.data-dir="$work_dir/data" --normalbias.artwork.background-enabled=false > "$work_dir/api.log" 2>&1 &
     api_pid=$!
     for ((attempt=0; attempt<60; attempt++)); do
         if ! kill -0 "$api_pid" 2>/dev/null; then cat "$work_dir/api.log" >&2; return 1; fi

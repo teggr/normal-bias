@@ -9,7 +9,7 @@ const {chromium} = require('playwright-core');
 const repo=path.resolve(__dirname,'../..');
 const work=fs.mkdtempSync(path.join(os.tmpdir(),'normalbias-match-browser-'));
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
-let server,browser,page;
+let server,browser,page,stopRecording;
 async function until(check,label,timeout=20000) {
     const end=Date.now()+timeout;
     while(Date.now()<end) { if(await check())return;await delay(100); }
@@ -55,72 +55,58 @@ async function seed(origin) {
     const cp=[path.join(repo,'api/target/test-classes'),path.join(repo,'api/target/classes'),fs.readFileSync(path.join(repo,'api/target/test-classpath.txt'),'utf8').trim()].join(path.delimiter);
     const log=fs.openSync(path.join(work,'api.log'),'w');
     server=spawn('java',['-cp',cp,'dev.normalbias.api.ArtworkFixtureApplication','--server.port='+port,
-        '--normalbias.data-dir='+path.join(work,'data'),'--spring.web.resources.static-locations=file:'+path.join(repo,'client/target/web/')],{stdio:['ignore',log,log]});
+        '--normalbias.data-dir='+path.join(work,'data'), '--normalbias.artwork.background-enabled=true',
+        '--normalbias.artwork.initial-delay-ms=20000', '--normalbias.artwork.scan-delay-ms=1000','--spring.web.resources.static-locations=file:'+path.join(repo,'client/target/web/')],{stdio:['ignore',log,log]});
     await until(async()=>{try{return(await fetch(origin+'/api/tracks')).ok;}catch{return false;}},'fixture API startup');
     const ids=await seed(origin);
     const originals=await Promise.all(ids.map(async id=>Buffer.from(await(await fetch(origin+'/api/tracks/'+id+'/audio')).arrayBuffer())));
     const embedded=Buffer.from(await(await fetch(origin+'/api/tracks/'+ids[2]+'/artwork')).arrayBuffer());
     browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
     const context=await browser.newContext({viewport:{width:1180,height:844},serviceWorkers:'block'});page=await context.newPage();
+    if(process.env.BLOCK_ARTWORK_REVISION) await page.route('**/api/album-artwork/revision',route=>route.fulfill({status:503,body:'revision check unavailable'}));
     const errors=[];page.on('pageerror',e=>errors.push(String(e)));
     const requests=[];page.on('request',r=>requests.push(r.url()));
     await page.goto(origin);await text('1–3 of 3');
-    const stop=process.env.RECORD_DEMO?await require('./capture-demo.cjs').start(page,path.resolve(process.env.RECORD_DEMO)):null;
+    stopRecording=process.env.RECORD_DEMO?await require('./capture-demo.cjs').start(page,path.resolve(process.env.RECORD_DEMO)):null;
     await click('+ Queue',1);await click('Play Morning Circuit');
     await until(async()=>{const a=await audio();return a.some(x=>!x.paused&&x.time>1);},'actual audio playback');
     await delay(3000);
     const playing=(await audio()).find(x=>!x.paused);const opened=requests.filter(x=>x.includes('/audio')).length;
-    await click('Find album artwork',0);await text('Suggested album: Artwork Trial');
-    await page.screenshot({path:path.join(repo,'client/target/album-suggestions.png')});
-    await delay(4000);await click('Find candidate releases');
-    await until(()=>page.getByRole('button',{name:'Preview cover',exact:true}).count().then(n=>n===2),'ambiguous editions');
-    await click('Preview cover',0);
-    await until(()=>page.getByRole('button',{name:'Accept cover for 3 tracks',exact:true}).nth(0).isEnabled(),'preview decoded');
-    await page.screenshot({path:path.join(repo,'client/target/album-preview.png')});
-    await delay(6500);await click('Accept cover for 3 tracks',0);
-    await text('Cover accepted. Embedded images preserved. Playback and queue continue.');
+    assert.equal(await page.getByRole('button',{name:'Find album artwork',exact:true}).count(),0,'no artwork management control');
+    await until(async()=> (await fetch(origin+'/api/tracks/'+ids[0]+'/artwork')).status===200,
+        'service fills artwork without a client request',40000);
+    if(!process.env.BLOCK_ARTWORK_REVISION)
+        await until(()=>requests.some(x=>x.includes('/artwork?v=1')),'passive cover revision refresh',20000);
+    // Inspect the actual canvas pixels: a request alone does not prove the player repainted.
+    async function blueRegion(x,y,width,height,minimum) {
+        const screenshot=path.join(work,'cover-check.png');
+        await page.screenshot({path:screenshot});
+        const decoded=spawnSync('ffmpeg',['-v','error','-i',screenshot,
+            '-vf',`crop=${width}:${height}:${x}:${y}`,'-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','pipe:1'],{timeout:10000});
+        assert.equal(decoded.status,0,'decode screenshot pixels');
+        let blue=0;
+        for(let i=0;i<decoded.stdout.length;i+=3) {
+            if(decoded.stdout[i]<70 && decoded.stdout[i+1]<110 && decoded.stdout[i+2]>150)blue++;
+        }
+        return blue>minimum;
+    }
+    await until(()=>blueRegion(900,210,200,200,3000),'visible blue fetched cover on player',process.env.BLOCK_ARTWORK_REVISION?40000:15000);
+    await until(()=>blueRegion(844,476,52,54,300),'visible fetched cover on metadata thumbnail',10000);
     const after=(await audio()).find(x=>!x.paused);
-    assert.equal(after.src,playing.src);assert.ok(after.time>playing.time+3);assert.equal(requests.filter(x=>x.includes('/audio')).length,opened,'no audio reopened');
-    await click('Return to library');await text('1–3 of 3');await text('Queue (2)');
-    await until(()=>requests.some(x=>x.includes('/artwork?v=')&&!x.endsWith('v=embedded')),'revisioned artwork request');
-    await page.screenshot({path:path.join(repo,'client/target/album-accepted.png')});
-    await delay(5500);
-    await page.setViewportSize({width:390,height:844});await delay(1500);
-    await page.screenshot({path:path.join(repo,'client/target/album-mini.png')});
-    await click('Now Playing',0,'radio');await delay(1300);
-    await page.screenshot({path:path.join(repo,'client/target/album-player.png')});
-    await click('Pause');const paused=(await audio()).find(x=>x.src===playing.src);await delay(1500);
+    assert.ok(after,'playback remains active after background refresh: '+JSON.stringify(await audio()));
+    assert.equal(after.src,playing.src);assert.ok(after.time>playing.time+3);
+    assert.equal(requests.filter(x=>x.includes('/audio')).length,opened,'background refresh does not reopen audio');
+    assert.equal(requests.filter(x=>x.includes('/matches')||x.includes('/suggestions')).length,0,'no client matching workflow');
+    await text('Queue (2)');
+    await page.screenshot({path:path.join(repo,'client/target/album-background-library.png')});
+    await delay(3500);
+    await click('Pause');const paused=(await audio()).find(x=>x.src===playing.src);await delay(2000);
     assert.ok(Math.abs((await audio()).find(x=>x.src===playing.src).time-paused.time)<0.2);
-    if(stop)await stop();
+    if(stopRecording){await stopRecording();stopRecording=null;}
     for(let i=0;i<ids.length;i++)assert.deepEqual(Buffer.from(await(await fetch(origin+'/api/tracks/'+ids[i]+'/audio')).arrayBuffer()),originals[i]);
     assert.deepEqual(Buffer.from(await(await fetch(origin+'/api/tracks/'+ids[2]+'/artwork')).arrayBuffer()),embedded,'embedded cover preserved');
-    assert.equal((await fetch(origin+'/api/tracks/'+ids[0]+'/artwork')).status,200);
-    console.log('PASS ambiguous releases, explicit preview/accept, real playback continuity, queue and missing-cache refresh; embedded/audio bytes preserved');
-    await click('Back to library');
-    for (const [album,message] of [['No match','No matching releases. Retry later or correct the tags.'],
-            ['Offline','Provider unavailable or throttled. Your artwork is unchanged; retry later.']]) {
-        await api(origin,'/api/tracks/'+ids[0],{album},'PATCH');await click('Reset');await text('1–3 of 3');
-        await click('Find album artwork',0);await text('Suggested album: '+album);await click('Find candidate releases');
-        await text(message);await click('Back to library');
-    }
-    await api(origin,'/api/tracks/'+ids[0],{album:'Artwork Trial'},'PATCH');await click('Reset');await text('1–3 of 3');
-    await click('Find album artwork',0);await click('Find candidate releases');await click('Preview cover',0);
-    await until(()=>page.getByRole('button',{name:'Accept cover for 3 tracks',exact:true}).nth(0).isEnabled(),'fresh preview');
-    await api(origin,'/api/tracks/'+ids[0],{title:'Edited while choosing'},'PATCH');
-    await click('Accept cover for 3 tracks',0);await text('Tracks or artwork changed, or lookup expired. Start a fresh match.');
-    await click('Back to library');
-    await api(origin,'/api/tracks/'+ids[0],{title:'Morning Circuit'},'PATCH');await click('Reset');await text('1–3 of 3');
-    await page.setViewportSize({width:1180,height:844});await delay(600);
-    await click('Queue (2)',0,'radio');await click('Clear queue');await click('Library',0,'radio');
-    await click('Play Morning Circuit');await click('+ Queue',1);
-    await until(async()=>(await audio()).some(x=>!x.paused),'play for matching-screen queue completion');
-    const slider=await page.getByRole('slider').boundingBox();
-    await page.mouse.click(slider.x+slider.width*0.97,slider.y+slider.height/2);
-    await until(async()=>(await audio()).some(x=>x.time>95),'seek near completion',2500);
-    await click('Find album artwork',0);await click('Find candidate releases');
-    await until(async()=>(await audio()).some(x=>x.src.includes(ids[1])&&!x.paused),'completion while matching is visible',10000);
-    await click('Back to library');await click('Queue (2)',0,'radio');await click('Clear queue');
-    console.log('PASS visible no-match/outage/stale acceptance and queue completion while matching');
+    console.log(process.env.BLOCK_ARTWORK_REVISION?'PASS revision endpoint blocked: missing-cover TTL recovered without restart':'PASS revision notification refresh');
+    console.log('PASS autonomous background fill, no matching controls/requests, real playback continuity, queue and passive cache refresh; embedded/audio bytes preserved');
     // A real process restart must preserve the accepted cover and provenance via HTTP.
     const saved=await api(origin,'/api/album-artwork/tracks/'+ids[0]);
     const savedCover=Buffer.from(await(await fetch(origin+'/api/tracks/'+ids[0]+'/artwork')).arrayBuffer());
@@ -130,6 +116,6 @@ async function seed(origin) {
     await until(async()=>{try{return(await fetch(origin+'/api/tracks')).ok;}catch{return false;}},'API restart');
     assert.deepEqual(await api(origin,'/api/album-artwork/tracks/'+ids[0]),saved);
     assert.deepEqual(Buffer.from(await(await fetch(origin+'/api/tracks/'+ids[0]+'/artwork')).arrayBuffer()),savedCover);
-    console.log('PASS real API process restart preserves accepted image/provenance');
+    console.log('PASS real API process restart preserves automatically fetched image/provenance');
     assert.deepEqual(errors,[]);console.log('Album browser PASS; service workers blocked; no physical-device claim');
-})().catch(async error=>{console.error(error);if(page){try{await page.screenshot({path:path.join(repo,'client/target/album-failure.png')});}catch{}}process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();if(server)server.kill('SIGTERM');console.log('Disposable evidence/logs:',work);});
+})().catch(async error=>{console.error(error);if(page){try{await page.screenshot({path:path.join(repo,'client/target/album-failure.png')});}catch{}}process.exitCode=1;}).finally(async()=>{if(stopRecording){try{await stopRecording();}catch{}}if(browser)await browser.close();if(server)server.kill('SIGTERM');console.log('Disposable evidence/logs:',work);});
