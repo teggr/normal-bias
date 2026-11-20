@@ -40,18 +40,29 @@ public class TrackStore {
     }
 
     public synchronized TrackPage list(int offset, int limit, String query) {
+        return list(offset, limit, query, null, null);
+    }
+
+    public synchronized TrackPage list(int offset, int limit, String query, String artist, String album) {
+        if ((artist != null && artist.length() > 1024) || (album != null && album.length() > 1024))
+            throw error(HttpStatus.BAD_REQUEST, "Invalid library filter");
         if (offset < 0 || limit < 1 || limit > 200) throw error(HttpStatus.BAD_REQUEST, "Invalid pagination");
         if (query.length() > 1024) throw error(HttpStatus.BAD_REQUEST, "Search exceeds 1024 characters");
         // LOCATE treats SQL wildcard characters literally; all input remains parameterized.
         String term = query.strip().toLowerCase(Locale.ROOT);
         String filter = term.isEmpty() ? "" : """
-                WHERE LOCATE(?, LOWER(title)) > 0
+                WHERE (LOCATE(?, LOWER(title)) > 0
                 OR LOCATE(?, LOWER(COALESCE(artist, ''))) > 0
                 OR LOCATE(?, LOWER(COALESCE(album, ''))) > 0
-                OR LOCATE(?, LOWER(filename)) > 0
+                OR LOCATE(?, LOWER(filename)) > 0)
                 """;
         var parameters = new ArrayList<Object>();
         if (!term.isEmpty()) Collections.addAll(parameters, term, term, term, term);
+        if (artist != null || album != null) {
+            if (filter.isEmpty()) filter = "WHERE 1=1 ";
+            if (artist != null) { filter += " AND COALESCE(artist, '') = ?"; parameters.add(artist); }
+            if (album != null) { filter += " AND COALESCE(album, '') = ?"; parameters.add(album); }
+        }
         long total = db.queryForObject("SELECT COUNT(*) FROM tracks " + filter, Long.class, parameters.toArray());
         Collections.addAll(parameters, limit, offset);
         var items = db.query("SELECT * FROM tracks " + filter + " ORDER BY created_at, id LIMIT ? OFFSET ?",

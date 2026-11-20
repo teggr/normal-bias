@@ -72,3 +72,7 @@ The reference's unsupported favourite/repeat/volume actions are replaced by exis
 5. Address artwork support, new controls and physical-device integration as explicit additional increments.
 
 The native platform guidance from the original request remains in force. The corrected material language is tactile graphite, not flat charcoal-and-amber panels.
+
+### Library material follow-up — 2026-11-20
+
+The approved All songs/Albums/Artists selectors use the same layered graphite hardware edge as the player’s (…) button, stretched into labelled pills. Active-view text is `#EAC23F`; inactive labels are `#F3F3F1`. Persistent view selection is separate from focus/pressed state. The Library-only search well matches the metadata inset: `#171717`, a fine `#3D3D3D` rim and 2.5 mm corners, with room for the native editor and search/reset controls. Root view titles are not repeated above the rows; artist/album drill-down retains its context and back action.

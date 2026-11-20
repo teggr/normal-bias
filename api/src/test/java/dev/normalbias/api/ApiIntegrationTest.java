@@ -45,6 +45,28 @@ class ApiIntegrationTest {
         try (var in = getClass().getResourceAsStream("/tone.mp3")) { tone = in.readAllBytes(); }
         db.update("DELETE FROM tracks");
     }
+    @Test void libraryViewsGroupFilterAndReflectEdits() throws Exception {
+        for (int i = 0; i < 5; i++) db.update("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, 1000, 1, CURRENT_TIMESTAMP)",
+                String.format("%064x", i), "song.mp3", "Song " + i, i == 4 ? null : i < 3 ? "Artist A" : "Artist B", i == 4 ? null : "Shared % album");
+        var albums = json.readTree(get("/api/library/albums?limit=1").body());
+        assertEquals(3, albums.get("total").asInt());
+        assertEquals(1, albums.get("items").size());
+        assertEquals(3, json.readTree(get("/api/library/artists").body()).get("total").asInt());
+        assertEquals(2, json.readTree(get("/api/library/albums?q=%25").body()).get("total").asInt());
+        var artistAlbums = json.readTree(get("/api/library/albums?artist=Artist%20A").body());
+        assertEquals(1, artistAlbums.get("total").asInt());
+        assertEquals(3, artistAlbums.get("items").get(0).get("trackCount").asInt());
+        assertEquals(3, json.readTree(get("/api/tracks?artist=Artist%20A&album=Shared%20%25%20album").body()).get("total").asInt());
+        assertEquals(0, json.readTree(get("/api/tracks?artist=Artist%20A&q=Song%204").body()).get("total").asInt());
+        assertEquals(1, json.readTree(get("/api/tracks?artist=&album=").body()).get("total").asInt());
+        assertEquals(400, get("/api/library/albums?limit=201").statusCode());
+        assertEquals(400, get("/api/library/artists?offset=-1").statusCode());
+        db.update("UPDATE tracks SET artist='Artist B' WHERE artist='Artist A'");
+        assertEquals(2, json.readTree(get("/api/library/albums").body()).get("total").asInt());
+        db.update("DELETE FROM tracks WHERE artist='Artist B'");
+        assertEquals(1, json.readTree(get("/api/library/artists").body()).get("total").asInt());
+    }
+
     @AfterEach void close() { client.close(); }
 
     URI uri(String path) { return URI.create("http://127.0.0.1:" + port + path); }
@@ -250,6 +272,12 @@ class ApiIntegrationTest {
                     "Artist " + (i % 140), "Album " + (i % 700), 1000L, 8686L, created});
         }
         db.batchUpdate("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows);
+        var albumPage = json.readTree(get("/api/library/albums?offset=699&limit=1").body());
+        assertEquals(700, albumPage.get("total").asInt());
+        assertEquals(1, albumPage.get("items").size());
+        assertEquals(20, albumPage.get("items").get(0).get("trackCount").asInt());
+        assertEquals(140, json.readTree(get("/api/library/artists?offset=140").body()).get("total").asInt());
+        assertEquals(0, json.readTree(get("/api/library/artists?offset=140").body()).get("items").size());
         var timings = new ArrayList<Double>();
         for (int repetition = 0; repetition < 10; repetition++) {
             for (String query : List.of("sOnG", "Artist 139", "Album 699", "track-13999.mp3", "absent")) {

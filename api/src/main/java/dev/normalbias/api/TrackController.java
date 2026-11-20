@@ -42,8 +42,10 @@ public class TrackController {
     @GetMapping
     public TrackPage list(@RequestParam(defaultValue = "0") int offset,
                             @RequestParam(defaultValue = "50") int limit,
-                            @RequestParam(defaultValue = "") String q) {
-        return store.list(offset, limit, q);
+                            @RequestParam(defaultValue = "") String q,
+                            @RequestParam(required=false) String artist,
+                            @RequestParam(required=false) String album) {
+        return store.list(offset, limit, q, artist, album);
     }
 
     @GetMapping("/{id}")

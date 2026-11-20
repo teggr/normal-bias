@@ -53,9 +53,9 @@ public final class LibraryApi {
             }
             @Override protected void postResponse() { if (!delivered) { delivered = true; CN.callSerially(() -> success.accept(result)); } }
             @Override protected void handleErrorResponseCode(int code, String message) {
-                fail("Artwork revision unavailable");
+                fail("Library request failed (HTTP " + code + "). Try again.");
             }
-            @Override protected void handleException(Exception ex) { fail("Cannot reach the artwork service. Retry later."); }
+            @Override protected void handleException(Exception ex) { fail("Cannot reach the library service. Retry later."); }
         };
         request.setUrl(origin + path);
         request.setPost(false);
@@ -102,9 +102,33 @@ public final class LibraryApi {
         });
     }
 
+    public record Group(String artist, String album, int trackCount, String trackId) {}
+    public record GroupPage(List<Group> items, int offset, int total) {}
+    public void groups(String view, String query, int offset, String artist,
+                       Consumer<GroupPage> success, Consumer<String> failure) {
+        String path = "/api/library/" + view + "?offset=" + offset + "&limit=" + PAGE_SIZE
+                + "&q=" + com.codename1.io.Util.encodeUrl(query);
+        if (artist != null) path += "&artist=" + com.codename1.io.Util.encodeUrl(artist);
+        json(path, data -> {
+            try {
+                List<Group> groups = new ArrayList<>();
+                for (Object item : (List<?>) data.get("items")) {
+                    Map<?, ?> row = (Map<?, ?>) item;
+                    groups.add(new Group((String) row.get("artist"), (String) row.get("album"),
+                            ((Number) row.get("trackCount")).intValue(), (String) row.get("trackId")));
+                }
+                success.accept(new GroupPage(groups, ((Number) data.get("offset")).intValue(), ((Number) data.get("total")).intValue()));
+            } catch (RuntimeException ex) { failure.accept("Unexpected library response. Try again."); }
+        }, failure);
+    }
+
     public record Page(List<Track> items, int offset, int limit, int total) {}
 
     public void list(String query, int offset, Consumer<Page> success, Consumer<String> failure) {
+        list(query, offset, null, null, success, failure);
+    }
+
+    public void list(String query, int offset, String artist, String album, Consumer<Page> success, Consumer<String> failure) {
         ConnectionRequest request = new ConnectionRequest() {
             private Page page;
             private boolean delivered;
@@ -147,6 +171,8 @@ public final class LibraryApi {
         request.setHttpMethod("GET");
         request.setReadTimeout(15000);
         request.setTimeout(15000);
+        if (artist != null) request.addArgument("artist", artist);
+        if (album != null) request.addArgument("album", album);
         request.addArgument("q", query);
         request.addArgument("offset", String.valueOf(offset));
         request.addArgument("limit", String.valueOf(PAGE_SIZE));

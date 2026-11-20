@@ -64,7 +64,7 @@ async function seed(origin) {
         const file = path.join(work, filename);
         result = spawnSync('ffmpeg', ['-hide_banner','-loglevel','error','-i',base,...(i === 0 ? ['-i',cover,'-map','0:a','-map','1:v','-disposition:v','attached_pic'] : []),'-codec','copy',
             '-metadata',`title=Synthetic track ${String(i).padStart(2,'0')}`,
-            '-metadata','artist=Normal Bias tests','-metadata','album=Browser fixtures','-y',file]);
+            '-metadata',`artist=${i < 27 ? 'Normal Bias tests' : 'Second artist'}`,'-metadata','album=Browser fixtures','-y',file]);
         assert.equal(result.status, 0);
         const response = await fetch(origin + '/api/tracks?filename=' + filename, {
             method:'POST', headers:{'Content-Type':'audio/mpeg'}, body:fs.readFileSync(file)
@@ -116,21 +116,54 @@ async function seed(origin) {
     await text(page, '1–25 of 28');
     console.log('PASS empty library, pagination, search, no matches and reset');
 
+    assert.equal(await page.getByText('All songs', {exact:true}).count(), 1, 'no duplicate root heading');
+    const searchBounds = await page.getByRole('textbox').first().boundingBox();
+    const tabBounds = await page.getByRole('radio', {name:'Library', exact:true}).boundingBox();
+    assert.ok(searchBounds.y > tabBounds.y + tabBounds.height, 'search is inside Library beneath tabs');
+    await page.screenshot({path:path.join(repo,'client/target/library-layout-root.png')});
     for (const submitWithEnter of [false, true]) {
-        await click(page, 'Queue (0)', 0, 'radio');
         await search(page, 'track 00', submitWithEnter);
-        await until(() => page.getByRole('radio', {name:'Library', exact:true})
-            .getAttribute('aria-checked').then(value => value === 'true'), 'search opens library results');
         await text(page, '1–1 of 1');
         await click(page, 'Queue (0)', 0, 'radio');
+        assert.equal(await page.getByRole('button', {name:'Search', exact:true}).count(), 0, 'Queue has no library search');
+        await click(page, 'Library', 0, 'radio');
+        await text(page, '1–1 of 1');
         await click(page, 'Reset');
-        await until(() => page.getByRole('radio', {name:'Library', exact:true})
-            .getAttribute('aria-checked').then(value => value === 'true'), 'reset opens library');
         await text(page, '1–25 of 28');
     }
-    console.log('PASS Search button, Enter and Reset reveal Library from Queue');
+    console.log('PASS Library-only search, preserved query, Enter/Reset and no duplicate heading');
 
     const stopCapture = process.env.RECORD_DEMO ? await require('./capture-demo.cjs').start(page, path.resolve(process.env.RECORD_DEMO)) : null;
+    await click(page, 'Queue (0)', 0, 'radio');
+    assert.equal(await page.getByRole('button', {name:'Search', exact:true}).count(), 0);
+    await delay(700);
+    await page.screenshot({path:path.join(repo,'client/target/library-layout-queue.png')});
+    await click(page, 'Library', 0, 'radio');
+    await click(page, 'Albums');
+    await text(page, '1–2 of 2');
+    await page.screenshot({path:path.join(repo,'client/target/library-albums.png')});
+    await click(page, 'Open Browser fixtures');
+    await text(page, '1–25 of 27');
+    await click(page, 'More');
+    await text(page, '26–27 of 27');
+    await click(page, 'Library views');
+    await text(page, '1–2 of 2');
+    await click(page, 'Artists');
+    await text(page, '1–2 of 2');
+    await page.screenshot({path:path.join(repo,'client/target/library-artists.png')});
+    await click(page, 'Open Second artist');
+    await text(page, '1–1 of 1');
+    await click(page, 'Open Browser fixtures');
+    await page.getByRole('button', {name:'Play Synthetic track 27', exact:true}).waitFor();
+    await click(page, 'Library views');
+    await click(page, 'Library views');
+    await page.getByRole('button', {name:'Open Normal Bias tests', exact:true}).waitFor();
+    await search(page, 'missing artist');
+    await text(page, 'No artists found.');
+    await click(page, 'Reset');
+    await click(page, 'All songs');
+    await text(page, '1–25 of 28');
+    console.log('PASS album/artist grouping, drill-down, paging, back and empty search');
     await click(page, '+ Queue', 0);
     await text(page, 'Queue (1)');
     await click(page, '+ Queue', 0);
@@ -140,6 +173,12 @@ async function seed(origin) {
     await click(page, 'Play Synthetic track 00');
     await until(async () => (await audio(page)).some(a => !a.paused && a.time > 0.3), 'audio advancing');
     const firstSrc = (await audio(page))[0].src;
+    await click(page, 'Artists');
+    await click(page, 'Open Normal Bias tests');
+    await click(page, 'Open Browser fixtures');
+    await until(async () => (await audio(page)).some(a => a.src === firstSrc && !a.paused), 'browsing preserves playing track');
+    await text(page, 'Queue (2)');
+    await click(page, 'All songs');
     await until(() => Promise.resolve(covers.some(r => r.status() === 200)), 'embedded artwork delivered');
     const embedded = covers.find(r => r.status() === 200);
     assert.equal(embedded.headers()['content-type'], 'image/png');
@@ -195,7 +234,6 @@ async function seed(origin) {
     // Allow the canvas repaint to finish after the tab animation.
     await delay(600);
     await page.screenshot({path:path.join(repo,'client/target/browser-smoke.png')});
-    if (stopCapture) await stopCapture();
     await page.setViewportSize({width:390,height:844});
     await until(() => page.getByRole('radio', {name:'Now Playing', exact:true}).count().then(n => n === 1), 'compact player tab');
     await delay(600);
@@ -209,6 +247,28 @@ async function seed(origin) {
         return box && box.x >= 0 && box.y >= 0 && box.y < 100;
     }, 'compact player opens without browsing chrome');
     await delay(600);
+    // A focused control or scroll near the wheel must not scroll away navigation.
+    await page.setViewportSize({width:390,height:600});
+    await delay(300);
+    const seekBeforeScroll = await page.getByRole('slider').boundingBox();
+    const headerBefore = await page.getByRole('button', {name:'Back to library', exact:true}).boundingBox();
+    await page.mouse.move(180, 450);
+    await page.mouse.down();
+    await page.mouse.move(180, 180, {steps:15});
+    await page.mouse.up();
+    await delay(300);
+    const headerAfter = await page.getByRole('button', {name:'Back to library', exact:true}).boundingBox();
+    assert.ok(Math.abs(headerBefore.y - headerAfter.y) < 2, 'player header stays pinned while face scrolls');
+    const seekAfterScroll = await page.getByRole('slider').boundingBox();
+    assert.ok(seekAfterScroll.y < seekBeforeScroll.y - 20, 'short player body actually scrolled');
+    await page.screenshot({path:path.join(repo,'client/target/player-header-short.png')});
+    await click(page, 'Player information');
+    await page.getByRole('button', {name:'Close', exact:true}).waitFor();
+    await click(page, 'Close');
+    await click(page, 'Back to library');
+    await page.setViewportSize({width:390,height:844});
+    await page.getByRole('button', {name:'All songs', exact:true}).waitFor();
+    await click(page, 'Now Playing', 0, 'radio');
     await click(page, 'Pause');
     await until(async () => (await audio(page))[0].paused, 'compact pause');
     const compactSeek = await page.getByRole('slider').boundingBox();
@@ -229,12 +289,26 @@ async function seed(origin) {
     await until(() => page.getByRole('radio', {name:'Queue (1)', exact:true}).getAttribute('aria-checked').then(v => v === 'true'), 'wheel opens queue');
     await click(page, 'Clear queue');
     await text(page, 'Queue (0)');
+    assert.equal(await page.getByRole('button', {name:'Search', exact:true}).count(), 0, 'compact Queue has no search');
+    await click(page, 'Library', 0, 'radio');
     await search(page, 'track 00');
-    await until(() => page.getByRole('radio', {name:'Library', exact:true})
-        .getAttribute('aria-checked').then(value => value === 'true'), 'compact search opens library');
     await text(page, '1–1 of 1');
     await click(page, 'Reset');
     await text(page, '1–25 of 28');
+    await click(page, 'Artists');
+    await click(page, 'Open Normal Bias tests');
+    await click(page, 'Open Browser fixtures');
+    await text(page, '1–25 of 27');
+    await page.screenshot({path:path.join(repo,'client/target/library-compact.png')});
+    await click(page, 'All songs');
+    await page.route('**/api/library/albums?*', route => route.fulfill({status:503, body:'unavailable'}));
+    await click(page, 'Albums');
+    await text(page, 'Library unavailable');
+    await page.unroute('**/api/library/albums?*');
+    await click(page, 'Retry library');
+    await text(page, '1–2 of 2');
+    await click(page, 'All songs');
+    console.log('PASS compact grouped navigation and grouped request failure/retry');
     await page.setViewportSize({width:1180,height:780});
     await until(() => page.getByRole('radio', {name:'Now Playing', exact:true}).count().then(n => n === 0), 'wide player restored');
     await click(page, 'Library', 0, 'radio');
@@ -244,6 +318,7 @@ async function seed(origin) {
     console.log('PASS compact/wide resize, queue actions and wheel navigation');
     assert.deepEqual(errors, [], 'no uncaught page errors');
     console.log('PASS clear releases audio; no uncaught page errors');
+    if (stopCapture) await stopCapture();
     console.log('Browser smoke PASS');
 })().catch(async error => {
     console.error(error);

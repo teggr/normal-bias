@@ -12,7 +12,7 @@ Button.selected { border: 1px solid #eac23f; }
 Button.disabled { color: #77797b; background-color: #242526; border: 1px solid #343537; }
 Header { background-color: #202124; border: none; padding: 4mm 4mm 1mm; margin: 0; }
 Brand { color: #f3f3f1; font-family: "native:MainBold"; font-size: 3.4mm; background-color: transparent; border: none; padding: 0 0 2mm; margin: 0; }
-SearchBar { background-color: #191a1c; border: none; border-radius: 2mm; padding: 0; margin: 0; }
+SearchBar { background-color: #171717; border: 1px solid #3d3d3d; border-radius: 2.5mm; padding: 1.5mm; margin: 1mm 4mm 2mm; }
 TextField { color: #f3f3f1; background-color: transparent; border: none; padding: 2mm; margin: 0; font-size: 2.2mm; }
 TextField.selected { border: none; border-bottom: 1px solid #eac23f; }
 SearchAction { color: #b7b8bb; background-color: transparent; border: none; padding: 2mm; margin: 0; }
@@ -53,3 +53,12 @@ MiniPlayer { background-color: #27282b; border: none; border-top: 1px solid #353
 MiniTitle, MiniTitle.selected, MiniTitle.pressed { color: #f3f3f1; background-color: transparent; border: none; padding: 0; margin: 0; font-family: "native:MainBold"; font-size: 2.2mm; text-align: left; }
 MiniPlay, MiniPlay.selected, MiniPlay.pressed { color: #f3f3f1; background-color: transparent; border: none; padding: 2mm; margin: 0; }
 MiniPlay.disabled { color: #777777; background-color: transparent; border: none; }
+
+/* Library view selection is persistent, independent of focus/press state. */
+LibraryView, LibraryView.selected, LibraryView.pressed,
+LibraryViewActive, LibraryViewActive.selected, LibraryViewActive.pressed {
+    color: #f3f3f1; background-color: transparent; border: none;
+    font-family: "native:MainBold"; font-size: 2mm;
+    padding: 3mm 2mm; margin: 1mm; text-align: center;
+}
+LibraryViewActive, LibraryViewActive.selected, LibraryViewActive.pressed { color: #eac23f; }
