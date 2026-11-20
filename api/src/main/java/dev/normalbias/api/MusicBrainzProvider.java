@@ -21,10 +21,14 @@ public class MusicBrainzProvider implements AlbumProvider {
     private final URI musicBrainz;
     private final URI archive;
     private final long interval;
+    private final long bodyTimeoutMs;
     public MusicBrainzProvider() { this(URI.create("https://musicbrainz.org"), URI.create("https://coverartarchive.org"), 1100); }
     // Package-private transport fixture seam; no configurable production provider origin.
     MusicBrainzProvider(URI musicBrainz, URI archive, long interval) {
-        this.musicBrainz = musicBrainz; this.archive = archive; this.interval = interval;
+        this(musicBrainz, archive, interval, 15000);
+    }
+    MusicBrainzProvider(URI musicBrainz, URI archive, long interval, long bodyTimeoutMs) {
+        this.musicBrainz = musicBrainz; this.archive = archive; this.interval = interval; this.bodyTimeoutMs = bodyTimeoutMs;
     }
     private void destination(URI uri, boolean image) throws IOException {
         if (interval == 0 && (sameOrigin(uri, musicBrainz) || sameOrigin(uri, archive))) return;
@@ -71,7 +75,7 @@ public class MusicBrainzProvider implements AlbumProvider {
                 var read = new FutureTask<byte[]>(() -> input.readNBytes(limit + 1));
                 Thread.ofVirtual().start(read);
                 byte[] bytes;
-                try { bytes = read.get(15, TimeUnit.SECONDS); }
+                try { bytes = read.get(bodyTimeoutMs, TimeUnit.MILLISECONDS); }
                 catch (TimeoutException ex) { read.cancel(true); throw new IOException("Provider body timed out", ex); }
                 catch (ExecutionException ex) { throw new IOException("Provider body failed", ex.getCause()); }
                 if (bytes.length > limit) throw new IOException("Provider response too large");

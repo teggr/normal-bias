@@ -1,6 +1,6 @@
 # Album matching and missing artwork proposal
 
-Date: 2026-11-20. Status: **first end-to-end increment authorised 2026-11-20; implementation and verification in progress**.
+Date: 2026-11-20. Status: **first end-to-end increment authorised 2026-11-20; implemented and verified through API/browser; physical artwork refresh excluded this session**.
 
 Robin requested a next-step proposal and progress tracking after the background playback and embedded-artwork increment. Robin authorised milestones 1–4, MusicBrainz matching and Cover Art Archive covers, with explicit cover acceptance. Bulk backfill and automatic acceptance remain deferred. Original MP3s and catalogue metadata remain unchanged.
 
@@ -13,10 +13,10 @@ Robin requested a next-step proposal and progress tracking after the background 
 | iOS system metadata, play/pause/next/previous and seeking | Implemented; physical checks passed | Robin confirmed final paused and playing lock-screen seeks |
 | Source-file artwork investigation | Complete | Roxy: 12 embedded covers; Oasis and demo clips: 14 files without embedded pictures |
 | Album matching and fetched-artwork design | Proposal written | Review the recommended first milestone and open decisions below |
-| Album candidate matching / preview / acceptance | In progress | Java API/client implementation; regression, recording and physical acceptance pending |
+| Album candidate matching / preview / acceptance | Implemented; API/browser verified | Synthetic flow and bounded live lookup passed; iPhone excluded this session |
 | Automatic bulk artwork backfill | Deferred | Follow after single-album matching and cache refresh are verified |
 
-The completed implementation and this proposal are submitted together in [PR #8](https://github.com/teggr/normal-bias/pull/8). The PR is a review checkpoint, not a merge or deployment.
+The earlier embedded-artwork implementation and initial proposal were delivered in [PR #8](https://github.com/teggr/normal-bias/pull/8), now merged as `e33e28b`. This fetched-artwork increment is a separate review checkpoint, without merge or deployment.
 
 ## Problem and recommended first milestone
 
@@ -64,7 +64,7 @@ These capabilities are now implemented; the exact routes and limits are in [albu
 - Accept a candidate with expected album/artwork revisions; return the resulting artwork revision.
 - Read status and retry a failed lookup without losing a previous selection.
 
-Keep the current track browser; this increment does not require a full album-browser restyle. Add one contextual “Find album artwork” entry, a compact candidate/preview view and clear loading/no-match/error/accepted states. Keep matching outside the playback path. A later album browser can consume the same durable album identity and artwork association.
+Keep the current track browser; this increment does not require a full album-browser restyle. Add one contextual “Find album artwork” entry, a compact candidate/preview view and clear loading/no-match/error/accepted states. Keep matching outside the playback path. A later album browser can build on the persisted explicit selection/artwork associations; a permanent album entity is deferred.
 
 ## Milestones and acceptance gates
 
@@ -72,11 +72,11 @@ Keep the current track browser; this increment does not require a full album-bro
 | --- | --- | --- | --- |
 | 1. Evidence and provisional albums | Additive schema/evidence, explicit membership and grouping rules | Missing metadata, compilations, duplicate album titles, edits and multi-disc examples handled without silent merges; paginated access | Implemented; see scoped evidence below |
 | 2. Single-album candidate lookup | MusicBrainz/CAA integration behind a provider adapter; preview and job state | Correct/no-match/ambiguous/offline/throttled results; rate limiting and bounded retry; no audio file transmission | Implemented; mocked tests and bounded live lookup pass |
-| 3. Accept and persist a cover | Recoverable local storage, provenance, revisioned track-artwork response | Survives restart; stale acceptance rejected; original MP3 IDs/bytes unchanged; shared cover deletion is safe | Implemented; recovery tests pass; final process-restart check pending |
-| 4. Client and physical acceptance | Contextual lookup/preview/accept and cache invalidation | New cover appears in Library/player/mini-player/iPhone lock screen while playback and queue continue; browser and phone checks plus required recording evidence | Implemented; final browser recording underway; iPhone explicitly excluded this session |
+| 3. Accept and persist a cover | Recoverable local storage, provenance, revisioned track-artwork response | Survives restart; stale acceptance rejected; original MP3 IDs/bytes unchanged; shared cover deletion is safe | Implemented; recovery and real process-restart checks pass |
+| 4. Client and physical acceptance | Contextual lookup/preview/accept and cache invalidation | New cover appears in Library/player/mini-player/iPhone lock screen while playback and queue continue; browser and phone checks plus required recording evidence | API/browser verified and recorded; iPhone explicitly excluded this session |
 | 5. Bulk missing-artwork job | Paginated progress/findings, cancellation/resume and optional conservative auto-match policy | One lookup per album, bounded work for the full collection, cached misses, retries and explicit ambiguous results | Deferred |
 
-Use synthetic local provider responses for automated tests, including known/ambiguous editions, missing images, malformed and excessive images, timeout/429/503, provider redirects, concurrent edits/deletion and process restart. Keep automated tests and recordings free of personal music. A separately documented live-provider smoke test should verify real API compatibility before claiming provider support; the Oasis album is a useful bounded manual example once that trial is authorised. Run the existing API/CLI, browser and player regressions, then the selected iPhone's artwork-refresh/background/system-seek checklist. Browser results do not establish mobile behavior.
+Use synthetic local provider responses for automated tests, including known/ambiguous editions, missing images, malformed and excessive images, timeout/429/503, provider redirects, concurrent edits/deletion and process restart. Keep automated tests and recordings free of personal music. A separately documented live-provider smoke test should verify real API compatibility before claiming provider support; the authorised bounded Oasis example now passes as recorded below. Run the existing API/CLI, browser and player regressions, then the selected iPhone's artwork-refresh/background/system-seek checklist when device access is authorised again. Browser results do not establish mobile behavior.
 
 ## Resolved decisions and deferred work
 
@@ -97,3 +97,9 @@ Use MusicBrainz releases and Cover Art Archive release front covers. No represen
 Implementation stages: additive V3 schema and recoverable image publication; bounded provider adapter and job API; Java contextual client flow and revision refresh; synthetic regression/browser recording and selected-iPhone acceptance. One PR will contain reviewable staged commits; no merge. Lookup jobs expire after 15 minutes and retain at most 20 snapshots. At most one search runs at once; requests are paced at 1.1 seconds and 429/503 impose a Retry-After-aware cooldown. Retries are user-initiated. Missing covers are cached within a job, not permanently. The User-Agent identifies NormalBias/0.1 and the public repository contact URL. A bounded live Oasis lookup is authorised for artist/album metadata only; accepting a personal-library cover remains an explicit user action.
 
 Accepted selections retain candidate/release-group metadata, source URL, timestamp, normalized image hash and the catalogue/revision snapshot. Image bytes are durably staged in H2 and materialized atomically outside music storage before associations are committed. Startup reconstructs missing/corrupt image files from the durable source. A failed/stale acceptance leaves the prior association intact. Unreferenced assets/selections are retained as recovery/provenance evidence; automatic garbage collection is deferred. Deletion cascades track associations only, preserving shared covers. Accepted associations remain attached to their explicit track IDs after later metadata edits; any new in-flight acceptance is invalidated by metadata/artwork revision changes. No ID3 tags are written.
+
+## Delivered verification scope
+
+The browser increment is implemented: candidates/previews/explicit acceptance, immutable MP3s/metadata, separately persisted provenance, restart recovery, and Library/player/mini-player revision refresh with uninterrupted audio/queue. Synthetic checks cover visible no-match, provider failure, stale acceptance and completion while matching. The bounded live Oasis lookup returned 10 editions and three usable previews; no personal cover was accepted. A verified synthetic recording with actual client audio is delivered under `client/target/recordings/album-matching/demo.mp4`. See [verification.md](verification.md) for commands, measured checks and limitations.
+
+Milestone 1 is intentionally scoped to explicit track snapshots and existing catalogue evidence, rather than new tag extraction or a permanent album entity. Milestone 4 remains **partially accepted**: browser verified, shared iOS refresh path implemented but no new native build/install/physical lock-screen refresh/background/system-seek checks, following Robin's explicit exclusion. Existing phone results predate this change and are not new acceptance. Bulk matching, automatic acceptance, richer evidence/backfill, representative group art and cleanup remain deferred.
