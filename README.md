@@ -3,6 +3,7 @@ A self hosted music service
 
 ## Project documentation
 
+- [Graphite client design system and implementation](docs/design-system-proposal.md)
 - [Project brief and agreed constraints](docs/project-brief.md)
 - [Web listening-client PoC](docs/client-poc.md)
 - [Desktop simulator demo](docs/simulator-poc.md)

@@ -1,6 +1,6 @@
 # Normal Bias: project brief and constraints
 
-Last updated: 2026-11-19.
+Last updated: 2026-11-20.
 
 This document records Robin's requirements and decisions. It is the starting point for people and coding agents working on Normal Bias. Distinguish agreed constraints from proposals; do not silently turn an open question into an architectural decision.
 
@@ -76,7 +76,18 @@ On 2026-11-19 Robin requested starting to investigate Step 4: submitting a nativ
 
 On 2026-11-19 Robin narrowed the immediate next step to a demoable simulator experience before a physical-device build. The Java client now has simulator-only framework media playback, a loopback API-origin launch override and compact layouts for phone skins while preserving wide browser layouts and its browser audio bridge. Local network failures remain inline without automatic cloud reporting/account prompts. A launcher and disposable synthetic-demo helper are provided; see [simulator guide](simulator-poc.md) for the tested launch and runtime limits. The Linux simulator was exercised with a software sound output and recorded with actual decoded application audio. No cloud account, native build submission, device signing, deployment or physical-device verification has been performed. Mobile media integration and API reachability remain future work.
 
+## Progress checkpoint — 2026-11-20
+
+- **Implemented:** API-first milestones, web listening PoC and desktop simulator demo. The Graphite refinement now provides a full compact player face, wide player sidebar, recessed artwork, tactile wheel and circular controls, thin seek rail, and spacious dark library/queue rows. UI and queue policy remain Java/Codename One; API contracts and the browser audio bridge are unchanged.
+- **Verified on 2026-11-19:** web build and two queue tests; browser browsing/search, real playback, pause/resume, immediate playing/paused seeks, queue transitions, errors/retry and responsive resizing. Final browser screenshots, simulator layout and a 24-second recording with actual client audio were checked. See [verification](verification.md#graphite-reference-refinement--2026-11-19).
+- **Review pending:** the refined implementation is being submitted as a PR at Robin's request. The revised design direction was approved; final visual acceptance of the refined application remains pending. No merge or deployment is included.
+- **Remaining:** real catalogue cover artwork; physical Android/iOS builds and media integration; safe-area/back, large-text and screen-reader checks; installed-PWA caching and background/headset/CarPlay validation. Favourite/repeat/volume remain proposals, not delivered features.
+
 ## Open decisions
+
+### Client visual direction (approved 2026-11-19)
+
+Robin requested a cohesive design system inspired by the linked Retro Music Player and Daft Punk designs, prioritising simplicity, clean lines and platform-native styling. Present mockups and design features for feedback before applying the restyle. The [Graphite proposal](design-system-proposal.md) records the candidate palette, components, platform treatments and implementation sequence. Robin subsequently rejected the flat interpretation and clarified a dark old-school iPod-like player with tactile controls and spacious dark lists. Robin approved the revised Graphite design on 2026-11-19. Apply its tactile graphite player, inset display and spacious dark lists to the existing web client and desktop simulator. Favourite/repeat/volume remain separate feature proposals; preserve existing playback and queue behaviour during the restyle. Existing web/simulator support and mobile/CarPlay feasibility limits remain unchanged.
 
 Resolve these during planning rather than assuming answers:
 
@@ -91,6 +102,12 @@ Resolve these during planning rather than assuming answers:
 - Client architecture and Codename One feasibility, including real-device background audio and CarPlay support.
 
 These are planning topics, not a requirement to implement them all in the first PoC.
+
+### Reference-based refinement
+
+The Graphite styling increment is implemented in shared Java/CN1 components and CSS, with a wide player sidebar, compact dedicated player, responsive library actions and placeholder record artwork. No API contract, audio bridge or queue-policy changes are included. Native device, large accessibility-text and CarPlay validation remain future work.
+
+Robin rejected the first rendered Graphite implementation as janky and requested refinement until it matched the supplied screenshots. The refinement replaces the card-and-labelled-controls layout with a full player face, proportioned artwork, thin timeline, recessed wheel and separate circular controls; library rows use title/artist copy and a small queue action. The reference screenshots, rather than the earlier HTML specimen alone, are the visual acceptance basis. Existing feature scope remains in force.
 
 ## Keeping this document current
 

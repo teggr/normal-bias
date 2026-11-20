@@ -29,10 +29,18 @@ The client derives the API origin from the browser page URL, so catalogue and au
 
 Codename One generates a PWA app-shell cache. After rebuilding, close existing tabs for the app and reopen it so a waiting worker can activate. If an earlier build is still shown, clear that local site's data or use a fresh browser profile. App-shell caching is not offline music support; the catalogue and audio need the API.
 
+## Graphite interface
+
+The [Graphite design](design-system-proposal.md) now follows the supplied reference proportions: an edge-to-edge graphite player, artwork around 70% of its width, a compact inset metadata strip, thin white seek rail with elapsed/remaining times, a recessed transport wheel and four separate circular controls. The central wheel handles Previous, Play/Pause and Next. Outer controls open track details, Queue, Retry track and Library. Back and information controls live in the player header. All icon buttons retain accessible names; their actions are existing client capabilities.
+
+The library uses continuous dark rows, circular artwork, a title/artist pair and one amber add-to-queue icon. Tap the title/artwork area to play; keyboard and accessibility names include the track title. Search and reset use icons alongside the native text field. Pagination controls appear when needed. Wide windows keep the player beside the library, with its width limited by available height. Compact windows have a mini-player and a dedicated Now Playing view that hides the browsing header/tabs; Back and Library/Queue controls restore navigation. Short viewports retain scrolling.
+
+Illustrations are deterministic original fallback sleeves shared by the player, metadata and list thumbnails; the API still has no cover-art field. Full title/album/status information is available from the player information/details buttons. Normal playback does not display redundant status prose; loading and error/recovery messages remain visible. The seek rail has a larger interactive target and uses the slider event's captured value so polling cannot replace a user's requested position.
+
 ## Listening behaviour
 
 - Browse/search 25 tracks at a time, with Back/More, exact matching totals and loading, empty and failure states. Search follows the API's literal substring semantics. Late responses from earlier searches are ignored.
-- Play adds/selects a track in the session queue. `+ Queue` appends without interrupting playback; adding an existing track reuses its position. Queue contents survive searches and page changes, and are limited to 200 tracks. The queue is lost on page reload.
+- Tapping a track adds/selects it in the session queue. `+ Queue` appends without interrupting playback; adding an existing track reuses its position. Queue contents survive searches and page changes, and are limited to 200 tracks. The queue is lost on page reload.
 - Use Play/Pause, the seek slider, Previous/Next, or select a queued track. Finishing a track advances to the next; finishing the queue stops. There is no shuffle, repeat, persistent playlist or individual queue removal yet. Clear queue stops and releases the audio resource.
 - The browser receives the existing API's MP3 stream with Range support. Seeking is available after the media duration becomes known. The player reports buffering, browser playback rejection and media failures. Retry track reopens the stream from the beginning; it remains available during loading. Failed tracks do not automatically skip or retry forever.
 - Browser audio policy can require a user gesture; press Play if playback was blocked. Closing the page stops playback. Native background/lock-screen/headphone controls, artwork, calls/audio focus, offline downloads and mobile support are not delivered by this web increment.

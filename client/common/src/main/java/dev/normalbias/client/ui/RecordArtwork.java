@@ -1,0 +1,54 @@
+package dev.normalbias.client.ui;
+
+import com.codename1.ui.*;
+import com.codename1.ui.geom.Dimension;
+
+/** Original, deterministic sleeve illustration; no claim of extracted album art. */
+final class RecordArtwork extends Component {
+    private final boolean thumbnail;
+    private int variation;
+    private Image cached;
+    private int cachedSize;
+    RecordArtwork(boolean thumbnail) { this.thumbnail = thumbnail; setUIID("Artwork"); setFocusable(false); }
+    void setIdentity(String identity) {
+        int next = identity == null ? 0 : (identity.hashCode() & 0x7fffffff) % 4;
+        if (next != variation) { variation = next; cached = null; repaint(); }
+    }
+    @Override protected Dimension calcPreferredSize() {
+        int size = CN.convertToPixels(thumbnail ? 7.5f : 43);
+        return new Dimension(size, size);
+    }
+    @Override public void paint(Graphics g) {
+        if (!thumbnail) { g.setColor(0x141414); g.fillRect(getX(), getY(), getWidth(), getHeight()); }
+        int size = thumbnail ? Math.min(getWidth(), getHeight()) : Math.min(getWidth() * 70 / 100, getHeight() * 94 / 100);
+        if (size <= 0) return;
+        if (cached == null || cachedSize != size) {
+            cachedSize = size;
+            Image sleeve = Image.createImage(size, size, 0xffeee8db);
+            Graphics art = sleeve.getGraphics();
+            art.setAntiAliased(true);
+            art.setColor(0xeee8db); art.fillRect(0, 0, size, size);
+            int[] colors = {0xeebd40, 0xdf754c, 0x79919c, 0xa3a878};
+            art.setColor(colors[variation]);
+            art.fillArc(size / 5, size / 8, size * 3 / 5, size * 3 / 5, 0, 360);
+            art.setColor(0x202323);
+            for (int row = 0; row < 10; row++) {
+                int lastY = 0;
+                for (int x = size / 8; x < size * 7 / 8; x++) {
+                    int y = (int) (size * (0.45 + row * 0.032 + 0.018 * Math.sin(x * 9.0 / size + row * 0.2)));
+                    if (x > size / 8) for (int stroke = 0; stroke < Math.max(1, size / 120); stroke++)
+                        art.drawLine(x - 1, lastY + stroke, x, y + stroke);
+                    lastY = y;
+                }
+            }
+            art.fillRect(size / 8, size * 84 / 100, size / 5, Math.max(1, size / 150));
+            art.fillRect(size * 69 / 100, size * 84 / 100, size / 6, Math.max(1, size / 150));
+            Image mask = Image.createImage(size, size, 0);
+            Graphics mg = mask.getGraphics(); mg.setAntiAliased(true); mg.setColor(0xffffff);
+            if (thumbnail) mg.fillArc(0, 0, size, size, 0, 360);
+            else mg.fillRoundRect(0, 0, size, size, size / 20, size / 20);
+            cached = sleeve.applyMask(mask.createMask());
+        }
+        g.drawImage(cached, getX() + (getWidth() - size) / 2, getY() + (getHeight() - size) / 2);
+    }
+}
