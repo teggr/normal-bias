@@ -7,8 +7,8 @@ import com.codename1.ui.CN;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Uses the framework media implementation in the desktop simulator. */
-final class SimulatorAudio implements BrowserAudio {
+/** Uses the framework media implementation in the desktop simulator and the foreground iPhone trial. */
+final class FrameworkAudio implements BrowserAudio {
     private Media media;
     private int generation;
     private boolean loading;
@@ -42,7 +42,7 @@ final class SimulatorAudio implements BrowserAudio {
             } catch (Exception failure) {
                 CN.callSerially(() -> { if (request == generation) fail(); });
             }
-        }, "simulator-media-open").start();
+        }, "framework-media-open").start();
     }
 
     public void play() {
@@ -96,8 +96,8 @@ final class SimulatorAudio implements BrowserAudio {
     }
 
     private void fail() {
-        loading = false;
-        wantPlay = false;
+        // Invalidate pending callbacks and stop/release a failed or timed-out stream.
+        close();
         error = "Cannot play this track. Check the API connection and press Retry track.";
     }
 }

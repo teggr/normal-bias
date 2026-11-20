@@ -8,11 +8,12 @@ import dev.normalbias.client.net.LibraryApi;
 import java.io.StringReader;
 import java.util.Map;
 
-/** Owns browser audio and a finite session queue. Polling reads one atomic native snapshot. */
+/** Owns platform audio and a finite session queue. Polling reads one atomic native snapshot. */
 public final class Player {
     private final LibraryApi api;
     private final Runnable changed;
-    private final BrowserAudio audio = CN.isSimulator() ? new SimulatorAudio() : NativeLookup.create(BrowserAudio.class);
+    private final BrowserAudio audio = CN.isSimulator() || "ios".equals(CN.getPlatformName())
+            ? new FrameworkAudio() : NativeLookup.create(BrowserAudio.class);
     public final PlaybackQueue queue = new PlaybackQueue();
     private boolean loading;
     private boolean playing;
@@ -44,7 +45,7 @@ public final class Player {
     private void load() {
         release();
         if (audio == null || !audio.isSupported()) {
-            status = "Audio is available in the web client. Mobile support follows later.";
+            status = "Audio is unavailable on this platform.";
             changed.run();
             return;
         }

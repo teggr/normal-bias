@@ -30,12 +30,16 @@ async function click(page, name, index = 0, role = 'button') {
 async function text(page, value) {
     await until(() => page.getByText(value, {exact:true}).count().then(n => n > 0), value);
 }
-async function search(page, query) {
+async function search(page, query, submitWithEnter = false) {
     const box = await page.getByRole('textbox').first().boundingBox();
     await page.mouse.click(box.x + 20, box.y + box.height / 2);
     const editor = page.locator('input:focus, textarea:focus');
     await editor.waitFor({timeout:5000});
     await editor.fill(query);
+    if (submitWithEnter) {
+        await page.keyboard.press('Enter');
+        return;
+    }
     await page.keyboard.press('Tab');
     await click(page, 'Search');
 }
@@ -104,6 +108,20 @@ async function seed(origin) {
     await click(page, 'Reset');
     await text(page, '1–25 of 28');
     console.log('PASS empty library, pagination, search, no matches and reset');
+
+    for (const submitWithEnter of [false, true]) {
+        await click(page, 'Queue (0)', 0, 'radio');
+        await search(page, 'track 00', submitWithEnter);
+        await until(() => page.getByRole('radio', {name:'Library', exact:true})
+            .getAttribute('aria-checked').then(value => value === 'true'), 'search opens library results');
+        await text(page, '1–1 of 1');
+        await click(page, 'Queue (0)', 0, 'radio');
+        await click(page, 'Reset');
+        await until(() => page.getByRole('radio', {name:'Library', exact:true})
+            .getAttribute('aria-checked').then(value => value === 'true'), 'reset opens library');
+        await text(page, '1–25 of 28');
+    }
+    console.log('PASS Search button, Enter and Reset reveal Library from Queue');
 
     await click(page, '+ Queue', 0);
     await text(page, 'Queue (1)');
@@ -182,10 +200,25 @@ async function seed(origin) {
     await until(async () => Math.abs((await audio(page))[0].time - 6.6) < 0.8, 'paused compact seek changes position promptly', 2000);
     assert.equal((await audio(page))[0].paused, true, 'seeking does not resume paused playback');
     await page.screenshot({path:path.join(repo,'client/target/browser-compact.png')});
+    await click(page, 'Open queue');
+    await until(() => page.getByRole('radio', {name:'Queue (1)', exact:true}).getAttribute('aria-checked').then(v => v === 'true'), 'ellipsis opens queue directly');
+    assert.equal(await page.getByRole('dialog').count(), 0, 'ellipsis does not open a popup');
+    await click(page, 'Now Playing', 0, 'radio');
+    await until(async () => {
+        const box = await page.getByRole('button', {name:'Back to library', exact:true}).boundingBox();
+        return box && box.x >= 0 && box.y >= 0 && box.y < 100;
+    }, 'player restored after ellipsis navigation');
+    await delay(600);
     await click(page, 'Queue', 0);
     await until(() => page.getByRole('radio', {name:'Queue (1)', exact:true}).getAttribute('aria-checked').then(v => v === 'true'), 'wheel opens queue');
     await click(page, 'Clear queue');
     await text(page, 'Queue (0)');
+    await search(page, 'track 00');
+    await until(() => page.getByRole('radio', {name:'Library', exact:true})
+        .getAttribute('aria-checked').then(value => value === 'true'), 'compact search opens library');
+    await text(page, '1–1 of 1');
+    await click(page, 'Reset');
+    await text(page, '1–25 of 28');
     await page.setViewportSize({width:1180,height:780});
     await until(() => page.getByRole('radio', {name:'Now Playing', exact:true}).count().then(n => n === 0), 'wide player restored');
     await click(page, 'Library', 0, 'radio');

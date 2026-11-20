@@ -39,7 +39,7 @@ java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
   --spring.web.resources.static-locations="file:$(pwd)/client/target/web/"
 ```
 
-Open `http://127.0.0.1:8080/` to browse/search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. Mobile/native media support follows later.
+Open `http://127.0.0.1:8080/` to browse/search, play, seek and queue tracks. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. The separate [local iPhone trial](docs/local-device-trial.md) now has a local signing/install route, private development origin and foreground media adapter; foreground playback, queue controls and catalogue recovery were confirmed on an iPhone 15 Plus, with remaining device-evidence and platform limits recorded separately.
 
 ## Simulator demo
 

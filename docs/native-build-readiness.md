@@ -1,14 +1,14 @@
 # First native build: readiness review
 
-For the proposed local-computer trial, including Android USB API forwarding and the iPhone/Xcode path, see the [local device trial plan](local-device-trial.md). Native generation and physical-device playback remain unverified; the cloud sequence below is an alternative, not a prerequisite for that local trial.
+For the proposed local-computer trial, including Android USB API forwarding and the iPhone/Xcode path, see the [local device trial plan](local-device-trial.md). The local iPhone route now has verified source generation, signing, installation and user-confirmed foreground playback; see the trial guide and [verification](verification.md) for current results. This 2026-11-19 review is retained as historical context. The cloud sequence below was a proposal and has not been executed.
 
 Reviewed 2026-11-19 against merged web PoC `0b20307` plus the local Codename One skill installation. Robin requested starting to investigate Step 4 (reach a device). Target platform and account/signing setup are not yet confirmed; the sequence below is a proposal, not a claim of implemented mobile support.
 
 ## Simulator follow-up
 
-Robin subsequently chose a demoable desktop simulator as the immediate increment. That experience is implemented and documented in the [simulator guide](simulator-poc.md). The framework media adapter is selected only for the simulator; native Android/iOS audio and physical-device API access below remain unresolved. The following gaps describe device readiness, not the now-working desktop simulator.
+Robin subsequently chose a demoable desktop simulator as the immediate increment. That experience is implemented and documented in the [simulator guide](simulator-poc.md). At that checkpoint the framework media adapter was simulator-only and native audio/API access remained unresolved. The subsequent iPhone trial now shares that adapter and has private API access; Android and background media remain unverified. The gaps below describe the historical review state.
 
-## Current gaps
+## Gaps at the 2026-11-19 review
 
 - `Player` uses `NativeLookup.create(BrowserAudio.class)` and the only supplied implementation is JavaScript. Unsupported non-simulator platforms show “Audio is available in the web client. Mobile support follows later.” A native build alone does not deliver mobile playback. Prefer evaluating Codename One's native media APIs (including background media where appropriate) before adding custom Android/iOS bridges. The browser adapter failure does not establish a native adapter failure.
 - `NormalBias.runApp()` obtains the API address from `browser.window.location.href`, falling back to `http://127.0.0.1:8080/`. A physical phone needs a configurable API address it can reach: its own loopback does not refer to the development computer. Keep the API's existing loopback defaults; choose an explicit private development connection or separately scoped secured hosting. Check the target platform's HTTPS/local-network rules for that connection.

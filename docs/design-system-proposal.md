@@ -61,7 +61,7 @@ Robin rejected the first implementation as janky and requested refinement agains
 
 The library has single-row title/artist layouts, circular sleeve thumbnails, subtle separators and one small amber queue action. Track text/artwork is the play target. Wide windows size the sidebar to fit their height; compact Now Playing hides the browsing tabs/header. Real focusable CN1 controls retain accessible action names, including the track title for play targets. Original abstract sleeve placeholders are consistent across the list and player; no cover-art extraction is claimed.
 
-The reference's unsupported favourite/repeat/volume actions are replaced by existing details/queue/retry/library actions on the outer controls; no dead buttons are shipped. The navigation capsule and mini-player progress strip remain design targets, not delivered features. Native physical-device safe areas, back conventions and accessibility-text settings still require device validation. The supplied commercial artwork is a reference, not bundled album art.
+The reference's unsupported favourite/repeat/volume actions are replaced by existing queue/retry/library actions on the outer controls; no dead buttons are shipped. Following the 2026-11-20 trial feedback, (…) opens Queue directly, while track details remain on the header information button. The navigation capsule and mini-player progress strip remain design targets, not delivered features. Native physical-device safe areas, back conventions and accessibility-text settings still require device validation. The supplied commercial artwork is a reference, not bundled album art.
 
 ## Implementation sequence
 
