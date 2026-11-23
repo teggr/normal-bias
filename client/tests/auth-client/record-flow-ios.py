@@ -9,6 +9,7 @@ spec=importlib.util.spec_from_file_location('ios','client/tests/auth-client/ios.
 out=Path(sys.argv[1]);events=[]
 assert (out/'timing.json').exists(), 'Start record.py first'
 assert m.probe().get('library') and not m.probe().get('playing'), 'Open Now Playing and pause first'
+assert any(n['bounds'][2] > 0 for n in m.tool('ui_find', {'label':'Seek'})), 'Select the visible Now Playing tab before recording'
 def event(name):events.append({'event':name,'at':time.time(),'state':m.probe()})
 def activate(label):
  nodes=m.tool('ui_find',{'label':label});node=next(n for n in nodes if n.get('label')==label and n['role']=='BUTTON' and n['bounds'][2]>0)

@@ -64,7 +64,8 @@ public final class LibraryForm extends Form {
     private UITimer timer;
 
     public LibraryForm(LibraryApi api) { this(api, () -> {}); }
-    public LibraryForm(LibraryApi api, Runnable logout) {
+    public LibraryForm(LibraryApi api, Runnable logout) { this(api, logout, null); }
+    public LibraryForm(LibraryApi api, Runnable logout, Runnable password) {
         super("Normal Bias", new BorderLayout());
         this.api = api;
         getContentPane().setSafeArea(true);
@@ -84,7 +85,12 @@ public final class LibraryForm extends Form {
         if (api.canLogout()) {
             Button signOut = new Button("Sign out"); signOut.setName("Sign out");
             signOut.addActionListener(event -> logout.run());
-            brand.add(BorderLayout.EAST, signOut);
+            Container actions = BoxLayout.encloseX(signOut);
+            if (password != null) {
+                Button change = new Button("Change password"); change.setName("Change password");
+                change.addActionListener(event -> password.run()); actions.add(change);
+            }
+            brand.add(BorderLayout.EAST, actions);
             header.add(brand); header.add(new Label(api.username(), "Muted"));
         } else header.add(brand);
         pageInfo.setUIID("PageInfo");

@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 """Run a disposable real HTTPS API with original synthetic music. No retained library."""
-import json, os, secrets, shutil, ssl, subprocess, time, urllib.request
+import argparse, ipaddress, json, os, secrets, shutil, ssl, subprocess, time, urllib.request
 from pathlib import Path
 root = Path(__file__).resolve().parents[3]
-out = root / 'client/target/auth-client'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--private-host', help='Explicit RFC1918 IPv4 bind for the authorised disposable physical-device trial')
+args = parser.parse_args()
+host, port = '127.0.0.1', 18444
+if args.private_host:
+    address = ipaddress.IPv4Address(args.private_host)
+    if not any(address in ipaddress.ip_network(net) for net in ['10.0.0.0/8','172.16.0.0/12','192.168.0.0/16']):
+        raise SystemExit('Physical trial requires an explicit RFC1918 IPv4 address')
+    host, port = str(address), 18445
+origin = f'https://{host}:{port}'
+out = root / ('client/target/auth-device' if args.private_host else 'client/target/auth-client')
 out.mkdir(parents=True, exist_ok=True, mode=0o700)
 if (out / 'data').exists():
     raise SystemExit('Fixture exists; select a fresh ignored output directory or explicitly archive it first.')
@@ -11,15 +21,15 @@ password = secrets.token_hex(16)
 java = shutil.which('java')
 if not java or 'version "21.' not in subprocess.run([java,'-version'],capture_output=True,text=True).stderr:
     raise SystemExit('Select the Java 21 JDK before preparing the fixture')
-subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-sha256','-days','2','-nodes','-keyout',str(out/'tls.key'),'-out',str(out/'tls.crt'),'-subj','/CN=Normal Bias synthetic authentication trial','-addext','subjectAltName=IP:127.0.0.1,DNS:localhost','-addext','basicConstraints=critical,CA:TRUE','-addext','extendedKeyUsage=serverAuth'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-sha256','-days','2','-nodes','-keyout',str(out/'tls.key'),'-out',str(out/'tls.crt'),'-subj','/CN=Normal Bias synthetic authentication trial','-addext',f'subjectAltName=IP:{host},IP:127.0.0.1,DNS:localhost','-addext','basicConstraints=critical,CA:TRUE','-addext','extendedKeyUsage=serverAuth'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 os.chmod(out/'tls.key',0o600)
 subprocess.run(['openssl','pkcs12','-export','-inkey',str(out/'tls.key'),'-in',str(out/'tls.crt'),'-out',str(out/'tls.p12'),'-passout','stdin'],input=password+'\n',text=True,check=True)
 os.chmod(out/'tls.p12',0o600)
 config = out/'server.properties'
-config.write_text(f'server.port=18444\nserver.ssl.enabled=true\nserver.ssl.key-store={out}/tls.p12\nserver.ssl.key-store-password={password}\nnormalbias.data-dir={out}/data\nnormalbias.artwork.background-enabled=false\nspring.web.resources.static-locations=file:{root}/client/target/web/\n')
+config.write_text(f'server.address={host}\nserver.port={port}\nserver.ssl.enabled=true\nserver.ssl.key-store={out}/tls.p12\nserver.ssl.key-store-password={password}\nnormalbias.data-dir={out}/data\nnormalbias.artwork.background-enabled=false\nspring.web.resources.static-locations=file:{root}/client/target/web/\n')
 os.chmod(config,0o600)
 # These are disposable fixture credentials, stored only in ignored owner-readable files.
-credentials = out/'fixture.json';credentials.write_text(json.dumps({'username':'listener','password':'Synthetic music only 2468','origin':'https://127.0.0.1:18444'}));os.chmod(credentials,0o600)
+credentials = out/'fixture.json';credentials.write_text(json.dumps({'username':'listener','password':'Synthetic music only 2468','origin':origin}));os.chmod(credentials,0o600)
 api = root/'api/target/normal-bias-api-0.1.0-SNAPSHOT.jar'
 trust = ssl.create_default_context(cafile=str(out/'tls.crt'))
 def call(path, body=None, bearer=None, raw=False):
@@ -28,7 +38,7 @@ def call(path, body=None, bearer=None, raw=False):
     if body is not None:
         headers['Content-Type']='audio/mpeg' if raw else 'application/json'
         if not raw: body=json.dumps(body).encode()
-    with urllib.request.urlopen(urllib.request.Request('https://127.0.0.1:18444'+path,data=body,headers=headers),context=trust,timeout=10) as response:
+    with urllib.request.urlopen(urllib.request.Request(origin+path,data=body,headers=headers),context=trust,timeout=10) as response:
         return json.load(response)
 log=(out/'api.log').open('a')
 process=subprocess.Popen([java,'-jar',str(api),'--spring.config.additional-location=file:'+str(config)],stdout=log,stderr=subprocess.STDOUT)
@@ -52,7 +62,7 @@ try:
         song=music/f'{index+1}.mp3'
         subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i',source,'-ac','2','-c:a','libmp3lame','-b:a','256k','-metadata',f'title={title}','-metadata','artist=Normal Bias synthetic trial','-metadata','album=Signed in sessions',str(song)],check=True)
         call('/api/tracks?filename='+song.name,song.read_bytes(),owner,True)
-    print('Disposable HTTPS authentication fixture ready on port 18444',flush=True)
+    print(f'Disposable HTTPS authentication fixture ready on {origin}',flush=True)
     process.wait()
 finally:
     if process.poll() is None: process.terminate(); process.wait(timeout=15)

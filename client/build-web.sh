@@ -8,4 +8,8 @@ bundle="$client_dir/common/target/client-common-0.1.0-SNAPSHOT.zip"
 rm -rf -- "$client_dir/target/web"
 mkdir -p "$client_dir/target/web"
 unzip -q "$bundle" -d "$client_dir/target/web"
+# Capture one-time fragments before framework startup and remove them from history.
+# Tokens stay in transient page memory until Java consumes the link.
+cp "$client_dir/account-link.js" "$client_dir/target/web/account-link.js"
+python3 "$client_dir/prepare-web.py" "$client_dir/target/web"
 printf 'Web client ready in %s/target/web\n' "$client_dir"

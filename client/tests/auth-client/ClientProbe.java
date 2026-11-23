@@ -64,6 +64,7 @@ public final class ClientProbe {
         return null;
     }
     private static void labels(Component component, List<String> result) {
+        if (component instanceof com.codename1.components.SpanLabel) { result.add(((com.codename1.components.SpanLabel)component).getText()); return; }
         if (component instanceof Label) result.add(((Label)component).getText());
         if (component instanceof Container) for (Component child : (Container)component) labels(child,result);
     }
