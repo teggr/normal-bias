@@ -61,7 +61,7 @@ This prepares a disposable local library with two synthetic tracks and launches 
 
 ## Progress and next steps
 
-The authentication foundation was merged in PR #13 (`5198074`). The account-flow follow-up adds browser/native invitation and reset forms, signed-in password change, native pasted links and CLI-generated share links. The follow-up is prepared for review on `codex/account-setup-recovery`. Java 21 checks pass: 82 API + 5 CLI + 21 client tests, account/recovery/browser playback checks, real installed Chrome acceptance and native simulator checks. Verified recordings contain actual client sound; commands and limits are recorded in [verification](docs/verification.md).
+The authentication foundation was merged in PR #13 (`5198074`). The account-flow follow-up adds browser/native invitation and reset forms, signed-in password change, native pasted links and CLI-generated share links. The follow-up is open for review in [PR #14](https://github.com/teggr/normal-bias/pull/14) on `codex/account-setup-recovery`. Java 21 checks pass: 82 API + 5 CLI + 21 client tests, account/recovery/browser playback checks, real installed Chrome acceptance and native simulator checks. Verified recordings contain actual client sound; commands and limits are recorded in [verification](docs/verification.md).
 
 Remaining: physical iPhone authentication/locked playback/interruption acceptance, then separately authorised retained-service migration and deployment/backup work. The signed phone build is ready; Robin subsequently selected the iPhone simulator instead of physical-device acceptance, so it was not installed. The retained phone app, library/service and public hosting were not changed.
 
