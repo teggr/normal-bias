@@ -2,21 +2,23 @@
 
 ## Build and run
 
+The API requires HTTPS/authentication by default; see [authentication](authentication.md). The commands and unauthenticated curl examples below explicitly use **loopback demo mode** for the current client. Required mode instead uses credentials, advertised action links and scoped audio URLs.
+
 Requires a **Java 21 JDK** (including the compiler) and Maven 3.6.3+. Application and test code are Java; XML/properties/SQL configure the build and database. The optional [web listening client](client-poc.md) is built separately and can be served by this API.
 
 ```sh
 mvn clean verify
-java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar
+java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar --normalbias.auth.mode=demo
 # Another terminal, from the repository root:
 java -jar cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar api/src/test/resources
 ```
 
-The server binds to `127.0.0.1:8080`. Keep this binding: authentication, TLS and remote access are not implemented. H2's web console is disabled. There is no cloud storage, deployment configuration or network database. Start only one service per data directory. An exclusive data-directory lock prevents a second API process; H2 also locks its embedded catalogue.
+The server binds to `127.0.0.1:8080`. Keep this binding for demo mode; startup rejects non-loopback demo binds. Required mode has server accounts/sessions and enforces HTTPS (plain API requests return 426); client login integration and public deployment are not delivered. H2's web console is disabled. There is no cloud storage, deployment configuration or network database. Start only one service per data directory. An exclusive data-directory lock prevents a second API process; H2 also locks its embedded catalogue.
 
 To use a separate test data directory and loopback port:
 
 ```sh
-java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar --server.port=8081 --normalbias.data-dir=/tmp/normal-bias-demo
+java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar --normalbias.auth.mode=demo --server.port=8081 --normalbias.data-dir=/tmp/normal-bias-demo
 java -jar cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar api/src/test/resources http://127.0.0.1:8081
 ```
 
@@ -38,7 +40,7 @@ The data directory contains `catalogue.mv.db`, `.normal-bias.lock`, `music/<sha2
 | `GET /api/inspections/{id}` | Run state/progress/counts/error; 404 for unknown/evicted runs. |
 | `GET /api/inspections/{id}/findings?offset=0&limit=50` | Paginated findings and run state; default 50, maximum 200. |
 
-Track JSON: `id` (lowercase SHA-256 of complete file bytes), `filename` (basename), `title`, nullable `artist`/`album`, `durationMs`, `sizeBytes`, `createdAt` (UTC). ID3v2 is preferred over ID3v1; missing title falls back to filename. Metadata strings are capped at 1024 characters. Embedded artwork is served separately; no image bytes or new fields are added to catalogue JSON. No embedded-tag rewriting.
+Track JSON: `id` (lowercase SHA-256 of complete file bytes), `filename` (basename), `title`, nullable `artist`/`album`, `durationMs`, `sizeBytes`, `createdAt` (UTC). ID3v2 is preferred over ID3v1; missing title falls back to filename. Metadata strings are capped at 1024 characters. Artwork is served separately; no image bytes are added to catalogue JSON. Required authentication mode additionally advertises `_links` for permitted actions/navigation, preserves pagination fields, and applies `no-store` response caching. Its audio URLs require an issued grant. No embedded-tag rewriting.
 
 ### Embedded covers
 
@@ -81,7 +83,7 @@ Empty uploads return 400; unsupported content types 415; data without valid MP3 
 
 The CLI walks the directory recursively in filesystem traversal order, sequentially uploads regular files with case-insensitive `.mp3` extensions, skips other files and all symlinks, and rejects a symlink root. It does not load the whole collection or whole audio files into memory. Keep the source directory unchanged while uploading; source snapshots and races with local filesystem changes are outside this PoC.
 
-Progress shows the filename, bytes handed to the HTTP client in roughly 10% steps, then server success/failure, then counts. Bytes handed to the client are not an acknowledgement of durable storage. Errors are reported per file and traversal continues. Exit codes: 0 success, 1 one or more file failures, 2 usage/setup failure, 130 programmatic cancellation (Ctrl-C typically also exits 130 on Unix).
+Progress shows the filename, bytes handed to the HTTP client in roughly 10% steps, then server success/failure, then counts. Bytes handed to the client are not an acknowledgement of durable storage. Ordinary errors are reported per file and traversal continues; 401/403 stop traversal immediately. Exit codes: 0 success, 1 file/access failure, 2 usage/setup failure, 130 programmatic cancellation (Ctrl-C typically also exits 130 on Unix). Authenticated use adds `--token-file=PATH`, requires trusted loopback HTTPS, follows the advertised upload action and refuses cross-origin links/redirects. HTTP remains for demo use only; remote origins remain excluded. See [credential-file setup](authentication.md#authenticated-uploader).
 
 Ctrl-C cancels the in-flight HTTP request and prevents further uploads. Already committed files remain. A request whose full body reached the server may still commit even if its response was lost or cancellation happened just afterward. An interrupted partial body is discarded and never catalogued. Rerunning the directory reuploads whole files: exact SHA-256 duplicates return their existing track with current catalogue metadata, including edits. This is **not byte-level resume**. Different tag bytes make different files even when the audio is the same. Concurrent identical uploads produce one row.
 
@@ -99,7 +101,7 @@ See [verification record](verification.md) for observed results from the task en
 
 ## Remaining limitations and future work
 
-- No public exposure: no authentication, authorisation, TLS, quotas or adversarial upload hardening. Loopback defaults do not protect against other local processes.
+- No public deployment: server authentication/authorisation and direct TLS are implemented, but client login integration, general quotas and adversarial upload hardening remain. Demo mode is explicitly unauthenticated; loopback defaults do not protect against other local processes.
 - No playlists, embedded-tag rewriting, transcoding or remote uploader. The optional local iPhone client has a separate trial guide and verification scope.
 - No 30 GB load/performance run, real collection validation, device playback testing or abrupt power-loss testing. Recovery is tested through deterministic interrupted-operation states and restarts.
 - mp3agic 0.9.1 is a small pure-Java parser whose upstream is no longer actively maintained. Review parser/dependency maintenance and hardening before expanding beyond trusted local PoC use.

@@ -2,6 +2,8 @@
 
 The Codename One Java client can now run in its desktop simulator with a phone skin, a local API and streamed audio. This is the desktop JVM simulator, not an Android emulator or the Apple iOS simulator; it does not establish native device, background playback or CarPlay support.
 
+The desktop helper explicitly selects loopback-only `normalbias.auth.mode=demo` for the current client. Server authentication is implemented separately; client login/scoped-URL integration follows next. An existing API supplied to `run-simulator.sh` must currently be in that demo mode. See [authentication](authentication.md).
+
 The separately authorised [CarPlay PoC](carplay-poc.md) exercises the framework's simulated head unit against the same Java player. Its guide covers the Car menu, repeatable desktop probe, local iOS preparation and the Apple signing gate.
 
 ## Run the disposable demonstration

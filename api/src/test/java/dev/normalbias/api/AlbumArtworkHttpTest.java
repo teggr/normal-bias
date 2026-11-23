@@ -13,7 +13,7 @@ import java.nio.file.*;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties="normalbias.artwork.background-enabled=false",
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={"normalbias.artwork.background-enabled=false", "normalbias.auth.mode=demo"},
         classes={NormalBiasApplication.class,ArtworkFixtureApplication.Fixtures.class})
 class AlbumArtworkHttpTest {
     static final Path DATA;

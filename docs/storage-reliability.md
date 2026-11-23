@@ -8,8 +8,11 @@ The API runs Flyway before storage recovery and before serving HTTP. SQL migrati
 
 - `V1__catalogue.sql`: the original eight-column tracks schema.
 - `V2__pending_operations.sql`: pending upload metadata and pending deletion IDs.
+- `V3__album_artwork.sql`: fetched artwork assets/provenance and catalogue revisions.
+- `V4__background_artwork.sql`: durable background checks and artwork revision.
+- `V5__accounts_sessions.sql`: accounts, hashed credentials/grants, one-use tokens and login throttling. See [authentication](authentication.md).
 
-For a fresh catalogue, Flyway applies both migrations. For an existing PoC catalogue without Flyway history, startup checks that the PUBLIC schema contains only the expected tracks table, with the original column order/types/lengths/nullability and primary key, and no custom defaults, generated columns or additional constraints. It then records baseline version 1 and applies V2. Existing track IDs, metadata edits, timestamps and audio remain intact. Unrecognised legacy schemas fail startup rather than being silently adopted. This does not validate arbitrary manual schema changes after adoption.
+For a fresh catalogue, Flyway applies all five migrations. For an existing PoC catalogue without Flyway history, startup checks that the PUBLIC schema contains only the expected tracks table, with the original column order/types/lengths/nullability and primary key, and no custom defaults, generated columns or additional constraints. It then records baseline version 1 and applies V2–V5. Existing track IDs, metadata edits, timestamps and audio remain intact. Unrecognised legacy schemas fail startup rather than being silently adopted. This does not validate arbitrary manual schema changes after adoption.
 
 Subsequent starts validate migration history/checksums and apply pending versions. Add new versioned scripts for future changes; do not modify applied migrations. Script initialization is disabled (`spring.sql.init.mode=never`); Flyway is the single schema initializer. Flyway clean is disabled and the application never automatically repairs migration history. Failed migrations/checksum mismatches require investigation, not deleting the database or resetting history.
 
@@ -52,7 +55,7 @@ curl http://127.0.0.1:8080/api/inspections/INSPECTION_ID
 curl 'http://127.0.0.1:8080/api/inspections/INSPECTION_ID/findings?offset=0&limit=50'
 ```
 
-Only one inspection runs at a time. POST returns **202**, a status object and a `Location` header pointing to that run. Another start while it is running returns **409**. Invalid modes return **400**. Status/findings for an unknown or evicted UUID return **404**; malformed UUIDs return **400**. These local unauthenticated endpoints have the same loopback-only operating constraints as the music API.
+Only one inspection runs at a time. POST returns **202**, a status object and a `Location` header pointing to that run. Another start while it is running returns **409**. Invalid modes return **400**. Status/findings for an unknown or evicted UUID return **404**; malformed UUIDs return **400**. HTTP examples above assume explicit loopback demo mode. Required mode permits only the owner to inspect over HTTPS; the entry point advertises starting an inspection only when idle, otherwise its running status link. See [authentication](authentication.md).
 
 | Method/path | Response |
 | --- | --- |

@@ -17,11 +17,36 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /** All requests go directly to the API on the page's origin. No CORS proxy. */
-public final class LibraryApi {
+public class LibraryApi {
     public static final int PAGE_SIZE = 25;
     private final String origin;
+    private final AuthSession session;
+    private boolean disposed;
+    private final Map<String, Map<String, Object>> resources = new java.util.HashMap<>();
+    public LibraryApi(AuthSession session) { this.session = session; this.origin = session.origin; }
+    public void dispose() { disposed = true; resources.clear(); artworkLoaded = ignored -> {}; }
+    public String username() { return session == null ? "Local demo" : session.username(); }
+    public boolean canLogout() { return session != null && session.link("logout", "DELETE") != null; }
+    private String collection(String relation, String legacy) {
+        String path = session == null ? legacy : session.link(relation, "GET");
+        if (path == null) throw new IllegalStateException("Library action unavailable");
+        return path;
+    }
+    public boolean canPlay(Track track) { return !scopedPlayback() || ApiLinks.href(resources.get(track.id()), "playback-grant", "POST") != null; }
+    public boolean scopedPlayback() { return session != null && !session.demo(); }
+    public void playback(Track track, Consumer<String> ready, Consumer<String> failure) {
+        if (!scopedPlayback()) { ready.accept(audioUrl(track)); return; }
+        String action = ApiLinks.href(resources.get(track.id()), "playback-grant", "POST");
+        if (action == null) { failure.accept("Playback is not allowed for this track. Refresh the library."); return; }
+        session.request(action, "POST", new java.util.HashMap<>(), true, data -> {
+            if (disposed) return;
+            String link = ApiLinks.href(data, "audio", "GET");
+            if (link == null) failure.accept("No playback link returned."); else ready.accept(origin + link);
+        }, code -> { if (!disposed) failure.accept(AuthSession.message(code)); });
+    }
 
     public LibraryApi(String pageUrl) {
+        session = null;
         int scheme = pageUrl.indexOf("://");
         if (scheme < 0) throw new IllegalArgumentException("Open the client through the API's HTTP server");
         int end = pageUrl.indexOf('/', scheme + 3);
@@ -38,41 +63,32 @@ public final class LibraryApi {
     public void checkArtworkRevision(boolean force, Consumer<Boolean> changed) {
         long token = artworkState.beginRevision(force);
         if (token == 0) return;
-        json("/api/album-artwork/revision", result -> {
+        json(collection("artwork-revision", "/api/album-artwork/revision"), result -> {
             Object revision = result == null ? null : result.get("revision");
             changed.accept(artworkState.revisionLoaded(token, revision instanceof String ? (String) revision : null));
         }, ignored -> artworkState.revisionFailed(token));
     }
     private void json(String path, Consumer<Map<String, Object>> success, Consumer<String> failure) {
-        ConnectionRequest request = new ConnectionRequest() {
-            private Map<String, Object> result;
-            private boolean delivered;
-            private void fail(String text) { if (!delivered) { delivered = true; CN.callSerially(() -> failure.accept(text)); } }
-            @Override protected void readResponse(InputStream input) throws IOException {
-                result = new JSONParser().parseJSON(new InputStreamReader(input, "UTF-8"));
-            }
-            @Override protected void postResponse() { if (!delivered) { delivered = true; CN.callSerially(() -> success.accept(result)); } }
-            @Override protected void handleErrorResponseCode(int code, String message) {
-                fail("Library request failed (HTTP " + code + "). Try again.");
-            }
-            @Override protected void handleException(Exception ex) { fail("Cannot reach the library service. Retry later."); }
-        };
-        request.setUrl(origin + path);
-        request.setPost(false);
-        request.setHttpMethod("GET");
-        request.setTimeout(15000); request.setReadTimeout(20000);
-        NetworkManager.getInstance().addToQueue(request);
+        if (disposed) return;
+        if (session != null) {
+            session.request(path, "GET", null, true, data -> { if (!disposed) success.accept(data); },
+                    code -> { if (!disposed) failure.accept(AuthSession.message(code)); });
+            return;
+        }
+        throw new IllegalStateException("Discovery is required for network requests");
     }
     /** EDT-only. Both positive and missing results are shared, with bounded negative lifetimes. */
     public void artwork(Track track, Consumer<Image> loaded) {
+        if (disposed) return;
         artworkState.get(track.id(), loaded, (key, complete) -> {
-            ConnectionRequest request = new ConnectionRequest() {
+            ConnectionRequest request = new ApiRequest() {
                 private byte[] bytes;
                 private boolean delivered;
                 private void finish(boolean definitive) {
                     if (delivered) return;
                     delivered = true;
                     CN.callSerially(() -> {
+                        if (disposed) return;
                         Image image = null;
                         try { if (bytes != null && bytes.length > 0) image = EncodedImage.create(bytes); }
                         catch (RuntimeException ignored) { }
@@ -91,11 +107,15 @@ public final class LibraryApi {
                     if (bytes.length == 0) throw new IOException("Empty artwork response");
                 }
                 @Override protected void postResponse() { finish(true); }
-                @Override protected void handleErrorResponseCode(int code, String message) { finish(code == 404); }
+                @Override protected void handleErrorResponseCode(int code, String message) { if (code == 401 && session != null) CN.callSerially(() -> { if (!disposed) session.unauthorized(); }); finish(code == 404); }
                 @Override protected void handleException(Exception ex) { finish(false); }
             };
             int version = key.indexOf('?');
-            request.setUrl(origin + "/api/tracks/" + track.id() + "/artwork" + key.substring(version));
+            String path = scopedPlayback() ? ApiLinks.href(resources.get(track.id()), "artwork", "GET")
+                    : "/api/tracks/" + track.id() + "/artwork";
+            if (path == null) { complete.complete(null, true); return; }
+            request.setUrl(origin + path + key.substring(version));
+            if (session != null) session.authorize(request);
             request.setPost(false); request.setHttpMethod("GET");
             request.setReadTimeout(15000); request.setTimeout(15000);
             NetworkManager.getInstance().addToQueue(request);
@@ -106,7 +126,7 @@ public final class LibraryApi {
     public record GroupPage(List<Group> items, int offset, int total) {}
     public void groups(String view, String query, int offset, String artist,
                        Consumer<GroupPage> success, Consumer<String> failure) {
-        String path = "/api/library/" + view + "?offset=" + offset + "&limit=" + PAGE_SIZE
+        String path = collection(view, "/api/library/" + view) + "?offset=" + offset + "&limit=" + PAGE_SIZE
                 + "&q=" + com.codename1.io.Util.encodeUrl(query);
         if (artist != null) path += "&artist=" + com.codename1.io.Util.encodeUrl(artist);
         json(path, data -> {
@@ -114,6 +134,7 @@ public final class LibraryApi {
                 List<Group> groups = new ArrayList<>();
                 for (Object item : (List<?>) data.get("items")) {
                     Map<?, ?> row = (Map<?, ?>) item;
+                    if (!resources.containsKey((String) row.get("trackId"))) resources.put((String) row.get("trackId"), (Map<String, Object>) row);
                     groups.add(new Group((String) row.get("artist"), (String) row.get("album"),
                             ((Number) row.get("trackCount")).intValue(), (String) row.get("trackId")));
                 }
@@ -129,53 +150,24 @@ public final class LibraryApi {
     }
 
     public void list(String query, int offset, String artist, String album, Consumer<Page> success, Consumer<String> failure) {
-        ConnectionRequest request = new ConnectionRequest() {
-            private Page page;
-            private boolean delivered;
-
-            private void fail(String message) {
-                if (delivered) return;
-                delivered = true;
-                CN.callSerially(() -> failure.accept(message));
-            }
-
-            @Override protected void readResponse(InputStream input) throws IOException {
-                try {
-                    Map<String, Object> json = new JSONParser().parseJSON(new InputStreamReader(input, "UTF-8"));
-                    List<Track> tracks = new ArrayList<>();
-                    for (Object item : (List<?>) json.get("items")) {
-                        Map<?, ?> row = (Map<?, ?>) item;
-                        String id = (String) row.get("id");
-                        if (id == null || id.length() != 64) throw new IllegalArgumentException("Invalid track ID");
-                        tracks.add(new Track(id, (String) row.get("title"), (String) row.get("artist"),
-                                (String) row.get("album"), ((Number) row.get("durationMs")).intValue()));
-                    }
-                    page = new Page(tracks, ((Number) json.get("offset")).intValue(),
-                            ((Number) json.get("limit")).intValue(), ((Number) json.get("total")).intValue());
-                } catch (RuntimeException ex) {
-                    throw new IOException("Unexpected catalogue response", ex);
+        String path = collection("songs", "/api/tracks") + "?q=" + com.codename1.io.Util.encodeUrl(query)
+                + "&offset=" + offset + "&limit=" + PAGE_SIZE;
+        if (artist != null) path += "&artist=" + com.codename1.io.Util.encodeUrl(artist);
+        if (album != null) path += "&album=" + com.codename1.io.Util.encodeUrl(album);
+        json(path, data -> {
+            try {
+                List<Track> tracks = new ArrayList<>();
+                for (Object item : (List<?>) data.get("items")) {
+                    Map<String, Object> row = (Map<String, Object>) item;
+                    String id = (String) row.get("id");
+                    if (id == null || id.length() != 64) throw new IllegalArgumentException("Invalid track ID");
+                    resources.put(id, row);
+                    tracks.add(new Track(id, (String) row.get("title"), (String) row.get("artist"),
+                            (String) row.get("album"), ((Number) row.get("durationMs")).intValue()));
                 }
-            }
-            @Override protected void postResponse() {
-                if (!delivered) { delivered = true; success.accept(page); }
-            }
-            @Override protected void handleErrorResponseCode(int code, String message) {
-                fail("Catalogue request failed (HTTP " + code + "). Try again.");
-            }
-            @Override protected void handleException(Exception ex) {
-                fail("Cannot load the library. Check the API connection and try again.");
-            }
-        };
-        request.setUrl(origin + "/api/tracks");
-        request.setPost(false);
-        request.setHttpMethod("GET");
-        request.setReadTimeout(15000);
-        request.setTimeout(15000);
-        if (artist != null) request.addArgument("artist", artist);
-        if (album != null) request.addArgument("album", album);
-        request.addArgument("q", query);
-        request.addArgument("offset", String.valueOf(offset));
-        request.addArgument("limit", String.valueOf(PAGE_SIZE));
-        NetworkManager.getInstance().addToQueue(request);
+                success.accept(new Page(tracks, ((Number) data.get("offset")).intValue(),
+                        ((Number) data.get("limit")).intValue(), ((Number) data.get("total")).intValue()));
+            } catch (RuntimeException error) { failure.accept("Unexpected catalogue response. Try again."); }
+        }, failure);
     }
 }

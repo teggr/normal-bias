@@ -5,6 +5,9 @@ A self hosted music service
 
 - [Graphite client design system and implementation](docs/design-system-proposal.md)
 - [Project brief and agreed constraints](docs/project-brief.md)
+- [Authentication plan and progress](docs/authentication-plan.md)
+- [Server authentication and local administration](docs/authentication.md)
+- [Authenticated iOS simulator audio feasibility](docs/authenticated-audio-trial.md)
 - [Web listening-client PoC](docs/client-poc.md)
 - [Album matching and missing artwork](docs/album-artwork.md)
 - [Desktop simulator demo](docs/simulator-poc.md)
@@ -15,11 +18,13 @@ A self hosted music service
 - [Cloud UI demonstration recording skill](.agents/skills/ui-demo-recording/SKILL.md)
 - [Storage migrations, recovery and online inspection](docs/storage-reliability.md)
 
-The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated song, album and artist views, listing/search, catalogue metadata editing and track deletion. Java 21 JDK and Maven 3.6.3+ are required.
+The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated song, album and artist views, listing/search, catalogue metadata editing and track deletion. Owner/listener accounts, persistent sessions and scoped playback URLs are implemented, with login, remembered sessions, logout and playback URL renewal integrated in the web/iPhone client. Java 21 JDK and Maven 3.6.3+ are required.
+
+The API requires authentication and HTTPS by default. See [authentication](docs/authentication.md) for TLS, owner setup and upload credentials. The web and iPhone clients support sign-in and scoped playback; see that guide for the private HTTPS flow. For an unauthenticated synthetic local demo, explicitly select loopback-only demo mode:
 
 ```sh
 mvn clean verify
-java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar
+java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar --normalbias.auth.mode=demo
 # In another terminal; start with the bundled synthetic fixture:
 java -jar cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar api/src/test/resources
 curl http://127.0.0.1:8080/api/tracks
@@ -29,7 +34,7 @@ The API listens on `127.0.0.1:8080` and stores its catalogue and music under `./
 
 Startup applies versioned schema migrations and recovers prepared uploads and committed deletions. Start a background inspection while it runs with `curl -X POST 'http://127.0.0.1:8080/api/inspections?mode=full'`. Follow the returned Location for status and append `/findings` for paginated results. Backup/restore remains part of the future deployment story.
 
-Read the [local PoC guide](docs/local-poc.md) for endpoints, seeking examples, tests and limitations. This unauthenticated local PoC must not be exposed publicly. No deployment is included. An optional Codename One web listening client now uses this API.
+Read the [local PoC guide](docs/local-poc.md) for endpoints, seeking examples, tests and limitations. Demo mode is unauthenticated and refuses non-loopback binds. No public deployment is included. The optional Codename One web/iPhone client now supports login, session restoration, logout and scoped playback renewal. Physical iPhone and installed-PWA acceptance remain separate.
 
 ## Web listening client
 
@@ -38,6 +43,7 @@ With the Java 21 JDK, Maven, Bash and `unzip` available:
 ```sh
 ./client/build-web.sh
 java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
+  --normalbias.auth.mode=demo \
   --spring.web.resources.static-locations="file:$(pwd)/client/target/web/"
 ```
 
@@ -55,4 +61,8 @@ This prepares a disposable local library with two synthetic tracks and launches 
 
 ## Progress and next steps
 
-See the [project brief](docs/project-brief.md#current-progress-and-review-checkpoint--2026-11-20) for the completed mobile/audio/artwork checkpoint and [verification](docs/verification.md) for actual checks. The [album matching and missing artwork proposal](docs/album-matching-proposal.md) tracks proposed milestones for identifying albums, previewing/accepting fetched covers, persistent artwork and later bulk backfill. Its original manual-selection plan is historical; automatic background artwork filling is now authorised and implemented as described in the artwork guide.
+The authentication increment is complete for server administration, the uploader and shared web/iPhone sign-in/session/logout/playback renewal. Java 21 checks passed: 81 API + 5 CLI + 20 client tests, browser authentication/recovery checks and iPhone simulator expiry/background checks. Both verified demos include actual client sound; commands and limits are recorded in [verification](docs/verification.md).
+
+Remaining: invitation/reset/password-change screens and share-link entry points; installed-PWA and physical iPhone authentication/locked playback/interruption acceptance; then separately authorised retained-service migration and deployment/backup work. No physical phone, retained library/service or public hosting was changed by this increment.
+
+See the [current project checkpoint](docs/project-brief.md#current-progress-and-review-checkpoint--2026-11-23) and [authentication plan](docs/authentication-plan.md) for delivered scope and outstanding work. The [album matching proposal](docs/album-matching-proposal.md) remains historical where superseded by automatic background artwork filling in [the artwork guide](docs/album-artwork.md).

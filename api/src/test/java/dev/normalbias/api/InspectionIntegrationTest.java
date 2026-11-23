@@ -16,7 +16,7 @@ import java.time.*;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties="normalbias.artwork.background-enabled=false")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties={"normalbias.artwork.background-enabled=false", "normalbias.auth.mode=demo"})
 class InspectionIntegrationTest {
     static final Path DATA;
     static { try { DATA = Files.createTempDirectory("normal-bias-inspections-"); } catch (IOException e) { throw new ExceptionInInitializerError(e); } }

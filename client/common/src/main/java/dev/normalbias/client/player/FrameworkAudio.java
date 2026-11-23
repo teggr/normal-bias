@@ -13,6 +13,7 @@ final class FrameworkAudio implements BrowserAudio {
     FrameworkAudio(Runnable stateChanged) { this.stateChanged = stateChanged; }
     private Media media;
     private int generation;
+    private int pendingSeek;
     private boolean loading;
     private boolean ended;
     private boolean wantPlay;
@@ -34,6 +35,7 @@ final class FrameworkAudio implements BrowserAudio {
                     if (request != generation) { created.cleanup(); return; }
                     media = created;
                     loading = false;
+                    if (pendingSeek > 0) media.setTime(pendingSeek);
                     MediaManager.getAsyncMedia(media).addMediaErrorListener(event -> CN.callSerially(() -> {
                         if (request == generation) fail();
                     }));
@@ -72,12 +74,12 @@ final class FrameworkAudio implements BrowserAudio {
         loading = false;
     }
 
-    public void seek(int milliseconds) { if (media != null) media.setTime(milliseconds); }
+    public void seek(int milliseconds) { pendingSeek = milliseconds; if (media != null) media.setTime(milliseconds); }
 
     public String snapshot() {
         if (loading && System.currentTimeMillis() - loadingSince > 15000) fail();
         Map<String, Object> state = new HashMap<>();
-        state.put("time", media == null ? 0 : Math.max(0, media.getTime()));
+        state.put("time", media == null ? pendingSeek : Math.max(0, media.getTime()));
         state.put("duration", media == null ? 0 : Math.max(0, media.getDuration()));
         state.put("playing", media != null && media.isPlaying());
         state.put("loading", loading);
@@ -88,7 +90,7 @@ final class FrameworkAudio implements BrowserAudio {
     }
 
     public void close() {
-        generation++;
+        generation++; pendingSeek = 0;
         Media previous = media;
         media = null;
         loading = false;

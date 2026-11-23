@@ -26,6 +26,11 @@ async function click(page, name, index = 0, role = 'button') {
     const box = await item.boundingBox();
     assert.ok(box, 'Control bounds: ' + name);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    // Compact Now Playing intentionally removes the radio strip; its callers
+    // assert the dedicated player instead. Other tab transitions retain it.
+    if (role === 'radio' && name !== 'Now Playing') {
+        await until(() => item.getAttribute('aria-checked').then(value => value === 'true'), name + ' selected');
+    }
     if (process.env.RECORD_DEMO) await delay(650); // Readable evidence pacing, outside asserted seek timing.
 }
 async function text(page, value) {
@@ -80,7 +85,7 @@ async function seed(origin) {
     const origin = `http://127.0.0.1:${port}`;
     const output = fs.openSync(path.join(work, 'api.log'), 'w');
     server = spawn('java', ['-jar', path.join(repo,'api/target/normal-bias-api-0.1.0-SNAPSHOT.jar'),
-        '--server.port=' + port, '--normalbias.artwork.background-enabled=false', '--normalbias.data-dir=' + path.join(work,'data'),
+        '--server.port=' + port, '--normalbias.auth.mode=demo', '--normalbias.artwork.background-enabled=false', '--normalbias.data-dir=' + path.join(work,'data'),
         '--spring.web.resources.static-locations=file:' + path.join(repo,'client/target/web/')],
         {stdio:['ignore',output,output]});
     await until(async () => {
@@ -125,7 +130,7 @@ async function seed(origin) {
         await search(page, 'track 00', submitWithEnter);
         await text(page, '1–1 of 1');
         await click(page, 'Queue (0)', 0, 'radio');
-        assert.equal(await page.getByRole('button', {name:'Search', exact:true}).count(), 0, 'Queue has no library search');
+        await until(() => page.getByRole('button', {name:'Search', exact:true}).count().then(count => count === 0), 'Queue has no library search');
         await click(page, 'Library', 0, 'radio');
         await text(page, '1–1 of 1');
         await click(page, 'Reset');
@@ -135,7 +140,7 @@ async function seed(origin) {
 
     const stopCapture = process.env.RECORD_DEMO ? await require('./capture-demo.cjs').start(page, path.resolve(process.env.RECORD_DEMO)) : null;
     await click(page, 'Queue (0)', 0, 'radio');
-    assert.equal(await page.getByRole('button', {name:'Search', exact:true}).count(), 0);
+    await until(() => page.getByRole('button', {name:'Search', exact:true}).count().then(count => count === 0), 'Queue has no library search');
     await delay(700);
     await page.screenshot({path:path.join(repo,'client/target/library-layout-queue.png')});
     await click(page, 'Library', 0, 'radio');

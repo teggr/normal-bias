@@ -2,6 +2,8 @@
 
 The Codename One client lives in `client/`, with a separate Maven reactor and Java 17 source compiled using a Java 21 JDK. The API and uploader remain Java 21. Building the API does not build the client. Codename One 7.0.282 is pinned in the client POM.
 
+The shared Java web/iPhone client supports server-discovered login, remembered sessions, logout and scoped playback URL renewal. Serve the generated web assets from the same HTTPS API origin to use authentication; see the client flow in [authentication](authentication.md#listening-clients). The commands below deliberately use loopback-only demo mode for synthetic fixtures. See [authentication](authentication.md); do not expose demo mode or use a private-interface HTTP workaround for the new secured API.
+
 ## Build and run locally
 
 Requires Java 21 JDK, Maven 3.6.3+, Bash, `unzip` and internet access to Maven Central, `repo.codenameone.com` and Codename One's official tool downloads. The first build installs vendor tools under `~/.codenameone`; this cache must be writable. No Codename One account, cloud build credits or paid plan is needed for the local JavaScript target used here.
@@ -12,6 +14,7 @@ From the repository root:
 mvn clean verify
 ./client/build-web.sh
 java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
+  --normalbias.auth.mode=demo \
   --spring.web.resources.static-locations="file:$(pwd)/client/target/web/"
 ```
 
@@ -21,7 +24,7 @@ Open `http://127.0.0.1:8080/`. In another terminal, upload the bundled synthetic
 java -jar cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar api/src/test/resources
 ```
 
-The web build script runs the client JUnit tests and compatibility check, translates Java to JavaScript locally, and replaces only the generated `client/target/web/` directory with the extracted static bundle. All generated output is ignored by Git. The API's static-resource setting is a launch-time option; its default startup behaviour and existing endpoints are unchanged. Keep the trailing slash in the static-resource location. Do not serve the repository root as the web root.
+The web build script runs the client JUnit tests and compatibility check, translates Java to JavaScript locally, and replaces only the generated `client/target/web/` directory with the extracted static bundle. All generated output is ignored by Git. Static-resource serving is configured at launch; required authentication remains the normal server default. Keep the trailing slash in the static-resource location. Do not serve the repository root as the web root.
 
 To keep the demo separate from an existing library, add `--normalbias.data-dir=/absolute/path/to/disposable-data` to the API command. To avoid a port conflict, add `--server.port=8090`, open that port in the browser and pass `http://127.0.0.1:8090` as the CLI's second argument. Keep the API's loopback binding. This is still an unauthenticated local PoC.
 

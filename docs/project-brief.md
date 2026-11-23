@@ -1,6 +1,6 @@
 # Normal Bias: project brief and constraints
 
-Last updated: 2026-11-20.
+Last updated: 2026-11-23.
 
 This document records Robin's requirements and decisions. It is the starting point for people and coding agents working on Normal Bias. Distinguish agreed constraints from proposals; do not silently turn an open question into an architectural decision.
 
@@ -19,12 +19,22 @@ The listening targets are desktop web, mobile and eventually CarPlay. Following 
 - **Eventual API hosting:** a running service on the VPS, **not a serverless API**. The initial PoC is tested locally.
 - **Runtime topology:** a single service instance.
 - **Database:** H2 for the single-instance service; use embedded H2 for local PoC testing.
+- **State and API decisions (2026-11-23):** the server should normally own authoritative application state, business rules and authorisation. Clients obtain data and decisions through the API wherever practical. New/changed APIs should advertise HATEOAS links/action affordances according to both authorisation scope and current resource state; clients use these rather than assuming an action is available. Every request still revalidates permissions and state. Device media execution, transient UI state and bounded caches remain necessary client responsibilities; migrating the existing session-local queue or adding persistent playlists requires separately agreed scope.
 - **Starting point:** API-first, covering the music catalogue/index, music management, storage, uploads and library management.
 - **PoC companion CLI:** a Java CLI uses the service API to upload a directory of files, reports progress and allows cancellation, so the PoC can exercise a real upload scenario.
 - **Initial PoC storage:** local file-backed storage for music while testing.
 - **Future storage option:** Cloudflare object storage (previously discussed as R2) remains an option for music files. It is not yet a final provider decision and is not required for the local PoC.
 
 The API-first direction replaced the earlier suggestion to begin with a client playback/CarPlay spike; the completed API milestones now support the authorised web client increment. The Spring Boot/VPS decision replaces the earlier serverless API proposal.
+
+## Current progress and review checkpoint — 2026-11-23
+
+- **Delivered:** owner/listener accounts and server-side sessions; local account/invitation/reset/revocation commands; scoped uploader credentials; two-minute track-scoped playback URLs; and shared web/iPhone login, remembered sessions, logout and position/intent-preserving playback renewal. The API advertises allowed actions and rechecks scope/state on every request. Server authority and HATEOAS are recorded as repository principles.
+- **Verified:** Java 21 builds with 81 API + 5 CLI + 20 client tests; ten browser authentication checks, seven recovery/revocation checks, the existing demo smoke test and ten iPhone simulator checks, including Keychain restoration, real grant expiry and background queue advance. Web/native recordings have verified actual sound and pause/logout silence. Exact results and limitations are in [verification](verification.md).
+- **Review state:** Robin requested a PR for the full authentication increment. Prepared on `codex/authentication` from merged `main` at `d6029be` (PR #12). No merge or deployment is requested.
+- **Remaining implementation:** invitation/reset/password-change screens and share-link entry points. These remain part of the authentication plan, not completed UI.
+- **Remaining acceptance:** installed/standalone PWA and physical iPhone authentication, locked output and interruptions. The prior simulator lock-interaction silence remains unresolved; background queue advance does not establish uninterrupted locked sound. Retained-phone/service migration, public deployment and backup/restore require their separate authorised work.
+- **Retained environment:** the existing physical phone, private service and real library remain unchanged. Generated fixtures, credentials, databases, signing outputs and recordings remain outside Git; disposable test processes are stopped.
 
 ## Current status and scope
 
@@ -44,7 +54,7 @@ Online inspection runs as a report-only background API job, with quick/full-hash
 
 Use Codename One and the existing Normal Bias API. Start on the web/JavaScript platform so the generated client can be built and exercised in this environment before moving to Android/iOS. API changes needed to support the client are authorised. Keep the API's local-only defaults and existing storage/recovery behaviour.
 
-The first increment covers paginated browsing/search, track streaming, play/pause, seeking and an in-memory queue with previous/next and completion advance. Empty, loading and failure states must be visible. The queue is session-local; persistent server playlists, authentication, remote deployment and offline downloads are deferred. Use synthetic audio for verification.
+The first increment covers paginated browsing/search, track streaming, play/pause, seeking and an in-memory queue with previous/next and completion advance. Empty, loading and failure states must be visible. The queue is session-local; persistent server playlists, remote deployment and offline downloads remain deferred. Authentication was deferred from that first increment and is implemented in the later checkpoints below. Use synthetic audio for verification.
 
 The first web increment is implemented in a separate `client/` Maven project using Codename One 7.0.282. The generated static bundle is served by the existing API using Spring Boot's static-resource launch option; no API contract changes were required. Java owns the UI, API access and finite session queue. A small browser-native JavaScript audio bridge works around a verified failure in the framework's built-in media wrapper. This is platform glue, not a replacement web framework. See [client PoC](client-poc.md) for commands, behaviour and the integration limitation.
 
@@ -56,7 +66,7 @@ Initial implementation choices (small PoC defaults, not permanent product constr
 - ID3 title/artist/album and frame-derived duration via mp3agic; filename title fallback.
 - Paginated catalogue; immutable audio with single byte-range seeking.
 - Sequential recursive CLI traversal, no following symbolic links, case-insensitive `.mp3` selection, per-file progress. Cancellation interrupts the request; committed tracks remain. Rerun the directory to retry whole files with deduplication. No byte-level resume.
-- Local unauthenticated API for this PoC; CLI accepts literal loopback HTTP origins only. This is not ready for public exposure.
+- The original local API PoC was unauthenticated. Current defaults require HTTPS/accounts; the CLI accepts credentials only over literal loopback HTTPS, with unauthenticated HTTP limited to explicit loopback demo mode. Public exposure remains out of scope.
 
 See [local PoC guide](local-poc.md) for the exact contract, commands, verification and remaining limitations.
 
@@ -94,7 +104,7 @@ The server derives bounded PNG covers from embedded ID3v2 JPEG/PNG images throug
 
 Robin explicitly approved restarting the existing private trial service at `192.168.1.205:18082` against the same retained two-album library during this task. That library remains in the earlier local worktree; it was not copied into Git or replaced with test data. Automated tests and the demo recording use a disposable synthetic catalogue.
 
-## Current progress and review checkpoint — 2026-11-20
+## Historical progress and review checkpoint — 2026-11-20
 
 - **Latest delivered:** automatic service-side missing-cover lookup for existing tracks/uploads; durable checks/retries and provider cooldown handling; removal of manual artwork controls; bounded client caches, stale-request recovery and immediate foreground revision checks. Current operation/selection policy is in [the artwork guide](album-artwork.md); the original manual-selection proposal is historical.
 - **Verification:** 59 API + 3 CLI tests and 15 client tests passed during implementation. Normal refresh, blocked revision notifications and browser playback/navigation regressions passed. A signed iPhone Library check directly observed missing covers become fetched covers in the already-open app. Exact commands, dates, recordings and limitations are in [verification](verification.md).
@@ -137,7 +147,7 @@ Resolve these during planning rather than assuming answers:
 - Future upload/indexing requirements beyond the first PoC defaults above.
 - Any future byte-level resumable upload protocol; the initial CLI retries whole files.
 - Final object-storage provider and access/streaming approach.
-- Authentication and access control.
+- Invitation/reset/password-change UI, installed-PWA/physical authenticated playback and public-hosting acceptance; the server account/session policy is now settled and implemented below.
 - Backup/restore requirements and implementation as part of deployment; broader hardware/power-loss recovery beyond the local operation-replay milestone.
 - Dependency maintenance policy beyond the pinned initial build versions.
 - VPS provider, sizing and deployment configuration.
@@ -154,6 +164,20 @@ Robin rejected the first rendered Graphite implementation as janky and requested
 ## Keeping this document current
 
 Record later user-approved constraints and decisions here. Clearly label proposals and unresolved questions. Preserve the distinction between the long-term product and the currently authorised work.
+
+## Authentication planning — requested 2026-11-23
+
+Robin requested planning authentication and settled the account policies: one owner plus invited listen-only users sharing one library; local passwords; single-use expiring invitation links shared by the owner; owner-assisted reset links and local owner recovery; administration through local server commands. Web/mobile sign-ins survive restarts and expire after 90 inactive days or one year since password sign-in. Revocation blocks subsequent requests but allows an already-open stream to finish. The first rollout is a private HTTPS trial; the uploader remains loopback-only with a separate upload credential. The [authentication plan](authentication-plan.md) distinguishes these agreed choices from proposed client details and the remaining physical authenticated-media gate. Authentication state and allowed API actions follow the server-authoritative/HATEOAS principle above. The subsequent server implementation checkpoint below supersedes the earlier planning-only status; the later client checkpoint below records the authorised integration; public deployment remains separate.
+
+Authenticated-audio feasibility (2026-11-23): Robin authorised the first check, then selected Apple's iPhone simulator instead of the physical phone for this session. The isolated real-client/synthetic HTTPS trial confirms pinned iOS stream headers are unsupported; server-issued, track-scoped URL grants support native playback, playing/paused seeks, fresh Range requests and authenticated queue advance while the app is backgrounded. SecureStorage roundtrip/relaunch restoration passes with ad hoc simulator signing. The native clock also advanced through simulated lock, but the captured sound has an unexplained roughly 13-second silence during lock-screen interaction; uninterrupted locked audio remains unverified. No physical phone, retained library/service, production client source, cloud build or public endpoint changed. Reusable test harness and actual results are in [the authenticated-audio trial](authenticated-audio-trial.md) and verification record. The later client checkpoint supersedes the renewal/browser gap; physical acceptance remains future work.
+
+### Server authentication implementation — authorised and delivered 2026-11-23
+
+Robin requested implementing authentication with scoped playback URLs, starting with server accounts/sessions. The service now has Flyway V5 owner/listener accounts, adaptive versioned password hashes, durable hashed browser/device/upload credentials, the agreed 90-day idle/365-day absolute limits, browser CSRF protection, throttled generic login, one-use invitations/reset tokens, and local account/session/link management through a protected Unix socket to the running service. Password reset/change/recovery and account disable revoke credentials/reset links. Two-minute track-scoped audio grants support repeated GET/HEAD/Range, remain bound to parent state and survive restarts without extending expiry. New requests are rejected after revocation; open responses may finish.
+
+Server discovery/track/group/page links reflect scope and state, with enforcement on every request. The uploader discovers its upload action and consumes a separately revocable owner-only credential file over trusted loopback HTTPS. Required authentication is the default; HTTP API calls return 426, and explicit unauthenticated demo mode refuses non-loopback binds. This was a compatibility change for older clients; the subsequent integration below supports required authentication and explicit loopback demos. No private HTTP bypass was introduced.
+
+The [authentication guide](authentication.md) records exact commands, contracts and limits. Tests cover TLS, permissions, CSRF, durable restart/expiry, one-time races, revocation and action discovery; packaged API/admin/CLI checks and legacy browser regressions pass as recorded in verification.md. Next: client sign-in/redemption/logout, native credential storage and renewal, installed-PWA/cache acceptance, and physical locked/interruption tests. The old simulator lock-capture sound gap remains open. The retained service/library and physical phone were untouched; deployment/backup/restore remain deferred.
 
 ## Album matching increment authorised — 2026-11-20
 
@@ -213,3 +237,9 @@ Robin reported that the installed iPhone client omitted the Back and Information
 Header-fix result: local web/iOS builds and 15 client tests pass; the browser regression confirms a genuinely scrolling short-height player body with a fixed header and working Information/Back. The corrected app is signed, installed and launched on the same iPhone. Device Hub directly shows both controls fully visible beneath the status area in the native Now Playing screen. Robin subsequently confirmed that Back and Information are visible and work on the phone. The retained API/library was not restarted or modified by this correction.
 
 Library-view review checkpoint (2026-11-20): Robin requested opening a PR for this increment after physical header-control acceptance. Changes are submitted in [PR #12](https://github.com/teggr/normal-bias/pull/12) on `codex/library-views`, based on merged main `d23582e` (PR #11). Prior verification and the retained private service remain as recorded above; no merge or public deployment is requested.
+
+### Listening-client authentication — authorised 2026-11-23
+
+Robin requested web/iPhone login, remembered sessions, logout and scoped playback renewal. Shared Java code now discovers server capabilities before browsing, uses persistent HttpOnly cookies/CSRF in the web client and SecureStorage-backed device credentials for native API/artwork requests, follows permitted track actions, and renews media URLs on older resumes/seeks or bounded stream-error recovery while retaining position and playing/paused intent. Logout/account changes release media/metadata, discard caches/queue and invalidate pending callbacks. Failed logout blocks restoration until revocation can finish. A 401 requires sign-in; connectivity failures preserve credentials. Foreground discovery checks session identity. H2 remains authoritative; client timers only suggest renewal.
+
+The iPhone helper accepts private HTTPS and simulator HTTPS loopback with actual certificate validation; HTTPS builds add no insecure ATS exception. Apple's simulator reports itself as a simulator, so native origin/media selection uses the bundled trial resource rather than treating that flag as desktop-only. The CSRF trial found servlet session handling rotating CSRF on normal reads; it is now disabled in favour of existing per-request H2 authentication. The retained private HTTP trial is historical and is not a bypass. No physical phone/service/library update or public deployment is included. Invitation/reset/password-change UI, installed-PWA acceptance and physical locked/background/interruption acceptance remain follow-up scope. Actual tests/recordings are in verification.md.
