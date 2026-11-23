@@ -6,6 +6,7 @@ import com.codename1.ui.CN;
 public final class SystemAudioEvents {
     private static Player player;
     static void bind(Player value) { player = value; command(0, 0); }
+    static void unbind(Player value) { if (player == value) player = null; }
     public static void command(int command, int value) {
         if (command == 0) return; // Also keeps the native callback entry point reachable.
         CN.callSerially(() -> {

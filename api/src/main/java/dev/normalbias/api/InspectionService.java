@@ -17,7 +17,7 @@ public class InspectionService {
 
     public synchronized Status start(String mode) {
         if (!Set.of("quick", "full").contains(mode)) throw TrackStore.error(HttpStatus.BAD_REQUEST, "Mode must be quick or full");
-        if (runs.values().stream().anyMatch(run -> run.status().state().equals("RUNNING"))) {
+        if (active().isPresent()) {
             throw TrackStore.error(HttpStatus.CONFLICT, "An inspection is already running");
         }
         Run run = new Run(mode);
@@ -32,6 +32,9 @@ public class InspectionService {
     }
 
     public synchronized Status status(UUID id) { return get(id).status(); }
+    public synchronized Optional<Status> active() {
+        return runs.values().stream().map(Run::status).filter(status -> status.state().equals("RUNNING")).findFirst();
+    }
 
     public synchronized Page findings(UUID id, int offset, int limit) {
         if (offset < 0 || limit < 1 || limit > 200) throw TrackStore.error(HttpStatus.BAD_REQUEST, "Invalid pagination");

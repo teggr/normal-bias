@@ -1,5 +1,7 @@
 # Match an album and fill missing artwork
 
+The current API requires authentication/HTTPS by default. Listeners may retrieve track covers and the artwork revision; retained artwork matching/provenance/management endpoints are owner-only. Automatic background lookup remains service-side. See [authentication](authentication.md); unauthenticated examples require explicit loopback demo mode.
+
 The first increment uses MusicBrainz release search and Cover Art Archive release front covers. It runs in the local API; no audio is sent to either provider. Java 21, Maven, H2, Codename One 7.0.282 and ordinary loopback defaults are unchanged. See the [progress/decisions](album-matching-proposal.md) and dated [verification](verification.md).
 
 ## Background service flow

@@ -10,6 +10,9 @@ fi
 # Do not let a subsequent ordinary browser/simulator package retain the trial origin.
 trap 'rm -f -- "$client_dir/common/target/classes/normalbias-trial-origin.txt"' EXIT
 plist="<key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoads</key><false/><key>NSExceptionDomains</key><dict><key>$trial_host</key><dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/></dict></dict></dict><key>NSLocalNetworkUsageDescription</key><string>Browse and play the disposable Normal Bias library on your private development computer.</string>"
+if [[ "$NORMALBIAS_API_ORIGIN" == https://* ]]; then
+    plist="<key>NSLocalNetworkUsageDescription</key><string>Browse and play the private Normal Bias library over HTTPS.</string>"
+fi
 mvn -f "$client_dir/pom.xml" -B -ntp package -Pnative-trial \
     -Dcodename1.platform=ios -Dcodename1.buildTarget=ios-source -Dopen=false \
     -Dnormalbias.trial.origin="$NORMALBIAS_API_ORIGIN" \

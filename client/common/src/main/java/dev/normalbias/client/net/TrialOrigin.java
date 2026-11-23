@@ -4,7 +4,7 @@ import com.codename1.ui.CN;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-/** Explicit build-time address for the private, unauthenticated iPhone trial. */
+/** Explicit build-time address for the private iPhone trial (HTTPS for authentication). */
 public final class TrialOrigin {
     private TrialOrigin() { }
 
@@ -21,8 +21,9 @@ public final class TrialOrigin {
     }
 
     public static boolean valid(String origin) {
-        if (origin == null || !origin.startsWith("http://")) return false;
-        String address = origin.substring(7);
+        if (origin == null || !(origin.startsWith("http://") || origin.startsWith("https://"))) return false;
+        boolean tls = origin.startsWith("https://");
+        String address = origin.substring(tls ? 8 : 7);
         int colon = address.indexOf(':');
         if (colon < 0 || address.indexOf(':', colon + 1) >= 0) return false;
         String host = address.substring(0, colon);
@@ -41,7 +42,7 @@ public final class TrialOrigin {
             if (octets[i] > 255) return false;
             start = end + 1;
         }
-        return octets[0] == 10 || octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31
+        return tls && host.equals("127.0.0.1") || octets[0] == 10 || octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31
                 || octets[0] == 192 && octets[1] == 168;
     }
 

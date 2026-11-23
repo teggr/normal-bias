@@ -9,9 +9,10 @@
     var waiting = false;
     var loadingSince = 0;
     var playVersion = 0;
+    var pendingSeek = null;
 
     function close() {
-        playVersion++;
+        playVersion++; pendingSeek = null;
         if (audio) {
             var old = audio;
             audio = null;
@@ -52,6 +53,12 @@
                 current.addEventListener('waiting', function () { if (audio === current) waiting = true; });
                 current.addEventListener('stalled', function () { if (audio === current) waiting = true; });
                 current.addEventListener('playing', function () { if (audio === current) waiting = false; });
+                current.addEventListener('loadedmetadata', function () {
+                    if (audio === current && pendingSeek !== null) {
+                        current.currentTime = Math.max(0, Math.min(current.duration, pendingSeek / 1000));
+                        pendingSeek = null;
+                    }
+                });
                 current.addEventListener('canplay', function () { if (audio === current) waiting = false; });
                 current.src = parsed.href;
                 callback.complete();
@@ -88,8 +95,9 @@
             callback.complete();
         },
         seek__int: function (milliseconds, callback) {
+            pendingSeek = milliseconds;
             if (audio && Number.isFinite(audio.duration)) {
-                try { audio.currentTime = Math.max(0, Math.min(audio.duration, milliseconds / 1000)); }
+                try { audio.currentTime = Math.max(0, Math.min(audio.duration, milliseconds / 1000)); pendingSeek = null; }
                 catch (ex) { error = 'Cannot seek yet. Wait for audio to load and try again.'; }
             }
             callback.complete();
@@ -99,7 +107,7 @@
                 error = 'Audio is taking too long to load. Check the connection and press Retry track.';
             }
             callback.complete(JSON.stringify({
-                time: audio && Number.isFinite(audio.currentTime) ? Math.round(audio.currentTime * 1000) : 0,
+                time: pendingSeek !== null ? pendingSeek : audio && Number.isFinite(audio.currentTime) ? Math.round(audio.currentTime * 1000) : 0,
                 duration: audio && Number.isFinite(audio.duration) ? Math.round(audio.duration * 1000) : 0,
                 playing: !!audio && !audio.paused && !audio.ended,
                 loading: !!audio && audio.readyState === 0 && !error,

@@ -45,7 +45,7 @@ class StorageReliabilityTest {
     @Test void freshMigrationsRepeatAndChecksumDriftIsRejected() throws Exception {
         try (var fixture = new Fixture(root, true)) {
             SchemaMigrations.migrate(fixture.flyway());
-            assertEquals(4, fixture.db.queryForObject("SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"success\" = TRUE AND \"version\" IS NOT NULL", Integer.class));
+            assertEquals(5, fixture.db.queryForObject("SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"success\" = TRUE AND \"version\" IS NOT NULL", Integer.class));
             fixture.db.update("UPDATE \"flyway_schema_history\" SET \"checksum\" = 0 WHERE \"version\" = '2'");
             assertThrows(RuntimeException.class, () -> SchemaMigrations.migrate(fixture.flyway()));
         }
@@ -65,7 +65,7 @@ class StorageReliabilityTest {
             var operations = fixture.operations();
             assertEquals(track, fixture.db.queryForObject("SELECT * FROM tracks", TrackStore.ROW));
             assertArrayEquals(tone, Files.readAllBytes(operations.path(track.id())));
-            assertEquals("4", fixture.flyway().info().current().getVersion().toString());
+            assertEquals("5", fixture.flyway().info().current().getVersion().toString());
         }
     }
 

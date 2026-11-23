@@ -19,6 +19,11 @@ public final class Player {
     private boolean publishedPlaying, publishedPrevious, publishedNext;
     private int publishedDuration;
     public final PlaybackQueue queue = new PlaybackQueue();
+    private int openVersion;
+    private boolean grantPending, wantPlay, recoveryAttempted;
+    private long openedAt;
+    private java.util.function.LongSupplier clock = System::currentTimeMillis;
+    void clock(java.util.function.LongSupplier value) { clock = value; }
     private boolean loading;
     private boolean playing;
     private boolean active;
@@ -28,9 +33,10 @@ public final class Player {
 
     public Player(LibraryApi api, Runnable changed) {
         this.api = api; this.changed = changed;
-        audio = CN.isSimulator() || "ios".equals(CN.getPlatformName())
+        boolean nativeApple = dev.normalbias.client.net.TrialOrigin.bundled() != null;
+        audio = CN.isSimulator() || nativeApple
                 ? new FrameworkAudio(this::poll) : NativeLookup.create(BrowserAudio.class);
-        system = !CN.isSimulator() && "ios".equals(CN.getPlatformName())
+        system = nativeApple
                 ? NativeLookup.create(SystemAudio.class) : null;
         if (system != null && system.isSupported()) SystemAudioEvents.bind(this);
         api.onArtworkLoaded(id -> {
@@ -110,19 +116,40 @@ public final class Player {
         loading = true;
         duration = Math.max(0, queue.current().durationMs());
         status = "Loading " + queue.current().title() + "…";
-        audio.open(api.audioUrl(queue.current()));
+        wantPlay = true; recoveryAttempted = false;
+        openGranted();
         if (system != null && system.isSupported()) system.artwork(new byte[0]);
         loadSystemArtwork(queue.current());
-        audio.play();
         syncSystem();
         changed.run();
+    }
+    private boolean needsGrant() { return api.scopedPlayback() && clock.getAsLong() - openedAt >= 90000; }
+    private void openGranted() {
+        final int version = ++openVersion;
+        grantPending = true; loading = true;
+        api.playback(queue.current(), url -> {
+            if (!active || version != openVersion) return;
+            grantPending = false;
+            audio.open(url);
+            openedAt = clock.getAsLong();
+            audio.seek(position);
+            if (wantPlay) audio.play(); // A newly opened stream is already paused.
+            syncSystem(true); changed.run();
+        }, error -> {
+            if (!active || version != openVersion) return;
+            grantPending = false; loading = false; playing = false; audio.pause();
+            status = error; syncSystem(); changed.run();
+        });
     }
     public void toggle() {
         if (playing) pause(); else resume();
     }
     public void resume() {
         if (!active) { if (queue.current() != null) load(); return; }
-        audio.play();
+        wantPlay = true;
+        if (!grantPending) {
+            if (needsGrant()) openGranted(); else audio.play();
+        }
         playing = true;
         status = "Starting playback…";
         syncSystem();
@@ -130,6 +157,7 @@ public final class Player {
     }
     public void pause() {
         if (!active) return;
+        wantPlay = false;
         audio.pause();
         playing = false;
         loading = false;
@@ -140,23 +168,27 @@ public final class Player {
     public void seekTime(int milliseconds) {
         if (active && duration > 0) {
             position = Math.max(0, Math.min(duration, milliseconds));
-            audio.seek(position);
+            if (!grantPending) { if (needsGrant()) openGranted(); else audio.seek(position); }
             syncSystem(true);
             changed.run();
         }
     }
-    public void retry() { if (queue.current() != null) load(); }
+    public void retry() {
+        if (queue.current() == null) return;
+        if (!active) { load(); return; }
+        recoveryAttempted = false; openGranted();
+    }
     public void seek(int percent) {
         if (active && duration > 0) {
             position = (int) ((long) duration * Math.max(0, Math.min(100, percent)) / 100);
-            audio.seek(position);
+            if (!grantPending) { if (needsGrant()) openGranted(); else audio.seek(position); }
             syncSystem(true);
             changed.run();
         }
     }
     /** Called by the form timer and native completion callback on the EDT. */
     public void poll() {
-        if (!active) return;
+        if (!active || grantPending) return;
         try {
             JSONParser parser = new JSONParser();
             parser.setUseBooleanInstance(true);
@@ -164,14 +196,18 @@ public final class Player {
             boolean beforePlaying = playing;
             boolean beforeLoading = loading;
             String beforeStatus = status;
-            position = ((Number) snapshot.get("time")).intValue();
+            String error = (String) snapshot.get("error");
+            if (error.isEmpty()) position = ((Number) snapshot.get("time")).intValue();
             int reportedDuration = ((Number) snapshot.get("duration")).intValue();
             // iOS can report zero while opening; keep the known catalogue duration in the background.
             if (reportedDuration > 0) duration = reportedDuration;
             playing = Boolean.TRUE.equals(snapshot.get("playing"));
             loading = Boolean.TRUE.equals(snapshot.get("loading"));
-            String error = (String) snapshot.get("error");
             if (!error.isEmpty()) {
+                if (api.scopedPlayback() && !recoveryAttempted) {
+                    recoveryAttempted = true;
+                    status = "Reconnecting playback…"; openGranted(); return;
+                }
                 loading = false;
                 status = error;
             } else if (Boolean.TRUE.equals(snapshot.get("ended"))) {
@@ -192,8 +228,10 @@ public final class Player {
             changed.run();
         }
     }
+    public void dispose() { clear(); SystemAudioEvents.unbind(this); }
     public void clear() { release(); queue.clear(); status = "Queue cleared"; changed.run(); }
     public void release() {
+        openVersion++; grantPending = false; wantPlay = false;
         if (audio != null && audio.isSupported()) audio.close();
         active = false;
         playing = false;

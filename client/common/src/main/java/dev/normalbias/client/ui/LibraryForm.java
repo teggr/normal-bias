@@ -61,8 +61,10 @@ public final class LibraryForm extends Form {
     private int total;
     private String query = "";
     private boolean busy;
+    private UITimer timer;
 
-    public LibraryForm(LibraryApi api) {
+    public LibraryForm(LibraryApi api) { this(api, () -> {}); }
+    public LibraryForm(LibraryApi api, Runnable logout) {
         super("Normal Bias", new BorderLayout());
         this.api = api;
         getContentPane().setSafeArea(true);
@@ -78,7 +80,13 @@ public final class LibraryForm extends Form {
         search.addActionListener(e -> searchLibrary());
         reset.addActionListener(e -> { search.setText(""); searchLibrary(); });
         searchBar.setUIID("SearchBar");
-        header.add(new Label("Normal Bias", "Brand"));
+        Container brand = BorderLayout.center(new Label("Normal Bias", "Brand"));
+        if (api.canLogout()) {
+            Button signOut = new Button("Sign out"); signOut.setName("Sign out");
+            signOut.addActionListener(event -> logout.run());
+            brand.add(BorderLayout.EAST, signOut);
+            header.add(brand); header.add(new Label(api.username(), "Muted"));
+        } else header.add(brand);
         pageInfo.setUIID("PageInfo");
         pageBack.setUIID("PagingButton");
         pageNext.setUIID("PagingButton");
@@ -206,10 +214,11 @@ public final class LibraryForm extends Form {
                 revalidate();
             }
         });
-        new UITimer(() -> {
+        timer = new UITimer(() -> {
             player.poll(); refreshProgress(); refreshArtworkViews();
             checkArtwork(false);
-        }).schedule(500, true, this);
+        });
+        timer.schedule(500, true, this);
         refreshPlayer();
         load(0);
     }
@@ -369,6 +378,7 @@ public final class LibraryForm extends Form {
         Button enqueue = new Button();
         icon(enqueue, "+ Queue", FontImage.MATERIAL_ADD, "RowAction");
         enqueue.getSemantics().setDescription("Add " + track.title() + " to queue");
+        listen.setEnabled(api.canPlay(track)); enqueue.setEnabled(api.canPlay(track));
         listen.addActionListener(e -> player.playTrack(track));
         enqueue.addActionListener(e -> player.enqueue(track));
         Container copy = BoxLayout.encloseY(listen, new Label(track.artist(), "Muted"));
@@ -456,9 +466,12 @@ public final class LibraryForm extends Form {
         return seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
     }
     public void disposePlayer() {
+        requestVersion++;
+        if (timer != null) timer.cancel();
+        api.dispose(); rowArtwork.clear(); tracks.removeAll(); queue.removeAll();
         Car.endSession();
         Car.setApplication(null);
-        player.release();
+        player.dispose();
         refreshPlayer();
     }
 }

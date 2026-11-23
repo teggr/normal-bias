@@ -55,7 +55,7 @@ async function seed(origin) {
     const cp=[path.join(repo,'api/target/test-classes'),path.join(repo,'api/target/classes'),fs.readFileSync(path.join(repo,'api/target/test-classpath.txt'),'utf8').trim()].join(path.delimiter);
     const log=fs.openSync(path.join(work,'api.log'),'w');
     server=spawn('java',['-cp',cp,'dev.normalbias.api.ArtworkFixtureApplication','--server.port='+port,
-        '--normalbias.data-dir='+path.join(work,'data'), '--normalbias.artwork.background-enabled=true',
+        '--normalbias.data-dir='+path.join(work,'data'), '--normalbias.auth.mode=demo', '--normalbias.artwork.background-enabled=true',
         '--normalbias.artwork.initial-delay-ms=20000', '--normalbias.artwork.scan-delay-ms=1000','--spring.web.resources.static-locations=file:'+path.join(repo,'client/target/web/')],{stdio:['ignore',log,log]});
     await until(async()=>{try{return(await fetch(origin+'/api/tracks')).ok;}catch{return false;}},'fixture API startup');
     const ids=await seed(origin);

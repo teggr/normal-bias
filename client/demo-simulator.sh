@@ -32,7 +32,7 @@ ffmpeg -v error -f lavfi -i 'aevalsrc=0.12*sin(2*PI*261.63*t)+0.07*sin(2*PI*392*
     -metadata artist='Normal Bias Demo' -metadata album='Simulator Sessions' "$work_dir/music/morning.mp3"
 origin="http://127.0.0.1:$port"
 java -jar "$repo_dir/api/target/normal-bias-api-0.1.0-SNAPSHOT.jar" \
-    --server.address=127.0.0.1 --server.port="$port" --normalbias.data-dir="$work_dir/data" --normalbias.artwork.background-enabled=false > "$work_dir/api.log" 2>&1 &
+    --server.address=127.0.0.1 --server.port="$port" --normalbias.auth.mode=demo --normalbias.data-dir="$work_dir/data" --normalbias.artwork.background-enabled=false > "$work_dir/api.log" 2>&1 &
 api_pid=$!
 ready=false
 for ((attempt=0; attempt<60; attempt++)); do

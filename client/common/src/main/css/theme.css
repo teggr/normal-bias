@@ -62,3 +62,8 @@ LibraryViewActive, LibraryViewActive.selected, LibraryViewActive.pressed {
     padding: 3mm 2mm; margin: 1mm; text-align: center;
 }
 LibraryViewActive, LibraryViewActive.selected, LibraryViewActive.pressed { color: #eac23f; }
+
+LoginPanel {
+    padding: 6mm;
+    background-color: #202124;
+}

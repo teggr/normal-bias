@@ -8,6 +8,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.Locale;
+import java.util.ArrayList;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.Flow;
@@ -24,8 +25,13 @@ public final class UploadCli {
     }
 
     public static void main(String[] args) {
-        if (args.length < 1 || args.length > 2) {
-            System.err.println("Usage: java -jar normal-bias-cli.jar DIRECTORY [http://127.0.0.1:8080]");
+        var positional = new ArrayList<String>(); Path tokenFile = null;
+        for (String argument : args) {
+            if (argument.startsWith("--token-file=") && tokenFile == null) tokenFile = Path.of(argument.substring(13));
+            else positional.add(argument);
+        }
+        if (positional.size() < 1 || positional.size() > 2 || positional.stream().anyMatch(value -> value.startsWith("--"))) {
+            System.err.println("Usage: java -jar normal-bias-cli.jar DIRECTORY [LOOPBACK_ORIGIN] [--token-file=PATH]");
             System.exit(2);
         }
         UploadCli cli = new UploadCli();
@@ -36,7 +42,8 @@ public final class UploadCli {
         Runtime.getRuntime().addShutdownHook(hook);
         int status;
         try {
-            status = cli.run(Path.of(args[0]), URI.create(args.length == 2 ? args[1] : "http://127.0.0.1:8080"), System.out);
+            status = cli.run(Path.of(positional.getFirst()), URI.create(positional.size() == 2 ? positional.get(1) : "http://127.0.0.1:8080"), System.out,
+                    tokenFile == null ? null : readToken(tokenFile));
         } catch (Exception e) {
             System.err.println("Upload failed: " + e.getMessage());
             status = 2;
@@ -46,13 +53,24 @@ public final class UploadCli {
     }
 
     public int run(Path directory, URI base, PrintStream out) throws IOException {
+        return run(directory, base, out, null);
+    }
+    public int run(Path directory, URI base, PrintStream out, String token) throws IOException {
         validateBase(base);
+        if (token != null && (!"https".equals(base.getScheme()) || !token.matches("[a-f0-9]{64}")))
+            throw new IllegalArgumentException("Authenticated uploads require a valid token and a loopback HTTPS origin");
         if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
             throw new IllegalArgumentException("DIRECTORY must be a directory, not a symlink");
         }
+        if (cancelled.get()) { out.println("Cancelled: 0 stored, 0 duplicates, 0 failed"); return 130; }
         int[] counts = new int[3]; // created, duplicate, failed
+        boolean[] authFailed = {false};
         try (HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NEVER).build()) {
+            final URI upload;
+            try { upload = token == null ? base.resolve("/api/tracks") : discoverUpload(client, base, token); }
+            catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); cancel(); return 130; }
+            catch (IOException refused) { out.println("Upload access refused. Check the credential and advertised upload action."); return 1; }
             Files.walkFileTree(directory, new SimpleFileVisitor<>() {
                 @Override public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                     return cancelled.get() ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
@@ -66,9 +84,12 @@ public final class UploadCli {
                         out.printf("Uploading %s (%d bytes)%n", directory.relativize(file), attrs.size());
                         var publisher = new ProgressPublisher(HttpRequest.BodyPublishers.ofFile(file), out);
                         String name = URLEncoder.encode(file.getFileName().toString(), java.nio.charset.StandardCharsets.UTF_8);
-                        HttpRequest request = HttpRequest.newBuilder(base.resolve("/api/tracks?filename=" + name))
+                        URI target = URI.create(upload.toASCIIString() + (upload.getRawQuery() == null ? "?" : "&") + "filename=" + name);
+                        var builder = HttpRequest.newBuilder(target)
                                 .header("Content-Type", "audio/mpeg").timeout(Duration.ofMinutes(30))
-                                .POST(publisher).build();
+                                .POST(publisher);
+                        if (token != null) builder.header("Authorization", "Bearer " + token);
+                        HttpRequest request = builder.build();
                         var future = client.sendAsync(request, HttpResponse.BodyHandlers.discarding());
                         inFlight = future;
                         // Close the race between starting a request and a concurrent cancel().
@@ -76,7 +97,12 @@ public final class UploadCli {
                         HttpResponse<Void> response = future.get();
                         if (response.statusCode() == 201) { counts[0]++; out.println("Stored"); }
                         else if (response.statusCode() == 200) { counts[1]++; out.println("Already present"); }
-                        else { counts[2]++; out.println("Failed: HTTP " + response.statusCode()); }
+                        else {
+                            counts[2]++; out.println("Failed: HTTP " + response.statusCode());
+                            if (response.statusCode() == 401 || response.statusCode() == 403) {
+                                authFailed[0] = true; out.println("Upload access refused. Check the credential before retrying.");
+                            }
+                        }
                     } catch (CancellationException e) {
                         cancelled.set(true);
                     } catch (InterruptedException e) {
@@ -86,7 +112,7 @@ public final class UploadCli {
                         counts[2]++;
                         out.println("Failed: " + e.getMessage());
                     } finally { inFlight = null; }
-                    return cancelled.get() ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
+                    return cancelled.get() || authFailed[0] ? FileVisitResult.TERMINATE : FileVisitResult.CONTINUE;
                 }
                 @Override public FileVisitResult visitFileFailed(Path file, IOException failure) {
                     counts[2]++;
@@ -105,12 +131,42 @@ public final class UploadCli {
     }
 
     private static void validateBase(URI base) {
-        // Restrict this unauthenticated PoC to literal loopback destinations. No DNS or redirects.
-        if (!"http".equals(base.getScheme()) || !("127.0.0.1".equals(base.getHost()) || "[::1]".equals(base.getHost()))
+        // Literal loopback destinations only, including authenticated TLS. No DNS or redirects.
+        if (!("http".equals(base.getScheme()) || "https".equals(base.getScheme())) || !("127.0.0.1".equals(base.getHost()) || "[::1]".equals(base.getHost()))
                 || base.getUserInfo() != null || base.getQuery() != null || base.getFragment() != null
                 || !(base.getPath().isEmpty() || base.getPath().equals("/"))) {
-            throw new IllegalArgumentException("API URL must be an http://127.0.0.1[:port] or http://[::1][:port] origin");
+            throw new IllegalArgumentException("API URL must be a literal loopback HTTP or HTTPS origin");
         }
+    }
+
+    private static URI discoverUpload(HttpClient client, URI base, String token) throws IOException, InterruptedException {
+        var response = client.send(HttpRequest.newBuilder(base.resolve("/api")).header("Authorization", "Bearer " + token)
+                .timeout(Duration.ofSeconds(15)).GET().build(), HttpResponse.BodyHandlers.discarding());
+        if (response.statusCode() != 200) throw new IOException("Discovery refused");
+        for (String link : response.headers().allValues("Link")) {
+            var match = java.util.regex.Pattern.compile("^<([^<>]+)>; rel=\"upload\"; method=\"POST\"$").matcher(link);
+            if (!match.matches()) continue;
+            try {
+                URI target = base.resolve(match.group(1));
+                if (!base.getScheme().equals(target.getScheme()) || !base.getHost().equals(target.getHost()) || base.getPort() != target.getPort()
+                        || target.getRawUserInfo() != null || target.getRawFragment() != null) throw new IOException("Untrusted upload action");
+                return target;
+            } catch (IllegalArgumentException invalid) { throw new IOException("Invalid upload action"); }
+        }
+        throw new IOException("No upload action advertised");
+    }
+
+    static String readToken(Path file) throws IOException {
+        if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Credential file must be a regular file, not a symlink");
+        var permissions = Files.getPosixFilePermissions(file, LinkOption.NOFOLLOW_LINKS);
+        if (permissions.stream().anyMatch(permission -> permission.name().startsWith("GROUP_") || permission.name().startsWith("OTHERS_")))
+            throw new IOException("Credential file must be accessible only by its owner");
+        byte[] bytes;
+        try (var input = Files.newInputStream(file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) { bytes = input.readNBytes(129); }
+        if (bytes.length > 128) throw new IOException("Invalid credential file");
+        String value = new String(bytes, java.nio.charset.StandardCharsets.UTF_8).strip();
+        if (!value.matches("[a-f0-9]{64}")) throw new IOException("Invalid credential file");
+        return value;
     }
 
     private static final class ProgressPublisher implements HttpRequest.BodyPublisher {
