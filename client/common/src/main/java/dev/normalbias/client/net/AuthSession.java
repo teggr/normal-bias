@@ -81,6 +81,41 @@ public final class AuthSession {
             else failure.accept("Playback stopped. Server sign out is pending; retry to finish.");
         });
     }
+    public void inspect(AccountLink link, Consumer<Map<String, Object>> ready, Consumer<String> failure) {
+        String action = link(link.invitation ? "inspect-invitation" : "inspect-reset", "POST");
+        if (action == null) { failure.accept("Reconnect or sign out before opening this link."); return; }
+        Map<String, Object> body = new HashMap<>(); body.put("token", link.token);
+        request(action, "POST", body, false, ready, code -> failure.accept(accountError(code)));
+    }
+    public void complete(AccountLink link, Map<String, Object> inspected, String username, String password,
+                         Runnable ready, Consumer<String> failure) {
+        String action = ApiLinks.href(inspected, link.invitation ? "accept" : "complete", "POST");
+        if (action == null) { failure.accept("This link is no longer available. Ask the owner for a new link."); return; }
+        Map<String, Object> body = new HashMap<>(); body.put("token", link.token); body.put("password", password);
+        if (link.invitation) body.put("username", username);
+        request(action, "POST", body, false, data -> restore(ready, failure), code -> failure.accept(accountError(code)));
+    }
+    public void changePassword(String current, String password, Runnable ready, Consumer<String> failure) {
+        String action = link("change-password", "POST");
+        if (action == null) { failure.accept("Password change is unavailable. Reconnect to refresh your session."); return; }
+        Map<String, Object> body = new HashMap<>(); body.put("currentPassword", current); body.put("newPassword", password);
+        request(action, "POST", body, false, data -> {
+            invalidate(); clearCredential(); state = new HashMap<>(); Preferences.delete(storageKey + ".logout"); ready.run();
+        }, code -> {
+            // A wrong current password is also 401; discovery distinguishes it from a lost session.
+            restore(() -> {
+                if (!authenticated()) { unauthorized(); return; }
+                failure.accept(code == 401 ? "Current password not recognised." : accountError(code));
+            }, failure);
+        });
+    }
+    private static String accountError(int code) {
+        if (code == 404) return "This link is invalid, expired, already used or revoked. Ask the owner for a new link.";
+        if (code == 409) return "That username or account state changed. Check your username and inspect the link again.";
+        if (code == 400) return "Check the username (3–64 letters, digits, dots, underscores or hyphens) and password (12–256 characters).";
+        if (code < 0 || code >= 500) return "The result could not be confirmed. Try signing in first; if needed, inspect the link again before submitting.";
+        return message(code);
+    }
     private void finishLogout(Runnable done) {
         clearCredential(); state = new HashMap<>(); Preferences.delete(storageKey + ".logout"); done.run();
     }

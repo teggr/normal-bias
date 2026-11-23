@@ -14,3 +14,33 @@ For native recording, compile `client/tests/auth-audio/capture-audio.swift` to t
 Mux native screen/process audio using `timing.json`'s measured audio lead; trim both from the same host-clock action start. Preserve paused/ending silence. Use H.264/AAC, yuv420p and fast-start MP4. `verify-video.cjs MOVIE [SAMPLE_TIMES_JSON]` plays the **saved** export, measures real decoded audio and requires audible first/resumed segments, silent pause/logout and a clean ending. Default sample seconds match the short browser demo; pass appropriate `first`, `paused`, `renewed`, `ending` values for another recording. The playback-only artifact verifier permits autoplay, while application acceptance uses normal browser policy.
 
 Record exact results and remaining limitations in `docs/verification.md`. Simulator checks and captures do not establish physical-device, installed-PWA, interruption or uninterrupted locked-output acceptance.
+
+### Account-flow and installed-app checks
+
+After the web build and loopback fixture are ready (Java 21 on PATH):
+
+```sh
+node client/tests/auth-client/accounts.cjs
+RECORD_DEMO=1 node client/tests/auth-client/accounts.cjs
+node client/tests/auth-client/installed.cjs
+python3 client/tests/auth-client/ios-accounts.py
+```
+
+`accounts.cjs` drives the actual generated forms with pointer/native-editor input, including double submission, wrong current password, revocation, used/revoked links, conflicting usernames and a server-committed response deliberately lost in transit. Forwarding that request uses the fixture CA with normal hostname validation. The native script uses only the simulator probe prepared above; it never targets the physical phone. The probe reads non-secret form messages and excludes field contents.
+
+`installed.cjs` installs a real Chrome PWA in `target/auth-client/installed-profile`, explicitly selects standalone mode, launches real app windows, and checks close/reopen, offline recovery, logout and app-shell cache contents. It removes the installation afterward. It uses the documented [Chrome DevTools PWA domain](https://chromedevtools.github.io/devtools-protocol/tot/PWA/); this is an actual installation, not a display-mode mock. `RESTART_FIXTURE=1` additionally stops **only** the PID whose command matches this fixture configuration, restarts its real API with the same H2 data directory, verifies restoration, then stops the replacement on exit. Run this option **last**: the original fixture supervisor also exits when its API stops. Other tests require a running fixture.
+
+### Separate physical-device fixture
+
+Only for explicitly authorised phone trials:
+
+```sh
+python3 client/tests/auth-client/fixture.py --private-host=192.168.1.205
+NORMALBIAS_API_ORIGIN=https://192.168.1.205:18445 ./client/build-ios-trial.sh
+```
+
+Replace the address with the Mac's actual RFC1918 IPv4 address. This deliberately binds a separate required-auth HTTPS service on port 18445, with a new matching certificate, accounts and synthetic tracks under `target/auth-device`. It refuses an existing data directory and never opens the retained service's library. The standard fixture remains loopback-only on 18444. No public bind, TLS-validation bypass, persistent-library migration or production credentials are involved. Trust the public fixture certificate on the phone through its normal settings before login; keep the private key/configuration off the phone. Remove that temporary profile/trust after acceptance. See the device guide for the physical acceptance gate and restoration instructions.
+
+`python3 client/tests/auth-client/ios-network.py` exercises an actual fixture outage/restart plus native operator revocation. It verifies the PID's configuration before stopping it, writes credential-free results, and then keeps its owned replacement API alive for the remaining tests. Stop that replacement (after checking its command) to finish; the script then exits. Run it only when other tests are not using the fixture. `installed.cjs` with `RESTART_FIXTURE=1` can take over that same fixture for the final installed-app restart check and stop it on completion.
+
+Export a native capture with `python3 client/tests/auth-client/export-native.py RECORDING_DIRECTORY`. It retains the actual captured audio, trims the measured start lead and exports CFR H.264/AAC using the shorter input duration. Static lock frames are repeated through that duration; it avoids FFmpeg's short-buffer cutoff on sparse simulator video. Inspect/probe/play back the exported file and measure sound; a successful export alone is not acceptance.

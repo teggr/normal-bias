@@ -1,6 +1,6 @@
 # Authentication plan
 
-Updated 2026-11-23 after Robin settled the product decisions, authorised the bounded native-audio check, then requested implementation starting with server accounts/sessions and scoped playback URLs. The server foundation is implemented as described in [the operating/API guide](authentication.md). Robin subsequently authorised web/iPhone login, remembered sessions, logout and scoped playback renewal, now integrated in shared Java code. The full increment is open in [PR #13](https://github.com/teggr/normal-bias/pull/13); public deployment remains separate.
+Updated 2026-11-23 after Robin settled the product decisions, authorised the bounded native-audio check, then requested implementation starting with server accounts/sessions and scoped playback URLs. The server foundation is implemented as described in [the operating/API guide](authentication.md). Robin subsequently authorised web/iPhone login, remembered sessions, logout and scoped playback renewal, now integrated in shared Java code. The foundation was merged in [PR #13](https://github.com/teggr/normal-bias/pull/13), local base `5198074`; the authorised account-flow follow-up below is open for review in [PR #14](https://github.com/teggr/normal-bias/pull/14), implementation commit `e3bd463`. Public deployment remains separate.
 
 ## Server and client milestones delivered — 2026-11-23
 
@@ -8,7 +8,7 @@ Implemented: Flyway V5 owner/listener accounts; versioned PBKDF2-HMAC-SHA256 pas
 
 Security is required by default; plain API HTTP returns 426. Explicit legacy demo mode is literal-loopback-only. Scope/state-dependent links are additive to current track/group/page data, and server enforcement revalidates requests. Inspection start/status affordances follow running state. TLS tests, persistent restart/expiry/race/revocation checks, packaged commands and legacy demo-browser regressions are recorded in verification.md.
 
-Client discovery/action links, login, remembered cookie/Keychain sessions, logout and position/intent-preserving playback renewal are integrated. Remaining: invitation/reset/password-change screens, app-facing share links, installed-PWA acceptance, and physical locked/background audio acceptance. The prior simulator sound gap remains unresolved. No retained service/phone or real-library migration was performed.
+Client discovery/action links, login, remembered cookie/Keychain sessions, logout and position/intent-preserving playback renewal are integrated. Invitation/reset/password-change screens and share links are now delivered, with real installed desktop Chrome acceptance. Physical locked/background/interruption acceptance remains open. A fresh locked/queue audio capture did not reproduce the old long silence; its cause and physical-device behaviour remain unverified. No retained service/phone or real-library migration was performed.
 
 ## Intended outcome and decisions
 
@@ -43,7 +43,7 @@ Introduce links/actions additively on the entry/session responses and library re
 
 ## Architecture and remaining client work
 
-The server uses Spring Security 6.5.11 from the existing Spring Boot 3.5.16 dependency set, without upgrading Boot or Codename One. The login/session/logout/grant client flow is implemented; invitation/reset/password-change UI remains future work.
+The server uses Spring Security 6.5.11 from the existing Spring Boot 3.5.16 dependency set, without upgrading Boot or Codename One. The login/session/logout/grant flow and invitation/reset/password-change UI are implemented; see the operating guide for fragment links, pasted native links and optional CLI share-link output.
 
 **Browser:** durable server-side sessions with persistent HttpOnly/Secure cookies under HTTPS and an appropriate SameSite policy, keeping API and client same-origin. Persist session validity/idle/absolute deadlines in H2 and keep cookie expiry consistent with the agreed lifetime. Retain CSRF protection for cookie-authenticated mutations, including login/logout. API failures return structured 401/403 responses rather than HTML redirects. Public access is limited to shell assets and authentication bootstrap/invitation/reset flows; it does not expose library data. No browser credentials in localStorage or generated assets.
 
@@ -76,8 +76,8 @@ Use scoped media links as the demonstrated simulator route when designing the au
 
 1. Completed at simulator level: authenticated media/secure-storage feasibility and trusted private HTTPS. Physical locked audio remains open; invitations/resets now last 24 hours/one hour, and local commands use a protected Unix socket.
 2. Completed server foundation: durable identity/sessions, administration, invitation/reset state, scope/state policy and HATEOAS links, CSRF/throttled generic login, expiry/revocation and scoped media URLs. The authenticated uploader follows advertised actions and uses a protected credential file.
-3. Integrated: link-driven login, session restoration, logout/401 handling and scoped playback renewal. Invitation/reset/password-change UI remains next. Clear personal caches and the local queue, release media and ignore stale callbacks on logout/account change. Do not automatically resume sound after reauthentication; preserve the queue through recoverable connection failures and never share it across accounts.
-4. Browser and iPhone simulator acceptance passed for the integrated login/session/logout/renewal flows, including real grant expiry and background queue advance. Installed-PWA and physical-device/locked/interruption acceptance remain open. Coordinate retained phone/service updates only when explicitly requested. Operator setup/recovery/compatibility are documented for the server. Required authentication is already the default; demo mode remains explicit and loopback-only. Public deployment and personal-library migration are not implicit.
+3. Integrated: link-driven login, session restoration, logout/401 handling and scoped playback renewal. Invitation/reset/password-change UI and share-link entry are delivered. Clear personal caches and the local queue, release media and ignore stale callbacks on logout/account change. Do not automatically resume sound after reauthentication; preserve the queue through recoverable connection failures and never share it across accounts.
+4. Browser and iPhone simulator acceptance passed for the integrated login/session/logout/renewal flows, including real grant expiry and background queue advance. Installed desktop Chrome restoration/offline/cache/logout acceptance passes; physical-device/locked/interruption and iPhone Home Screen acceptance remain open. Coordinate retained phone/service updates only when explicitly requested. Operator setup/recovery/compatibility are documented for the server. Required authentication is already the default; demo mode remains explicit and loopback-only. Public deployment and personal-library migration are not implicit.
 
 ## Acceptance status and remaining verification
 
@@ -100,3 +100,11 @@ Use scoped media links as the demonstrated simulator route when designing the au
 - [OWASP session management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
 
 These guide the proposal; they do not establish untested client compatibility or authorize implementation.
+
+## Account-flow follow-up acceptance
+
+Robin chose browser-first links (native paste supported; no universal links) and a disposable private HTTPS service for physical testing. API response shapes/migrations and local account policy are unchanged; invite/reset CLI adds optional `--app-origin` and additive `shareLink`. Completion uses inspection-advertised actions. Explicit sign-out protects signed-in recipients; password change invalidates all account credentials and clears the local player/session after success. Duplicate requests are blocked while submitting; ambiguous failures are never automatically replayed. The final generated web shell includes fragment glue in its content-hashed app-shell cache.
+
+The browser, native simulator and actual installed desktop Chrome checks pass. A signed, verified production iPhone build is prepared. After an initial disconnected-device destination timeout, Robin selected simulator verification instead; physical installation and locked/interruption/audio-capture acceptance are deferred by that instruction. The retained app/service/library were not changed. Exact commands, recordings and outstanding physical gates are in verification.md; public deployment/backup and retained-service migration remain separate.
+
+Robin subsequently selected simulator-only verification instead of the physical iPhone. Real native outage/restart and operator-revocation checks pass. A fresh 93.97-second simulator capture shows lock before queue completion and next-track playback while still locked; decoded sound has only a roughly 0.70-second transition pause. It does not diagnose the previous capture's 13-second gap or establish physical/call/headphone reliability. The native forms and playback recordings, plus the browser account demonstration, are delivered with measured actual audio.

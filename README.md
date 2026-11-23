@@ -18,7 +18,7 @@ A self hosted music service
 - [Cloud UI demonstration recording skill](.agents/skills/ui-demo-recording/SKILL.md)
 - [Storage migrations, recovery and online inspection](docs/storage-reliability.md)
 
-The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated song, album and artist views, listing/search, catalogue metadata editing and track deletion. Owner/listener accounts, persistent sessions and scoped playback URLs are implemented, with login, remembered sessions, logout and playback URL renewal integrated in the web/iPhone client. Java 21 JDK and Maven 3.6.3+ are required.
+The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated song, album and artist views, listing/search, catalogue metadata editing and track deletion. Owner/listener accounts, persistent sessions and scoped playback URLs are implemented, with invitation/reset links, password change, login, remembered sessions, logout and playback URL renewal integrated in the web/iPhone client. Java 21 JDK and Maven 3.6.3+ are required.
 
 The API requires authentication and HTTPS by default. See [authentication](docs/authentication.md) for TLS, owner setup and upload credentials. The web and iPhone clients support sign-in and scoped playback; see that guide for the private HTTPS flow. For an unauthenticated synthetic local demo, explicitly select loopback-only demo mode:
 
@@ -34,11 +34,11 @@ The API listens on `127.0.0.1:8080` and stores its catalogue and music under `./
 
 Startup applies versioned schema migrations and recovers prepared uploads and committed deletions. Start a background inspection while it runs with `curl -X POST 'http://127.0.0.1:8080/api/inspections?mode=full'`. Follow the returned Location for status and append `/findings` for paginated results. Backup/restore remains part of the future deployment story.
 
-Read the [local PoC guide](docs/local-poc.md) for endpoints, seeking examples, tests and limitations. Demo mode is unauthenticated and refuses non-loopback binds. No public deployment is included. The optional Codename One web/iPhone client now supports login, session restoration, logout and scoped playback renewal. Physical iPhone and installed-PWA acceptance remain separate.
+Read the [local PoC guide](docs/local-poc.md) for endpoints, seeking examples, tests and limitations. Demo mode is unauthenticated and refuses non-loopback binds. No public deployment is included. The optional Codename One web/iPhone client now supports login, session restoration, logout and scoped playback renewal. Installed desktop Chrome session/cache acceptance passes; physical authenticated iPhone acceptance remains open.
 
 ## Web listening client
 
-With the Java 21 JDK, Maven, Bash and `unzip` available:
+With the Java 21 JDK, Maven, Python 3, Bash and `unzip` available:
 
 ```sh
 ./client/build-web.sh
@@ -61,8 +61,8 @@ This prepares a disposable local library with two synthetic tracks and launches 
 
 ## Progress and next steps
 
-The authentication increment is open for review in [PR #13](https://github.com/teggr/normal-bias/pull/13). It covers server administration, the uploader and shared web/iPhone sign-in/session/logout/playback renewal. Java 21 checks passed: 81 API + 5 CLI + 20 client tests, browser authentication/recovery checks and iPhone simulator expiry/background checks. Both verified demos include actual client sound; commands and limits are recorded in [verification](docs/verification.md).
+The authentication foundation was merged in PR #13 (`5198074`). The account-flow follow-up adds browser/native invitation and reset forms, signed-in password change, native pasted links and CLI-generated share links. The follow-up is open for review in [PR #14](https://github.com/teggr/normal-bias/pull/14) on `codex/account-setup-recovery`. Java 21 checks pass: 82 API + 5 CLI + 21 client tests, account/recovery/browser playback checks, real installed Chrome acceptance and native simulator checks. Verified recordings contain actual client sound; commands and limits are recorded in [verification](docs/verification.md).
 
-Remaining: invitation/reset/password-change screens and share-link entry points; installed-PWA and physical iPhone authentication/locked playback/interruption acceptance; then separately authorised retained-service migration and deployment/backup work. No physical phone, retained library/service or public hosting was changed by this increment.
+Remaining: physical iPhone authentication/locked playback/interruption acceptance, then separately authorised retained-service migration and deployment/backup work. The signed phone build is ready; Robin subsequently selected the iPhone simulator instead of physical-device acceptance, so it was not installed. The retained phone app, library/service and public hosting were not changed.
 
 See the [current project checkpoint](docs/project-brief.md#current-progress-and-review-checkpoint--2026-11-23) and [authentication plan](docs/authentication-plan.md) for delivered scope and outstanding work. The [album matching proposal](docs/album-matching-proposal.md) remains historical where superseded by automatic background artwork filling in [the artwork guide](docs/album-artwork.md).

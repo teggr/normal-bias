@@ -17,6 +17,7 @@ mvn -f "$client_dir/pom.xml" -B -ntp package -Pnative-trial \
     -Dcodename1.platform=ios -Dcodename1.buildTarget=ios-source -Dopen=false \
     -Dnormalbias.trial.origin="$NORMALBIAS_API_ORIGIN" \
     -Dcodename1.arg.ios.deployment_target=17.0 \
+    -Dcodename1.arg.ios.carplay.audio=false \
     -Dcodename1.arg.ios.plistInject="$plist"
 project="$client_dir/common/target/client-common-0.1.0-SNAPSHOT-ios-source/NormalBias.xcodeproj"
 test -f "$project/project.pbxproj" || { printf 'No generated Xcode project\n' >&2; exit 1; }

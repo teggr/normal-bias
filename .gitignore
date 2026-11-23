@@ -5,3 +5,4 @@
 .idea/
 *.iml
 client/tests/node_modules/
+**/__pycache__/

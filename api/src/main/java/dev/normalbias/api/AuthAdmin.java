@@ -94,12 +94,23 @@ class AuthAdmin implements AutoCloseable {
             return json.readValue(reply, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() { });
         }
     }
+    static String checkedAppOrigin(String value) {
+        try {
+            URI uri = new URI(value);
+            if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null
+                    || uri.getRawQuery() != null || uri.getRawFragment() != null || !uri.getRawPath().isEmpty()
+                    || uri.getPort() < -1 || uri.getPort() == 0 || uri.getPort() > 65535
+                    || uri.getRawAuthority().endsWith(":")) throw new IllegalArgumentException("Use an HTTPS origin without a path");
+            return uri.toASCIIString();
+        } catch (URISyntaxException invalid) { throw new IllegalArgumentException("Use an HTTPS origin", invalid); }
+    }
     static void command(String[] args) {
         try {
-            Path data = Path.of("./data"), tokenOutput = null; boolean stdin = false; var words = new ArrayList<String>();
+            Path data = Path.of("./data"), tokenOutput = null; boolean stdin = false; String appOrigin = null; var words = new ArrayList<String>();
             var request = new LinkedHashMap<String, Object>();
             for (String argument : Arrays.copyOfRange(args, 1, args.length)) {
                 if (argument.startsWith("--data-dir=")) data = Path.of(argument.substring(11));
+                else if (argument.startsWith("--app-origin=")) appOrigin = checkedAppOrigin(argument.substring(13));
                 else if (argument.startsWith("--token-out=")) tokenOutput = Path.of(argument.substring(12));
                 else if (argument.equals("--password-stdin")) stdin = true;
                 else if (argument.startsWith("--offset=")) request.put("offset", Integer.parseInt(argument.substring(9)));
@@ -109,6 +120,7 @@ class AuthAdmin implements AutoCloseable {
             }
             if (words.isEmpty()) throw new IllegalArgumentException();
             String operation = words.getFirst(); request.put("operation", operation);
+            if (appOrigin != null && !Set.of("invite", "reset").contains(operation)) throw new IllegalArgumentException();
             if (tokenOutput != null && !operation.equals("upload-token")) throw new IllegalArgumentException();
             boolean noArgument = Set.of("invite", "users").contains(operation);
             if (words.size() != (noArgument ? 1 : 2)) throw new IllegalArgumentException();
@@ -128,6 +140,11 @@ class AuthAdmin implements AutoCloseable {
             } else if (stdin) throw new IllegalArgumentException();
             Map<String, Object> response = exchange(data, request);
             if (!Boolean.TRUE.equals(response.get("ok"))) throw new IOException((String) response.get("message"));
+            if (appOrigin != null) {
+                @SuppressWarnings("unchecked") var result = new LinkedHashMap<>((Map<String, Object>) response.get("result"));
+                result.put("shareLink", appOrigin + "/#" + (operation.equals("invite") ? "invite=" : "reset=") + result.get("token"));
+                response = Map.of("result", result);
+            }
             if (tokenOutput != null) {
                 @SuppressWarnings("unchecked") var result = new LinkedHashMap<>((Map<String, Object>) response.get("result"));
                 String token = (String) result.remove("token");
@@ -140,7 +157,7 @@ class AuthAdmin implements AutoCloseable {
             }
             new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(System.out, response.get("result"));
         } catch (IllegalArgumentException failure) {
-            System.err.println("Usage: api.jar admin OPERATION [USERNAME|ID] --data-dir=PATH [--password-stdin] [--token-out=PATH] [--offset=N --limit=N]"); System.exit(2);
+            System.err.println("Usage: api.jar admin OPERATION [USERNAME|ID] --data-dir=PATH [--password-stdin] [--app-origin=https://HOST:PORT] [--token-out=PATH] [--offset=N --limit=N]"); System.exit(2);
         } catch (IOException failure) { System.err.println("Local administration failed: " + failure.getMessage()); System.exit(2); }
     }
 }
