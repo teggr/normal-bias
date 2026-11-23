@@ -1,6 +1,6 @@
 # Authentication plan
 
-Updated 2026-11-23 after Robin settled the product decisions, authorised the bounded native-audio check, then requested implementation starting with server accounts/sessions and scoped playback URLs. The server foundation is implemented as described in [the operating/API guide](authentication.md). Robin subsequently authorised web/iPhone login, remembered sessions, logout and scoped playback renewal, now integrated in shared Java code. Public deployment remains separate.
+Updated 2026-11-23 after Robin settled the product decisions, authorised the bounded native-audio check, then requested implementation starting with server accounts/sessions and scoped playback URLs. The server foundation is implemented as described in [the operating/API guide](authentication.md). Robin subsequently authorised web/iPhone login, remembered sessions, logout and scoped playback renewal, now integrated in shared Java code. The full increment is open in [PR #13](https://github.com/teggr/normal-bias/pull/13); public deployment remains separate.
 
 ## Server and client milestones delivered — 2026-11-23
 

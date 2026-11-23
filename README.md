@@ -61,7 +61,7 @@ This prepares a disposable local library with two synthetic tracks and launches 
 
 ## Progress and next steps
 
-The authentication increment is complete for server administration, the uploader and shared web/iPhone sign-in/session/logout/playback renewal. Java 21 checks passed: 81 API + 5 CLI + 20 client tests, browser authentication/recovery checks and iPhone simulator expiry/background checks. Both verified demos include actual client sound; commands and limits are recorded in [verification](docs/verification.md).
+The authentication increment is open for review in [PR #13](https://github.com/teggr/normal-bias/pull/13). It covers server administration, the uploader and shared web/iPhone sign-in/session/logout/playback renewal. Java 21 checks passed: 81 API + 5 CLI + 20 client tests, browser authentication/recovery checks and iPhone simulator expiry/background checks. Both verified demos include actual client sound; commands and limits are recorded in [verification](docs/verification.md).
 
 Remaining: invitation/reset/password-change screens and share-link entry points; installed-PWA and physical iPhone authentication/locked playback/interruption acceptance; then separately authorised retained-service migration and deployment/backup work. No physical phone, retained library/service or public hosting was changed by this increment.
 
