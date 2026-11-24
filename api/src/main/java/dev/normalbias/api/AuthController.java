@@ -42,6 +42,9 @@ class AuthController {
         if (security.demo() || allows(identity, Action.LISTEN)) {
             links.put("artwork-revision", link("/api/album-artwork/revision", "GET"));
             links.put("songs", link("/api/tracks", "GET")); links.put("albums", link("/api/library/albums", "GET")); links.put("artists", link("/api/library/artists", "GET"));
+            links.put("songs-alphabetical", link("/api/tracks?sort=alphabetical", "GET"));
+            links.put("albums-alphabetical", link("/api/library/albums?sort=alphabetical", "GET"));
+            links.put("artists-alphabetical", link("/api/library/artists?sort=alphabetical", "GET"));
         }
         if (allows(identity, Action.UPLOAD)) {
             links.put("upload", link("/api/tracks", "POST"));

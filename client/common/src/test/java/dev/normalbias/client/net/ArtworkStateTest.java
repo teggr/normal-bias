@@ -11,6 +11,14 @@ class ArtworkStateTest {
     final List<ArtworkState.Completion<String>> requests=new ArrayList<>();
     final ArtworkState.Loader<String> loader=(key,done) -> requests.add(done);
 
+    @Test void recycledViewsDetachAndSpeculativeRequestsAreBounded() {
+        var delivered = new ArrayList<String>();
+        Runnable detach = state.get("recycled", delivered::add, loader);
+        detach.run(); requests.get(0).complete("late", true);
+        assertTrue(delivered.isEmpty());
+        for (int i = 0; i < 50; i++) state.get("item-" + i, ignored -> {}, loader);
+        assertEquals(9, requests.size()); // one completed + eight in flight
+    }
     @Test void sharesOneImageAcrossViewsAndIsolatesABrokenListener() {
         var views=new ArrayList<String>();
         state.get("track",image -> { throw new IllegalStateException("broken view"); },loader);

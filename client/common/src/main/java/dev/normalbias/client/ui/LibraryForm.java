@@ -13,14 +13,14 @@ import com.codename1.car.Car;
 
 /** A small listening surface; all state changes occur on the Codename One EDT. */
 public final class LibraryForm extends Form {
-    private final java.util.List<RecordArtwork> rowArtwork = new java.util.ArrayList<>();
     private final LibraryApi api;
     private final Player player;
     private final CarListening car;
     private final TextField search = new TextField("", "Search title, artist or album", 30, TextField.ANY);
-    private final Container tracks = new Container(BoxLayout.y());
+    private final LibraryCollection collection;
+    private final java.util.List<LibraryState> libraryHistory = new java.util.ArrayList<>();
+    private record LibraryState(String artist, String album, String query, String editor, LibraryCollection.Anchor anchor) {}
     private final Container queue = new Container(BoxLayout.y());
-    private final Label pageInfo = new Label("Loading library…");
     private final SpanLabel title = new SpanLabel("Nothing playing", "NowTitle");
     private final SpanLabel artist = new SpanLabel("Your library, ready when you are", "Muted");
     private final TextArea status = new TextArea("Choose a track to start listening", 1, 24);
@@ -40,8 +40,6 @@ public final class LibraryForm extends Form {
     private final HardwareButton shuffle = new HardwareButton("Shuffle queue", FontImage.MATERIAL_SHUFFLE, true);
     private final HardwareButton queueShuffle = new HardwareButton("Shuffle queue", FontImage.MATERIAL_SHUFFLE, true);
     private final HardwareButton retry = new HardwareButton("Restart track", FontImage.MATERIAL_REPLAY, true);
-    private final Button pageBack = new Button("Back");
-    private final Button pageNext = new Button("More");
     private enum View { LIBRARY, NOW_PLAYING, QUEUE, ACCOUNT }
     private View view = View.LIBRARY;
     private View accountOrigin = View.LIBRARY;
@@ -63,7 +61,6 @@ public final class LibraryForm extends Form {
     private final Label miniArtist = new Label("Your music, ready to play", "Muted");
     private final Container header = new Container(BoxLayout.y());
     private final Container searchBar = new Container();
-    private final Container pagingBar = new Container();
     private final Button find = new Button("Search");
     private final Button reset = new Button("Reset");
     private final HardwareButton searchToggle = new HardwareButton("Show search", FontImage.MATERIAL_SEARCH, true);
@@ -75,11 +72,7 @@ public final class LibraryForm extends Form {
     private final Button libraryUp = new Button("Library views");
     private final Container libraryLocationBar;
     private final Label libraryLocation = new Label("All songs", "Muted");
-    private int requestVersion;
-    private int offset;
-    private int total;
     private String query = "";
-    private boolean busy;
     private UITimer timer;
 
     public LibraryForm(LibraryApi api) { this(api, () -> {}); }
@@ -87,6 +80,7 @@ public final class LibraryForm extends Form {
     public LibraryForm(LibraryApi api, Runnable logout, Runnable password) {
         super("Normal Bias", new BorderLayout());
         this.api = api;
+        collection = new LibraryCollection(api, item -> item.track() != null ? trackRow(item.track()) : groupRow(item));
         this.logout = logout;
         this.password = password;
         getContentPane().setSafeArea(true);
@@ -106,17 +100,9 @@ public final class LibraryForm extends Form {
         searchToggle.setPreferredH(CN.convertToPixels(9));
         searchToggle.addActionListener(e -> toggleSearch());
         updateSearchChrome();
-        pageInfo.setUIID("PageInfo");
-        pageBack.setUIID("PagingButton");
-        pageNext.setUIID("PagingButton");
         header.setUIID("Header");
         add(BorderLayout.NORTH, header);
 
-        tracks.setScrollableY(true);
-        tracks.setScrollVisible(false);
-        tracks.setUIID("LibraryPanel");
-        pageBack.addActionListener(e -> load(Math.max(0, offset - LibraryApi.PAGE_SIZE)));
-        pageNext.addActionListener(e -> load(offset + LibraryApi.PAGE_SIZE));
         Container views = new Container(new GridLayout(1, 3));
         String[] names = {"All songs", "Albums", "Artists"};
         String[] values = {"songs", "albums", "artists"};
@@ -127,6 +113,7 @@ public final class LibraryForm extends Form {
             choice.setActive(i == 0);
             choice.addActionListener(e -> {
                 for (LibraryViewButton button : viewButtons) button.setActive(button == choice);
+                libraryHistory.clear();
                 libraryView = value; selectedArtist = null; selectedAlbum = null;
                 search.setText(""); query = ""; load(0);
             });
@@ -134,15 +121,13 @@ public final class LibraryForm extends Form {
         }
         libraryUp.setUIID("PagingButton");
         libraryUp.addActionListener(e -> {
-            if (selectedAlbum != null) {
-                selectedAlbum = null;
-                if (libraryView.equals("albums")) selectedArtist = null;
-            }
-            else selectedArtist = null;
-            search.setText(""); query = ""; load(0);
+            if (libraryHistory.isEmpty()) return;
+            LibraryState parent = libraryHistory.remove(libraryHistory.size() - 1);
+            selectedArtist = parent.artist(); selectedAlbum = parent.album(); query = parent.query(); search.setText(parent.editor());
+            load(null, parent.anchor());
         });
         libraryLocationBar = BorderLayout.center(libraryLocation).add(BorderLayout.WEST, libraryUp);
-        library.add(BorderLayout.CENTER, tracks).add(BorderLayout.SOUTH, pagingBar)
+        library.add(BorderLayout.CENTER, collection)
                 .add(BorderLayout.NORTH, BoxLayout.encloseY(BorderLayout.center(views).add(BorderLayout.EAST, searchToggle), searchBar, libraryLocationBar));
         library.setUIID("LibraryPanel");
         queue.setScrollableY(true);
@@ -224,8 +209,6 @@ public final class LibraryForm extends Form {
         miniPlayer.add(BorderLayout.WEST, miniCover).add(BorderLayout.CENTER, miniCopy).add(BorderLayout.EAST, miniPlay);
         searchBar.setLayout(new BorderLayout());
         searchBar.add(BorderLayout.CENTER, search).add(BorderLayout.EAST, BoxLayout.encloseX(find, reset));
-        pagingBar.setLayout(new BorderLayout());
-        pagingBar.add(BorderLayout.CENTER, pageInfo).add(BorderLayout.EAST, BoxLayout.encloseX(pageBack, pageNext));
         navigate(View.LIBRARY);
         addSizeChangedListener(e -> { sizeContent(); revalidate(); });
         timer = new UITimer(() -> {
@@ -246,7 +229,7 @@ public final class LibraryForm extends Form {
     }
     private void refreshArtworkViews() {
         cover.refresh(); metadataCover.refresh(); miniCover.refresh();
-        for (RecordArtwork art : rowArtwork) art.refresh();
+        collection.refreshArtwork();
         for (RecordArtwork art : queueArtwork) art.refresh();
     }
 
@@ -275,6 +258,7 @@ public final class LibraryForm extends Form {
     private void navigate(View target) {
         if (view == target && body.getComponentCount() > 0) return;
         view = target;
+        collection.shown(target == View.LIBRARY);
         body.removeAll();
         Container content = target == View.LIBRARY ? library : target == View.QUEUE ? queuePanel : target == View.ACCOUNT ? accountPanel : playerPanel;
         content.remove();
@@ -353,89 +337,46 @@ public final class LibraryForm extends Form {
         load(0);
     }
 
-    private void load(int requestedOffset) {
+    private void load(int ignored) { load(null, null); }
+    private void load(String path, LibraryCollection.Anchor anchor) {
         updateSearchChrome();
-        int version = ++requestVersion;
-        busy = true;
-        pageInfo.setText("Loading library…");
-        rowArtwork.clear();
-        tracks.removeAll();
-        tracks.add(new Label("Loading library…", "Muted"));
-        boolean grouped = !libraryView.equals("songs") && selectedAlbum == null;
-        boolean artistList = libraryView.equals("artists") && selectedArtist == null;
-        boolean inGroup = selectedArtist != null || selectedAlbum != null;
-        libraryLocationBar.setHidden(!inGroup);
-        libraryLocationBar.setVisible(inGroup);
-        libraryUp.setHidden(!inGroup);
-        libraryUp.setVisible(selectedArtist != null || selectedAlbum != null);
+        boolean grouped = selectedAlbum == null && (!libraryView.equals("songs") || selectedArtist != null);
+        boolean artistList = grouped && libraryView.equals("artists") && selectedArtist == null;
+        libraryLocationBar.setHidden(selectedArtist == null && selectedAlbum == null);
+        libraryLocationBar.setVisible(selectedArtist != null || selectedAlbum != null);
+        libraryUp.setHidden(libraryHistory.isEmpty()); libraryUp.setVisible(!libraryHistory.isEmpty());
         libraryLocation.setText(selectedAlbum != null ? display(selectedAlbum, "Unknown album")
-                : selectedArtist != null ? display(selectedArtist, "Unknown artist")
-                : libraryView.equals("songs") ? "All songs" : libraryView.equals("albums") ? "Albums" : "Artists");
-        updatePaging();
+                : selectedArtist != null ? display(selectedArtist, "Unknown artist") : "");
+        String view = grouped ? artistList ? "artists" : "albums" : "songs";
+        boolean alphabetical = selectedAlbum == null;
+        String empty = grouped ? "No " + view + " found." : query.isEmpty()
+                ? "Your library is empty. Upload some MP3s to begin." : "No tracks match your search.";
+        collection.load(path == null ? api.browsePath(view, query, selectedArtist, selectedAlbum, alphabetical) : path,
+                grouped, alphabetical, empty, anchor);
         revalidate();
-        java.util.function.Consumer<String> failure = message -> {
-            if (version != requestVersion) return;
-            busy = false;
-            tracks.removeAll();
-            TextArea error = new TextArea(message);
-            error.setEditable(false);
-            Button reload = new Button("Retry library");
-            reload.addActionListener(e -> load(requestedOffset));
-            tracks.add(error).add(reload);
-            pageInfo.setText("Library unavailable");
-            updatePaging(); revalidate();
-        };
-        if (grouped) {
-            api.groups(artistList ? "artists" : "albums", query, requestedOffset, selectedArtist, page -> {
-                if (version != requestVersion) return;
-                busy = false; offset = page.offset(); total = page.total();
-                tracks.removeAll(); rowArtwork.clear();
-                if (page.items().isEmpty()) tracks.add(new Label("No " + (artistList ? "artists" : "albums") + " found.", "Muted"));
-                for (LibraryApi.Group group : page.items()) tracks.add(groupRow(group, artistList));
-                pageInfo.setText(total == 0 ? "0 shown" : (offset + 1) + "–" + (offset + page.items().size()) + " of " + total);
-                tracks.scrollRectToVisible(0, 0, 1, 1, tracks); updatePaging(); revalidate();
-            }, failure);
-            return;
-        }
-        api.list(query, requestedOffset, selectedArtist, selectedAlbum, page -> {
-            if (version != requestVersion) return;
-            busy = false;
-            offset = page.offset();
-            total = page.total();
-            tracks.removeAll();
-            rowArtwork.clear();
-            if (page.items().isEmpty()) {
-                tracks.add(new Label(query.isEmpty() ? "Your library is empty. Upload some MP3s to begin." : "No tracks match your search.", "Muted"));
-            }
-            for (Track track : page.items()) tracks.add(trackRow(track));
-            // Refresh all player surfaces after rebuilding the rows; artwork keys use one
-            // service revision so late catalogue responses cannot invalidate cover callbacks.
-            player.refreshArtwork();
-            pageInfo.setText(page.items().isEmpty() ? "0 shown · " + total + " tracks" : (offset + 1) + "–" + (offset + page.items().size()) + " of " + total);
-            tracks.scrollRectToVisible(0, 0, 1, 1, tracks);
-            updatePaging();
-            revalidate();
-        }, failure);
     }
     private static String display(String text, String fallback) { return text == null || text.isEmpty() ? fallback : text; }
-    private Container groupRow(LibraryApi.Group group, boolean artistList) {
+    private Container groupRow(LibraryApi.Item item) {
+        LibraryApi.Group group = item.group();
+        boolean artistList = libraryView.equals("artists") && selectedArtist == null;
         String name = artistList ? display(group.artist(), "Unknown artist") : display(group.album(), "Unknown album");
         Button open = new Button(name, "TrackTitle");
         open.setAccessibilityText("Open " + name);
         open.getSemantics().setLabel("Open " + name);
+        open.setEnabled(item.contents() != null);
         open.addActionListener(e -> {
+            libraryHistory.add(new LibraryState(selectedArtist, selectedAlbum, query, search.getText(), collection.anchor()));
             selectedArtist = group.artist();
             selectedAlbum = artistList ? null : group.album();
-            search.setText(""); query = ""; load(0);
+            search.setText(""); query = ""; load(item.contents(), null);
         });
         String subtitle = (artistList ? "" : display(group.artist(), "Unknown artist") + " · ")
                 + group.trackCount() + (group.trackCount() == 1 ? " song" : " songs");
         RecordArtwork art = new RecordArtwork(true);
-        art.setTrack(new Track(group.trackId(), name, group.artist(), group.album(), 0), api);
-        rowArtwork.add(art);
+        art.setTrack(new Track(group.trackId(), name, group.artist(), group.album(), 0), api, false);
         Container row = BorderLayout.center(BoxLayout.encloseY(open, new Label(subtitle, "Muted")))
                 .add(BorderLayout.WEST, art);
-        row.setLeadComponent(open); row.setUIID("TrackRow");
+        row.setLeadComponent(open); row.setUIID("TrackRow"); row.putClientProperty("artwork", art);
         return row;
     }
 
@@ -451,12 +392,11 @@ public final class LibraryForm extends Form {
         enqueue.addActionListener(e -> player.enqueue(track));
         Container copy = BoxLayout.encloseY(listen, new Label(track.artist(), "Muted"));
         RecordArtwork art = new RecordArtwork(true);
-        art.setTrack(track, api);
-        rowArtwork.add(art);
+        art.setTrack(track, api, false);
         Container detail = BorderLayout.center(copy).add(BorderLayout.WEST, art);
         detail.setLeadComponent(listen);
         Container row = BorderLayout.center(detail).add(BorderLayout.EAST, enqueue);
-        row.setUIID("TrackRow");
+        row.setUIID("TrackRow"); row.putClientProperty("artwork", art);
         return row;
     }
     private static void icon(Button button, String name, char glyph, String uiid) {
@@ -479,15 +419,10 @@ public final class LibraryForm extends Form {
                     revalidate();
                 }), 0);
     }
-    private void updatePaging() {
-        pageBack.setEnabled(!busy && offset > 0);
-        pageNext.setEnabled(!busy && offset + LibraryApi.PAGE_SIZE < total);
-        pageBack.setHidden(total <= LibraryApi.PAGE_SIZE);
-        pageBack.setVisible(total > LibraryApi.PAGE_SIZE);
-        pageNext.setHidden(total <= LibraryApi.PAGE_SIZE);
-        pageNext.setVisible(total > LibraryApi.PAGE_SIZE);
-    }
     private void refreshPlayer() {
+        java.util.List<String> queuedIds = new java.util.ArrayList<>();
+        for (int i = 0; i < player.queue.size(); i++) queuedIds.add(player.queue.get(i).id());
+        api.retainQueue(queuedIds);
         if (car != null) car.refresh();
         Track current = player.queue.current();
         trackInformation.update(current, player.duration(), player.status());
@@ -563,9 +498,9 @@ public final class LibraryForm extends Form {
         return seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
     }
     public void disposePlayer() {
-        requestVersion++;
+        collection.dispose();
         if (timer != null) timer.cancel();
-        api.dispose(); rowArtwork.clear(); tracks.removeAll(); queue.removeAll();
+        api.dispose(); queueArtwork.clear(); queue.removeAll();
         Car.endSession();
         Car.setApplication(null);
         player.dispose();

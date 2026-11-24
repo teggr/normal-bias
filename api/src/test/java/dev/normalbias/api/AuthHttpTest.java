@@ -74,7 +74,7 @@ class AuthHttpTest {
         var response = request("GET", path, null, bearer, Map.of()); assertEquals(200, response.statusCode()); return json.readTree(response.body());
     }
     @Test void allLibraryAndManagementRoutesRequireCredentialsBeforeLookingUpResources() throws Exception {
-        for (String path : List.of("/api/tracks", "/api/library/albums", "/api/library/artists", "/api/tracks/" + AuthServiceTest.TRACK,
+        for (String path : List.of("/api/library/index?view=songs", "/api/tracks", "/api/library/albums", "/api/library/artists", "/api/tracks/" + AuthServiceTest.TRACK,
                 "/api/tracks/" + AuthServiceTest.TRACK + "/audio", "/api/tracks/" + AuthServiceTest.TRACK + "/artwork",
                 "/api/album-artwork/revision", "/api/album-artwork/suggestions/" + AuthServiceTest.TRACK,
                 "/api/album-artwork/matches/unknown", "/api/inspections/00000000-0000-0000-0000-000000000000"))
@@ -99,7 +99,13 @@ class AuthHttpTest {
         assertFalse(get("/api", owner).path("_links").has("invite")); // Local administration only.
         var page = get("/api/tracks?limit=1&q=Synthetic", listener);
         assertTrue(page.has("items")); assertTrue(page.has("offset")); assertTrue(page.path("_links").has("self"));
+        var browse = get(get("/api", listener).path("_links").path("songs-alphabetical").path("href").asText(), listener);
+        String indexPath = browse.path("_links").path("index").path("href").asText();
+        var alphabet = get(indexPath, listener);
+        assertEquals(1, alphabet.path("total").asInt());
+        assertTrue(browse.path("items").get(0).path("_links").has("playback-grant"));
         auth.enabled("listener", false);
+        assertEquals(401, request("GET", indexPath, null, listener, Map.of()).statusCode());
         assertEquals(401, request("POST", listenerTrack.path("_links").path("playback-grant").path("href").asText(), null, listener, Map.of()).statusCode());
     }
     @Test void scopedPlaybackUrlsSupportHeadRepeatedRangesAndParentLogoutRevocation() throws Exception {

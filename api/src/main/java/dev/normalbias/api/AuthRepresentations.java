@@ -23,20 +23,26 @@ class AuthRepresentations implements ResponseBodyAdvice<Object> {
     @Override public boolean supports(MethodParameter type, Class<? extends HttpMessageConverter<?>> converter) { return true; }
     @Override public Object beforeBodyWrite(Object body, MethodParameter type, MediaType media, Class<? extends HttpMessageConverter<?>> converter,
                                           ServerHttpRequest request, ServerHttpResponse response) {
-        if (security.demo()) return body;
         Identity identity = identity(SecurityContextHolder.getContext().getAuthentication());
-        if (body instanceof Track track) return track(track, identity);
+        boolean alphabetical = "alphabetical".equals(UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams().getFirst("sort"));
+        if (body instanceof Track track) return security.demo() ? body : track(track, identity);
         if (body instanceof TrackPage page) {
-            Map<String, Object> result = map(page); result.put("items", page.items().stream().map(t -> track(t, identity)).toList());
+            Map<String, Object> result = map(page); result.put("items", page.items().stream().map(t -> {
+                var row = security.demo() ? map(t) : track(t, identity);
+                if (alphabetical) row.put("initial", BrowseOrder.initial(t.title()));
+                return row;
+            }).toList());
             result.put("_links", pages(request, page.offset(), page.limit(), page.total())); return result;
         }
         if (body instanceof LibraryController.Page page) {
             Map<String, Object> result = map(page);
             result.put("items", page.items().stream().map(group -> {
                 var row = map(group); String artist = URLEncoder.encode(group.artist(), StandardCharsets.UTF_8);
-                String href = request.getURI().getPath().endsWith("artists") ? "/api/library/albums?artist=" + artist
+                boolean artists = request.getURI().getPath().endsWith("artists");
+                if (alphabetical) row.put("initial", BrowseOrder.initial(artists ? group.artist() : group.album()));
+                String href = artists ? "/api/library/albums?sort=alphabetical&artist=" + artist
                         : "/api/tracks?artist=" + artist + "&album=" + URLEncoder.encode(group.album(), StandardCharsets.UTF_8);
-                row.put("_links", Map.of("contents", link(href, "GET"), "artwork", link("/api/tracks/" + row.get("trackId") + "/artwork", "GET"))); return row;
+                row.put("_links", Map.of("contents", link(href + "&limit=" + page.limit(), "GET"), "artwork", link("/api/tracks/" + row.get("trackId") + "/artwork", "GET"))); return row;
             }).toList());
             result.put("_links", pages(request, page.offset(), page.limit(), page.total())); return result;
         }
@@ -58,6 +64,12 @@ class AuthRepresentations implements ResponseBodyAdvice<Object> {
         links.put("self", link(builder.build(true).toUriString(), "GET"));
         if ((long) offset + limit < total) links.put("next", link(builder.cloneBuilder().replaceQueryParam("offset", (long) offset + limit).build(true).toUriString(), "GET"));
         if (offset > 0) links.put("previous", link(builder.cloneBuilder().replaceQueryParam("offset", Math.max(0, offset - limit)).build(true).toUriString(), "GET"));
+        if ("alphabetical".equals(builder.build(true).getQueryParams().getFirst("sort"))) {
+            String view = request.getURI().getPath().equals("/api/tracks") ? "songs"
+                    : request.getURI().getPath().endsWith("albums") ? "albums" : "artists";
+            links.put("index", link(builder.cloneBuilder().replacePath("/api/library/index")
+                    .replaceQueryParam("sort").replaceQueryParam("offset").replaceQueryParam("view", view).build(true).toUriString(), "GET"));
+        }
         return links;
     }
     private Map<String, Object> map(Object value) { return json.convertValue(value, new TypeReference<LinkedHashMap<String, Object>>() { }); }
