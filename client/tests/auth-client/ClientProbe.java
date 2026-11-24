@@ -34,7 +34,9 @@ public final class ClientProbe {
             Component component = find(form, (String) input.get("name"));
             if (component == null) throw new IllegalArgumentException("No such control");
             int x = component.getAbsoluteX() + component.getWidth()/2, y = component.getAbsoluteY()+component.getHeight()/2;
-            form.pointerPressed(x, y); form.pointerReleased(x, y);
+            // A modal Dialog runs a nested event loop on release. Return the probe
+            // response first so subsequent connections can inspect/dismiss that dialog.
+            form.pointerPressed(x, y); CN.callSerially(() -> form.pointerReleased(x, y));
         } else if (form instanceof LibraryForm) {
             Player player = ((LibraryForm) form).probePlayer();
             if (op.equals("play-first")) findButton(form, "Morning Circuit");
@@ -51,6 +53,11 @@ public final class ClientProbe {
             Player player = ((LibraryForm) form).probePlayer();
             result.put("time", player.time()); result.put("playing", player.isPlaying()); result.put("loading", player.isLoading());
             result.put("status", player.status()); result.put("queue", player.queue.size());
+            result.put("currentTrack", player.queue.current() == null ? null : player.queue.current().id());
+            result.put("queueIndex", player.queue.index());
+            List<String> queueIds = new ArrayList<>();
+            for (int i = 0; i < player.queue.size(); i++) queueIds.add(player.queue.get(i).id());
+            result.put("queueIds", queueIds);
         }
         return result;
     }

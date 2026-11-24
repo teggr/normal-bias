@@ -4,6 +4,7 @@ import com.codename1.ui.*;
 import com.codename1.components.SpanLabel;
 import com.codename1.ui.layouts.*;
 import com.codename1.ui.util.UITimer;
+import com.codename1.ui.animations.CommonTransitions;
 import dev.normalbias.client.Track;
 import dev.normalbias.client.net.LibraryApi;
 import dev.normalbias.client.player.Player;
@@ -26,16 +27,34 @@ public final class LibraryForm extends Form {
     private final Label time = new Label("0:00", "TimeLabel");
     private final Label remaining = new Label("−0:00", "TimeLabel");
     private final RecordArtwork cover = new RecordArtwork(false);
+    private final Container artworkSlot = new Container(new BorderLayout());
+    private final TrackInformation trackInformation = new TrackInformation();
+    private final HardwareButton informationToggle = new HardwareButton("Player information", FontImage.MATERIAL_INFO_OUTLINE, true);
+    private boolean informationVisible, informationTransition;
     private final RecordArtwork metadataCover = new RecordArtwork(true);
     private final RecordArtwork miniCover = new RecordArtwork(true);
     private final FineSeek seek = new FineSeek();
     private final HardwareButton play = new HardwareButton("Play", FontImage.MATERIAL_PLAY_ARROW, true);
     private final Button previous = new Button("Previous");
     private final Button next = new Button("Next");
-    private final HardwareButton retry = new HardwareButton("Retry track", FontImage.MATERIAL_REFRESH, true);
+    private final HardwareButton shuffle = new HardwareButton("Shuffle queue", FontImage.MATERIAL_SHUFFLE, true);
+    private final HardwareButton queueShuffle = new HardwareButton("Shuffle queue", FontImage.MATERIAL_SHUFFLE, true);
+    private final HardwareButton retry = new HardwareButton("Restart track", FontImage.MATERIAL_REPLAY, true);
     private final Button pageBack = new Button("Back");
     private final Button pageNext = new Button("More");
-    private final Tabs tabs = new Tabs();
+    private enum View { LIBRARY, NOW_PLAYING, QUEUE, ACCOUNT }
+    private View view = View.LIBRARY;
+    private View accountOrigin = View.LIBRARY;
+    private final Container accountPanel = new Container(BoxLayout.y());
+    private final Container library = new Container(new BorderLayout());
+    private final Container queuePanel = new Container(new BorderLayout());
+    private final Label queueCount = new Label("0 tracks", "Muted");
+    private final java.util.List<RecordArtwork> queueArtwork = new java.util.ArrayList<>();
+    private String queueIdentity = "";
+    private final Runnable logout;
+    private final Runnable password;
+    private PlayerFace playerFace;
+    private SpanLabel accountUsername;
     private final Container body = new Container(new BorderLayout());
     private final Container playerPanel = new Container(new BorderLayout());
     private final Container miniPlayer = new Container(new BorderLayout());
@@ -47,6 +66,8 @@ public final class LibraryForm extends Form {
     private final Container pagingBar = new Container();
     private final Button find = new Button("Search");
     private final Button reset = new Button("Reset");
+    private final HardwareButton searchToggle = new HardwareButton("Show search", FontImage.MATERIAL_SEARCH, true);
+    private boolean searchVisible;
     private final LibraryViewButton[] viewButtons = new LibraryViewButton[3];
     private String libraryView = "songs";
     private String selectedArtist;
@@ -54,8 +75,6 @@ public final class LibraryForm extends Form {
     private final Button libraryUp = new Button("Library views");
     private final Container libraryLocationBar;
     private final Label libraryLocation = new Label("All songs", "Muted");
-    private boolean compact;
-    private boolean layoutReady;
     private int requestVersion;
     private int offset;
     private int total;
@@ -68,8 +87,9 @@ public final class LibraryForm extends Form {
     public LibraryForm(LibraryApi api, Runnable logout, Runnable password) {
         super("Normal Bias", new BorderLayout());
         this.api = api;
+        this.logout = logout;
+        this.password = password;
         getContentPane().setSafeArea(true);
-        compact = CN.getDisplayWidth() < CN.convertToPixels(120);
         player = new Player(api, this::refreshPlayer);
         car = new CarListening(api, player);
         Car.setApplication(car);
@@ -81,18 +101,11 @@ public final class LibraryForm extends Form {
         search.addActionListener(e -> searchLibrary());
         reset.addActionListener(e -> { search.setText(""); searchLibrary(); });
         searchBar.setUIID("SearchBar");
-        Container brand = BorderLayout.center(new Label("Normal Bias", "Brand"));
-        if (api.canLogout()) {
-            Button signOut = new Button("Sign out"); signOut.setName("Sign out");
-            signOut.addActionListener(event -> logout.run());
-            Container actions = BoxLayout.encloseX(signOut);
-            if (password != null) {
-                Button change = new Button("Change password"); change.setName("Change password");
-                change.addActionListener(event -> password.run()); actions.add(change);
-            }
-            brand.add(BorderLayout.EAST, actions);
-            header.add(brand); header.add(new Label(api.username(), "Muted"));
-        } else header.add(brand);
+        search.setName("Library search");
+        searchToggle.setPreferredW(CN.convertToPixels(9));
+        searchToggle.setPreferredH(CN.convertToPixels(9));
+        searchToggle.addActionListener(e -> toggleSearch());
+        updateSearchChrome();
         pageInfo.setUIID("PageInfo");
         pageBack.setUIID("PagingButton");
         pageNext.setUIID("PagingButton");
@@ -129,26 +142,33 @@ public final class LibraryForm extends Form {
             search.setText(""); query = ""; load(0);
         });
         libraryLocationBar = BorderLayout.center(libraryLocation).add(BorderLayout.WEST, libraryUp);
-        Container library = BorderLayout.center(tracks).add(BorderLayout.SOUTH, pagingBar)
-                .add(BorderLayout.NORTH, BoxLayout.encloseY(views, searchBar, libraryLocationBar));
+        library.add(BorderLayout.CENTER, tracks).add(BorderLayout.SOUTH, pagingBar)
+                .add(BorderLayout.NORTH, BoxLayout.encloseY(BorderLayout.center(views).add(BorderLayout.EAST, searchToggle), searchBar, libraryLocationBar));
         library.setUIID("LibraryPanel");
         queue.setScrollableY(true);
         queue.setScrollVisible(false);
         Button clear = new Button("Clear queue");
         clear.addActionListener(e -> player.clear());
-        Container queuePanel = BorderLayout.center(queue).add(BorderLayout.SOUTH, clear);
+        clear.setName("Clear queue");
+        Container queueSummary = BorderLayout.center(queueCount).add(BorderLayout.EAST, clear);
+        queueSummary.setUIID("QueueSummary");
+        queuePanel.add(BorderLayout.CENTER, queue).add(BorderLayout.NORTH, queueSummary);
         queuePanel.setUIID("LibraryPanel");
-        tabs.setUIID("LibraryPanel");
-        tabs.getContentPane().setUIID("LibraryPanel");
-        tabs.setTabPlacement(Component.TOP);
-        tabs.setAnimateTabSelection(false);
-        tabs.addSelectionListener((oldIndex, newIndex) -> {
-            updatePlayerChrome(newIndex);
-            revalidate();
-        });
-        tabs.addTab("Library", library);
-        tabs.addTab("Queue (0)", queuePanel);
-        body.add(BorderLayout.CENTER, tabs);
+        accountPanel.setUIID("AccountPanel");
+        accountPanel.setScrollableY(true);
+        accountPanel.setScrollVisible(false);
+        if (api.canLogout()) {
+            accountUsername = new SpanLabel(api.username(), "NowTitle");
+            accountUsername.setName("Account username");
+            accountUsername.getSemantics().setDescription("Read-only username");
+            Container identity = BoxLayout.encloseY(new Label("Username", "Muted"), accountUsername);
+            identity.setUIID("MetadataWell");
+            Container identityRow = BorderLayout.center(identity);
+            identityRow.setUIID("AccountIdentity");
+            accountPanel.add(identityRow);
+        }
+        if (password != null) accountPanel.add(accountAction("Change password", password));
+        accountPanel.add(accountAction("Sign out", logout));
         add(BorderLayout.CENTER, body);
 
         status.setEditable(false);
@@ -163,63 +183,51 @@ public final class LibraryForm extends Form {
         play.addActionListener(e -> player.toggle());
         previous.addActionListener(e -> player.previous());
         next.addActionListener(e -> player.next());
-        retry.addActionListener(e -> player.retry());
-        HardwareButton showLibrary = new HardwareButton("Library", FontImage.MATERIAL_LIBRARY_MUSIC, true);
+        retry.addActionListener(e -> { if (player.hasFailed()) player.retry(); else player.restart(); });
         HardwareButton showQueue = new HardwareButton("Queue", FontImage.MATERIAL_QUEUE_MUSIC, true);
-        HardwareButton more = new HardwareButton("Open queue", FontImage.MATERIAL_MORE_HORIZ, true);
-        more.addActionListener(e -> tabs.setSelectedIndex(1));
-        showLibrary.addActionListener(e -> tabs.setSelectedIndex(0));
-        showQueue.addActionListener(e -> tabs.setSelectedIndex(1));
-        TransportWheel wheel = new TransportWheel(previous, play, next, more, showQueue, retry, showLibrary);
+        informationToggle.addActionListener(e -> toggleInformation());
+        shuffle.addActionListener(e -> player.shuffle());
+        queueShuffle.addActionListener(e -> player.shuffle());
+        showQueue.addActionListener(e -> navigate(View.QUEUE));
+        TransportWheel wheel = new TransportWheel(previous, play, next, informationToggle, showQueue, retry, shuffle);
         icon(previous, "Previous", FontImage.MATERIAL_SKIP_PREVIOUS, "WheelAction");
         icon(next, "Next", FontImage.MATERIAL_SKIP_NEXT, "WheelAction");
         cover.setUIID("ArtworkRecess");
+        artworkSlot.setUIID("ArtworkRecess");
+        artworkSlot.add(BorderLayout.CENTER, cover);
         Container metadata = BorderLayout.center(BoxLayout.encloseY(artist, title))
                 .add(BorderLayout.WEST, metadataCover);
         metadata.setUIID("MetadataWell");
         Container times = BorderLayout.center(time).add(BorderLayout.EAST, remaining);
         Container timeline = BorderLayout.center(seek).add(BorderLayout.SOUTH, times);
         timeline.setUIID("Timeline");
-        HardwareButton back = new HardwareButton("Back to library", FontImage.MATERIAL_ARROW_BACK, false);
-        back.setUIID("HeaderHardware");
-        back.addActionListener(e -> tabs.setSelectedIndex(0));
-        HardwareButton info = new HardwareButton("Player information", FontImage.MATERIAL_INFO_OUTLINE, false);
-        info.setUIID("HeaderHardware");
-        info.addActionListener(e -> showDetails());
-        Container playerHeader = BorderLayout.center(new Label("Now Playing", "PlayerHeading"))
-                .add(BorderLayout.WEST, back).add(BorderLayout.EAST, info);
-        playerHeader.setUIID("PlayerHeader");
         playerPanel.setUIID("PlayerPanel");
-        // Keep navigation outside the scrolling face: native focus/scroll must not
-        // move Back/Information above the safe area on shorter phone viewports.
-        playerHeader.setPreferredH(CN.convertToPixels(12));
-        Container playerContent = new Container(BoxLayout.y());
+        // Preserve the actual player face/wheel, bounded and centred at all widths.
+        Container playerContent = new Container(new FlowLayout(Component.CENTER, Component.TOP));
         playerContent.setUIID("PlayerPanel");
         playerContent.setScrollableY(true);
         playerContent.setScrollVisible(false);
-        playerContent.add(new PlayerFace(cover, metadata, timeline, wheel, status));
-        playerPanel.add(BorderLayout.NORTH, playerHeader).add(BorderLayout.CENTER, playerContent);
+        playerFace = new PlayerFace(artworkSlot, metadata, timeline, wheel, status);
+        sizeContent();
+        playerContent.add(playerFace);
+        playerPanel.add(BorderLayout.CENTER, playerContent);
         miniTitle.setUIID("MiniTitle");
-        miniTitle.addActionListener(e -> tabs.setSelectedIndex(2));
+        miniTitle.setName("Open Now Playing");
+        miniTitle.setAccessibilityText("Open Now Playing");
+        miniTitle.getSemantics().setLabel("Open Now Playing");
+        miniTitle.addActionListener(e -> navigate(View.NOW_PLAYING));
         icon(miniPlay, "Play", FontImage.MATERIAL_PLAY_ARROW, "MiniPlay");
         miniPlay.addActionListener(e -> player.toggle());
         miniPlayer.setUIID("MiniPlayer");
         Container miniCopy = BoxLayout.encloseY(miniTitle, miniArtist);
         miniCopy.setLeadComponent(miniTitle);
         miniPlayer.add(BorderLayout.WEST, miniCover).add(BorderLayout.CENTER, miniCopy).add(BorderLayout.EAST, miniPlay);
-        layoutReady = true;
-        applyLayout();
-        addSizeChangedListener(e -> {
-            boolean narrow = getWidth() < CN.convertToPixels(120);
-            if (layoutReady && narrow != compact) {
-                compact = narrow;
-                applyLayout();
-                revalidate();
-            } else if (!narrow) {
-                playerPanel.setPreferredW(sidebarWidth());
-                revalidate();
-            }
-        });
+        searchBar.setLayout(new BorderLayout());
+        searchBar.add(BorderLayout.CENTER, search).add(BorderLayout.EAST, BoxLayout.encloseX(find, reset));
+        pagingBar.setLayout(new BorderLayout());
+        pagingBar.add(BorderLayout.CENTER, pageInfo).add(BorderLayout.EAST, BoxLayout.encloseX(pageBack, pageNext));
+        navigate(View.LIBRARY);
+        addSizeChangedListener(e -> { sizeContent(); revalidate(); });
         timer = new UITimer(() -> {
             player.poll(); refreshProgress(); refreshArtworkViews();
             checkArtwork(false);
@@ -239,60 +247,114 @@ public final class LibraryForm extends Form {
     private void refreshArtworkViews() {
         cover.refresh(); metadataCover.refresh(); miniCover.refresh();
         for (RecordArtwork art : rowArtwork) art.refresh();
+        for (RecordArtwork art : queueArtwork) art.refresh();
     }
 
-    private int sidebarWidth() {
-        int available = CN.getDisplayHeight() - header.getPreferredH();
-        return Math.min(CN.convertToPixels(62), Math.max(CN.convertToPixels(45), available * 100 / 202));
+    private void sizeContent() {
+        int available = getWidth() > 0 ? getWidth() : CN.getDisplayWidth();
+        // SpanLabel retains its measured width; bound it again when the viewport changes.
+        if (accountUsername != null) accountUsername.setPreferredW(Math.max(1, available - CN.convertToPixels(12)));
+        accountPanel.setPreferredW(available);
+        accountPanel.setShouldCalcPreferredSize(true);
+        int width = Math.min(available, CN.convertToPixels(62));
+        trackInformation.fitWidth(width);
+        playerFace.setWidth(width);
+        playerFace.setPreferredW(width);
+        playerFace.setShouldCalcPreferredSize(true);
     }
 
-    private void applyLayout() {
-        search.remove();
-        find.remove();
-        reset.remove();
-        searchBar.removeAll();
-        searchBar.setLayout(new BorderLayout());
-        searchBar.add(BorderLayout.CENTER, search).add(BorderLayout.EAST, BoxLayout.encloseX(find, reset));
-        pageInfo.remove();
-        pageBack.remove();
-        pageNext.remove();
-        pagingBar.removeAll();
-        pagingBar.setLayout(new BorderLayout());
-        pagingBar.add(BorderLayout.CENTER, pageInfo).add(BorderLayout.EAST, BoxLayout.encloseX(pageBack, pageNext));
-        if (tabs.getTabCount() > 2) tabs.removeTabAt(2);
-        if (playerPanel.getParent() != null) playerPanel.remove();
-        if (miniPlayer.getParent() != null) miniPlayer.remove();
-        if (compact) {
-            playerPanel.setPreferredW(0);
-            tabs.addTab("Now Playing", playerPanel);
-            add(BorderLayout.SOUTH, miniPlayer);
-        } else {
-            playerPanel.setPreferredW(sidebarWidth());
-            body.add(BorderLayout.EAST, playerPanel);
+    private HardwareButton navigation(String name, char glyph, Runnable action) {
+        HardwareButton button = new HardwareButton(name, glyph, true);
+        button.setPreferredW(CN.convertToPixels(9));
+        button.setPreferredH(CN.convertToPixels(9));
+        if (name.equals("Now Playing")) button.setIcon(NowPlayingIcon.create());
+        button.addActionListener(e -> action.run());
+        return button;
+    }
+
+    private void navigate(View target) {
+        if (view == target && body.getComponentCount() > 0) return;
+        view = target;
+        body.removeAll();
+        Container content = target == View.LIBRARY ? library : target == View.QUEUE ? queuePanel : target == View.ACCOUNT ? accountPanel : playerPanel;
+        content.remove();
+        body.add(BorderLayout.CENTER, content);
+        miniPlayer.remove();
+        if (target == View.LIBRARY || target == View.QUEUE) add(BorderLayout.SOUTH, miniPlayer);
+        header.removeAll();
+        Container actions = new Container(BoxLayout.x());
+        if (target == View.LIBRARY) {
+            actions.add(navigation("Now Playing", FontImage.MATERIAL_ALBUM, () -> navigate(View.NOW_PLAYING)));
+        } else if (target == View.QUEUE) {
+            queueShuffle.remove();
+            actions.add(queueShuffle);
+        } else if (target == View.NOW_PLAYING) {
+            actions.add(navigation("Library", FontImage.MATERIAL_LIBRARY_MUSIC, () -> navigate(View.LIBRARY)));
         }
-        updatePlayerChrome(tabs.getSelectedIndex());
+        if ((target == View.LIBRARY || target == View.NOW_PLAYING) && api.canLogout()) actions.add(navigation("Profile", FontImage.MATERIAL_PERSON_OUTLINE, this::showProfile));
+        Label heading = new Label(target == View.LIBRARY ? "Library" : target == View.QUEUE ? "Queue" : target == View.ACCOUNT ? "Account" : "Now Playing", "ScreenHeading");
+        Container bar = BorderLayout.center(heading).add(BorderLayout.EAST, actions);
+        if (target == View.QUEUE)
+            bar.add(BorderLayout.WEST, navigation("Back to Now Playing", FontImage.MATERIAL_ARROW_BACK, () -> navigate(View.NOW_PLAYING)));
+        header.add(bar);
+        View returnTo = target == View.ACCOUNT ? accountOrigin : target == View.QUEUE ? View.NOW_PLAYING : View.LIBRARY;
+        String backName = "Back to " + (returnTo == View.LIBRARY ? "Library" : returnTo == View.QUEUE ? "Queue" : "Now Playing");
+        if (target == View.ACCOUNT)
+            bar.add(BorderLayout.WEST, navigation(backName, FontImage.MATERIAL_ARROW_BACK, () -> navigate(returnTo)));
+        setBackCommand(target == View.LIBRARY ? null : new Command(backName) {
+            @Override public void actionPerformed(com.codename1.ui.events.ActionEvent e) { navigate(returnTo); }
+        });
+        getContentPane().setUIID(target == View.NOW_PLAYING ? "PlayerPanel" : "LibraryPanel");
+        revalidate();
     }
 
-    private void updatePlayerChrome(int selectedIndex) {
-        searchBar.setHidden(selectedIndex != 0);
-        searchBar.setVisible(selectedIndex == 0);
-        boolean fullPlayer = compact && selectedIndex == 2;
-        header.setHidden(fullPlayer);
-        header.setVisible(!fullPlayer);
-        miniPlayer.setHidden(fullPlayer);
-        miniPlayer.setVisible(!fullPlayer);
-        tabs.getTabsContainer().setHidden(fullPlayer);
-        tabs.getTabsContainer().setVisible(!fullPlayer);
-        getContentPane().setUIID(fullPlayer ? "PlayerPanel" : "LibraryPanel");
+    private Button accountAction(String name, Runnable action) {
+        Button button = new Button(name, "AccountAction");
+        button.setName(name);
+        button.setPreferredH(CN.convertToPixels(10));
+        button.addActionListener(e -> action.run());
+        return button;
+    }
+
+    private void showProfile() {
+        if (!api.canLogout() || view == View.ACCOUNT) return;
+        accountOrigin = view;
+        navigate(View.ACCOUNT);
+    }
+
+    private void toggleSearch() {
+        if (searchVisible) {
+            search.stopEditing(() -> {
+                searchVisible = false;
+                updateSearchChrome();
+                searchToggle.requestFocus();
+                revalidate();
+            });
+        } else {
+            searchVisible = true;
+            updateSearchChrome();
+            revalidate();
+            search.requestFocus();
+            search.startEditingAsync();
+        }
+    }
+
+    private void updateSearchChrome() {
+        searchBar.setHidden(!searchVisible);
+        searchBar.setVisible(searchVisible);
+        searchToggle.setUIID(searchVisible || !query.isEmpty() ? "SearchToggleActive" : "SearchToggle");
+        searchToggle.setGlyph(searchVisible ? "Hide search" : "Show search", FontImage.MATERIAL_SEARCH);
+        searchToggle.getSemantics().setDescription(query.isEmpty() ? "Toggle library search" : "Library filtered by " + query);
     }
 
     private void searchLibrary() {
         query = search.getText().trim();
-        tabs.setSelectedIndex(0);
+        navigate(View.LIBRARY);
         load(0);
     }
 
     private void load(int requestedOffset) {
+        updateSearchChrome();
         int version = ++requestVersion;
         busy = true;
         pageInfo.setText("Loading library…");
@@ -402,10 +464,20 @@ public final class LibraryForm extends Form {
         button.setAccessibilityText(name); button.getSemantics().setLabel(name);
         FontImage.setMaterialIcon(button, glyph, 3.5f);
     }
-    private void showDetails() {
-        Track current = player.queue.current();
-        Dialog.show("Now Playing", current == null ? "Choose a track from your library." :
-                current.title() + "\n" + current.description() + "\n\n" + player.status(), "Close", null);
+    private void toggleInformation() {
+        if (informationTransition) return;
+        informationTransition = true;
+        informationVisible = !informationVisible;
+        trackInformation.update(player.queue.current(), player.duration(), player.status());
+        informationToggle.setGlyph(informationVisible ? "Show artwork" : "Player information",
+                informationVisible ? FontImage.MATERIAL_ALBUM : FontImage.MATERIAL_INFO_OUTLINE);
+        Component before = informationVisible ? cover : trackInformation;
+        Component after = informationVisible ? trackInformation : cover;
+        artworkSlot.replace(before, after, CommonTransitions.createSlide(
+                CommonTransitions.SLIDE_HORIZONTAL, !informationVisible, 180), () -> CN.callSerially(() -> {
+                    informationTransition = false;
+                    revalidate();
+                }), 0);
     }
     private void updatePaging() {
         pageBack.setEnabled(!busy && offset > 0);
@@ -418,6 +490,7 @@ public final class LibraryForm extends Form {
     private void refreshPlayer() {
         if (car != null) car.refresh();
         Track current = player.queue.current();
+        trackInformation.update(current, player.duration(), player.status());
         title.setText(current == null ? "Nothing playing" : current.title());
         artist.setText(current == null ? "Your library" : current.artist());
         cover.setTrack(current, api);
@@ -434,22 +507,40 @@ public final class LibraryForm extends Form {
         miniTitle.setText(current == null ? "Now Playing" : current.title());
         miniPlay.setEnabled(current != null && !player.isLoading());
         play.setEnabled(current != null && !player.isLoading());
-        retry.setEnabled(current != null);
+        retry.setGlyph(player.hasFailed() ? "Retry track" : "Restart track",
+                player.hasFailed() ? FontImage.MATERIAL_REFRESH : FontImage.MATERIAL_REPLAY);
+        retry.setEnabled(current != null && !player.isLoading());
         previous.setEnabled(player.queue.index() > 0);
         next.setEnabled(player.queue.index() + 1 < player.queue.size());
-        queue.removeAll();
-        if (player.queue.size() == 0) queue.add(new Label("Add tracks from the library to build your queue.", "Muted"));
-        for (int i = 0; i < player.queue.size(); i++) {
-            final int index = i;
-            Track track = player.queue.get(i);
-            Button item = new Button((i == player.queue.index() ? "▶ " : "") + (i + 1) + ". " + track.title());
-            item.setUIID("QueueRow");
-            item.addActionListener(e -> player.select(index));
-            queue.add(item);
+        shuffle.setEnabled(player.queue.size() > 1);
+        queueShuffle.setEnabled(player.queue.size() > 1);
+        queueCount.setText(player.queue.size() + (player.queue.size() == 1 ? " track" : " tracks"));
+        StringBuilder identity = new StringBuilder().append(player.queue.index());
+        for (int i = 0; i < player.queue.size(); i++) identity.append(':').append(player.queue.get(i).id());
+        if (!identity.toString().equals(queueIdentity)) {
+            queueIdentity = identity.toString();
+            queue.removeAll(); queueArtwork.clear();
+            if (player.queue.size() == 0) queue.add(new SpanLabel("Add tracks from the library to build your queue.", "EmptyQueue"));
+            for (int i = 0; i < player.queue.size(); i++) {
+                final int index = i;
+                Track track = player.queue.get(i);
+                boolean currentTrack = i == player.queue.index();
+                Button item = new Button(track.title(), currentTrack ? "QueueCurrentTitle" : "TrackTitle");
+                item.setName("Play queued " + track.title());
+                item.setAccessibilityText("Play queued " + track.title());
+                item.getSemantics().setLabel("Play queued " + track.title());
+                item.addActionListener(e -> player.select(index));
+                RecordArtwork art = new RecordArtwork(true);
+                art.setTrack(track, api); queueArtwork.add(art);
+                Container row = BorderLayout.center(BoxLayout.encloseY(item, new Label(track.artist(), "Muted")))
+                        .add(BorderLayout.WEST, art);
+                if (currentTrack) row.add(BorderLayout.EAST, new Label("▶", "QueueIndicator"));
+                row.setLeadComponent(item); row.setUIID("TrackRow");
+                queue.add(row);
+            }
         }
-        tabs.setTabTitle("Queue (" + player.queue.size() + ")", null, 1);
         refreshProgress();
-        revalidate();
+        if (!informationTransition) revalidate();
     }
     private void refreshProgress() {
         int duration = player.duration();

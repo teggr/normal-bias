@@ -67,3 +67,33 @@ LoginPanel {
     padding: 6mm;
     background-color: #202124;
 }
+
+/* Canonical compact shell: DESIGN.md. PlayerFace and TransportWheel are retained. */
+Header { padding: 2mm 4mm; }
+ScreenHeading { color: #f3f3f1; font-family: "native:MainBold"; font-size: 3.2mm; background-color: transparent; padding: 0; margin: 0; }
+QueueSummary { background-color: transparent; padding: 1mm 4mm; margin: 0; }
+QueueCurrentTitle, QueueCurrentTitle.selected, QueueCurrentTitle.pressed { color: #eac23f; font-family: "native:MainBold"; font-size: 2.3mm; background-color: transparent; border: none; padding: 0.8mm 0 0.3mm; margin: 0; text-align: left; }
+QueueIndicator { color: #eac23f; background-color: transparent; padding: 2mm; margin: 0; font-size: 2.4mm; }
+EmptyQueue { color: #b7b8bb; background-color: transparent; padding: 4mm; margin: 0; }
+Dialog { background-color: #272727; border: 1px solid #3d3d3d; border-radius: 2.5mm; }
+DialogTitle { color: #f3f3f1; background-color: #272727; font-size: 3mm; }
+AccountPanel { background-color: #202124; padding: 4mm; margin: 0; }
+AccountAction, AccountAction.selected, AccountAction.pressed {
+    color: #f3f3f1; background-color: #272727; border: 1px solid #3d3d3d; border-radius: 2.5mm;
+    font-family: "native:MainRegular"; font-size: 2.4mm; padding: 3mm; margin: 0 0 2mm; text-align: left;
+}
+AccountAction.selected { border: 1px solid #eac23f; }
+AccountAction.pressed { background-color: #171717; }
+/* Current-track colour must remain distinct from keyboard focus. */
+QueueCurrentTitle.selected, MiniTitle.selected, MiniPlay.selected { border: 1px solid #eac23f; }
+
+SearchToggle, SearchToggle.selected, SearchToggle.pressed,
+SearchToggleActive, SearchToggleActive.selected, SearchToggleActive.pressed {
+    color: #f3f3f1; background-color: transparent; border: none; padding: 0; margin: 1mm 2mm 1mm 0; text-align: center;
+}
+SearchToggleActive, SearchToggleActive.selected, SearchToggleActive.pressed { color: #eac23f; }
+
+AccountIdentity { background-color: transparent; border: none; padding: 0; margin: 0 0 3mm; }
+
+TrackInformation { background-color: #141414; border: none; padding: 3mm 4mm; margin: 0; }
+InformationValue { color: #f3f3f1; background-color: transparent; border: none; font-family: "native:MainRegular"; font-size: 2.3mm; padding: 0 0 1.5mm; margin: 0; }

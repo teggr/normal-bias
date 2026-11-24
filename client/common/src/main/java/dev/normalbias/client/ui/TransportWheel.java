@@ -6,7 +6,7 @@ import com.codename1.ui.layouts.Layout;
 
 /** Physical transport proportions: central wheel and four separate hardware keys. */
 final class TransportWheel extends Container {
-    TransportWheel(Button previous, Button play, Button next, Button more, Button queue, Button retry, Button library) {
+    TransportWheel(Button previous, Button play, Button next, Button information, Button queue, Button retry, Button shuffle) {
         setUIID("TransportWheel");
         setLayout(new Layout() {
             @Override public Dimension getPreferredSize(Container parent) {
@@ -18,10 +18,10 @@ final class TransportWheel extends Container {
                 int d = Math.min(w * 55 / 100, h * 88 / 100);
                 int x = (w - d) / 2, y = (h - d) / 2;
                 int key = w * 18 / 100, pad = w * 4 / 100;
-                place(more, pad, pad, key, key);
+                place(information, pad, pad, key, key);
                 place(queue, w - pad - key, pad, key, key);
                 place(retry, pad, h - pad - key, key, key);
-                place(library, w - pad - key, h - pad - key, key, key);
+                place(shuffle, w - pad - key, h - pad - key, key, key);
                 int center = d * 41 / 100;
                 place(play, x + (d - center) / 2, y + (d - center) / 2, center, center);
                 int side = d * 27 / 100;
@@ -34,7 +34,7 @@ final class TransportWheel extends Container {
         });
         previous.setUIID("WheelAction");
         next.setUIID("WheelAction");
-        add(previous).add(play).add(next).add(more).add(queue).add(retry).add(library);
+        add(previous).add(play).add(next).add(information).add(queue).add(retry).add(shuffle);
     }
     @Override public void paintBackground(Graphics g) {
         super.paintBackground(g);

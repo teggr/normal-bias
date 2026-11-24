@@ -24,6 +24,7 @@ public final class Player {
     private long openedAt;
     private java.util.function.LongSupplier clock = System::currentTimeMillis;
     void clock(java.util.function.LongSupplier value) { clock = value; }
+    private boolean failed;
     private boolean loading;
     private boolean playing;
     private boolean active;
@@ -86,6 +87,7 @@ public final class Player {
         });
     }
     public String status() { return status; }
+    public boolean hasFailed() { return failed; }
     public boolean isLoading() { return loading; }
     public boolean isPlaying() { return playing; }
     public int time() { return position; }
@@ -97,17 +99,26 @@ public final class Player {
         select(index);
     }
     public void enqueue(Track track) {
-        status = queue.add(track) < 0 ? "Queue full (200 tracks)" : "Added to queue: " + track.title();
+        int added = queue.add(track);
+        if (!failed) status = added < 0 ? "Queue full (200 tracks)" : "Added to queue: " + track.title();
         syncSystem();
         changed.run();
     }
     public void select(int index) { if (queue.select(index)) load(); }
+    public void shuffle() {
+        if (queue.size() < 2) return;
+        queue.shuffle();
+        syncSystem();
+        changed.run();
+    }
     public void next() { if (queue.next()) load(); }
     public void previous() { if (queue.previous()) load(); }
 
-    private void load() {
+    private void load() { load(true); }
+    private void load(boolean startPlaying) {
         release();
         if (audio == null || !audio.isSupported()) {
+            failed = true;
             status = "Audio is unavailable on this platform.";
             changed.run();
             return;
@@ -116,7 +127,7 @@ public final class Player {
         loading = true;
         duration = Math.max(0, queue.current().durationMs());
         status = "Loading " + queue.current().title() + "…";
-        wantPlay = true; recoveryAttempted = false;
+        wantPlay = startPlaying; recoveryAttempted = false;
         openGranted();
         if (system != null && system.isSupported()) system.artwork(new byte[0]);
         loadSystemArtwork(queue.current());
@@ -126,7 +137,7 @@ public final class Player {
     private boolean needsGrant() { return api.scopedPlayback() && clock.getAsLong() - openedAt >= 90000; }
     private void openGranted() {
         final int version = ++openVersion;
-        grantPending = true; loading = true;
+        grantPending = true; loading = true; failed = false;
         api.playback(queue.current(), url -> {
             if (!active || version != openVersion) return;
             grantPending = false;
@@ -137,7 +148,7 @@ public final class Player {
             syncSystem(true); changed.run();
         }, error -> {
             if (!active || version != openVersion) return;
-            grantPending = false; loading = false; playing = false; audio.pause();
+            grantPending = false; loading = false; playing = false; failed = true; audio.pause();
             status = error; syncSystem(); changed.run();
         });
     }
@@ -145,6 +156,7 @@ public final class Player {
         if (playing) pause(); else resume();
     }
     public void resume() {
+        if (failed) { wantPlay = true; retry(); return; }
         if (!active) { if (queue.current() != null) load(); return; }
         wantPlay = true;
         if (!grantPending) {
@@ -161,7 +173,7 @@ public final class Player {
         audio.pause();
         playing = false;
         loading = false;
-        status = "Paused";
+        if (!failed) status = "Paused";
         syncSystem();
         changed.run();
     }
@@ -173,10 +185,21 @@ public final class Player {
             changed.run();
         }
     }
+    /** Restart the selected track without changing play/pause intent. */
+    public void restart() {
+        if (queue.current() == null || failed) return;
+        if (!active) { load(false); return; } // Completion has consumed the native ended event.
+        position = 0;
+        if (!grantPending) {
+            if (needsGrant()) openGranted(); else audio.seek(0);
+        }
+        syncSystem(true);
+        changed.run();
+    }
     public void retry() {
         if (queue.current() == null) return;
         if (!active) { load(); return; }
-        recoveryAttempted = false; openGranted();
+        recoveryAttempted = false; status = "Reconnecting playback…"; openGranted(); changed.run();
     }
     public void seek(int percent) {
         if (active && duration > 0) {
@@ -188,7 +211,7 @@ public final class Player {
     }
     /** Called by the form timer and native completion callback on the EDT. */
     public void poll() {
-        if (!active || grantPending) return;
+        if (!active || grantPending || failed) return;
         try {
             JSONParser parser = new JSONParser();
             parser.setUseBooleanInstance(true);
@@ -208,7 +231,7 @@ public final class Player {
                     recoveryAttempted = true;
                     status = "Reconnecting playback…"; openGranted(); return;
                 }
-                loading = false;
+                loading = false; playing = false; failed = true;
                 status = error;
             } else if (Boolean.TRUE.equals(snapshot.get("ended"))) {
                 active = false; // consume completion once, including at the queue boundary
@@ -217,13 +240,14 @@ public final class Player {
                 loading = false;
                 status = "Queue finished";
             } else if (Boolean.TRUE.equals(snapshot.get("waiting"))) {
-                status = "Buffering… Check your connection, or Retry track.";
+                status = "Buffering… Check your connection.";
             } else if (playing) status = "Playing";
             else if (!loading) status = "Paused";
             syncSystem();
             if (beforePlaying != playing || beforeLoading != loading || !beforeStatus.equals(status)) changed.run();
         } catch (Exception ex) {
             release();
+            failed = true;
             status = "Cannot read playback state. Press Retry track.";
             changed.run();
         }
@@ -234,6 +258,7 @@ public final class Player {
         openVersion++; grantPending = false; wantPlay = false;
         if (audio != null && audio.isSupported()) audio.close();
         active = false;
+        failed = false;
         playing = false;
         loading = false;
         position = 0;

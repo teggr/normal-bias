@@ -6,7 +6,7 @@ const fixture=JSON.parse(fs.readFileSync(path.join(out,'fixture.json'))),cert=fs
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function admin(op,...args){const r=spawnSync('java',['-jar',path.join(root,'api/target/normal-bias-api-0.1.0-SNAPSHOT.jar'),'admin',op,...args,'--data-dir='+path.join(out,'data')],{encoding:'utf8'});if(r.status!==0)throw Error('Fixture admin failed: '+r.stderr);return JSON.parse(r.stdout)}
 function api(url,body,bearer){return new Promise((resolve,reject)=>{const req=https.request(fixture.origin+url,{ca:cert,method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...(bearer?{Authorization:'Bearer '+bearer}:{})}},res=>{let data='';res.on('data',d=>data+=d);res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}))});req.on('error',reject);req.end(body?JSON.stringify(body):undefined)})}
-async function click(p,name){const e=p.getByRole('button',{name,exact:true}).first();await e.waitFor();const b=await e.boundingBox();assert.ok(b,name);await p.mouse.click(b.x+b.width/2,b.y+b.height/2);await wait(700)}
+async function click(p,name){if(['Sign out','Change password'].includes(name)&&!(await p.getByRole('button',{name,exact:true}).count()))await click(p,'Profile');const e=p.getByRole('button',{name,exact:true}).first();await e.waitFor();const b=await e.boundingBox();assert.ok(b,name);await p.mouse.click(b.x+b.width/2,b.y+b.height/2);await wait(700)}
 async function text(p,value){await p.getByText(value,{exact:false}).first().waitFor()}
 async function fields(p,values){
  for(let i=0;i<values.length;i++){

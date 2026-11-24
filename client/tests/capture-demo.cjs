@@ -5,6 +5,7 @@ const {spawnSync} = require('node:child_process');
 
 exports.start = async function(page, directory) {
     fs.mkdirSync(directory, {recursive:true});
+    const {width, height} = page.viewportSize();
     await page.evaluate(async () => {
         const context = new AudioContext();
         const destination = context.createMediaStreamDestination();
@@ -75,7 +76,7 @@ exports.start = async function(page, directory) {
         fs.writeFileSync(path.join(directory,'timing.json'),JSON.stringify({offset,frames:frames.length,start:frames[0].time,end}));
         const result = spawnSync('ffmpeg',['-hide_banner','-loglevel','error','-f','concat','-safe','0',
             '-i',path.join(directory,'frames.txt'),'-itsoffset',String(offset),'-i',path.join(directory,'audio.webm'),
-            '-vf','scale=1180:844:force_original_aspect_ratio=decrease,pad=1180:844:(ow-iw)/2:(oh-ih)/2',
+            '-vf',`scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
             '-r','30','-c:v','libx264','-preset','fast','-crf','22','-pix_fmt','yuv420p',
             '-c:a','aac','-b:a','128k','-movflags','+faststart','-shortest','-y',path.join(directory,'demo.mp4')],{encoding:'utf8'});
         if (result.status !== 0) throw new Error(result.stderr);

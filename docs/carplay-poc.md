@@ -4,7 +4,7 @@ Authorised 2026-11-20: prove Codename One's Java car API in its desktop head uni
 
 ## Reuse and scope
 
-`CarListening` projects the existing `LibraryApi`, `Track`, `Player` and finite session queue. Phone and car share one player instance; selection, pause, retry, navigation and Clear use the same Java methods. Disconnect preserves playback and the queue. No second audio engine, catalogue, album model, theme or artwork pipeline was added.
+`CarListening` projects the existing `LibraryApi`, `Track`, `Player` and finite session queue. Phone and car share one player instance; selection, pause, restart/retry, navigation and Clear use the same Java methods. The portable Controls row is Restart track during normal playback and Retry track only after a playback failure, matching the phone player’s lower-left control. Restart seeks to zero and preserves playing/paused intent. Disconnect preserves playback and the queue. No second audio engine, catalogue, album model, theme or artwork pipeline was added.
 
 The mobile Graphite components remain in the phone app. CarPlay renders system templates rather than Codename One forms or mobile CSS. The PoC uses framework list templates for Library, Queue and playback actions, plus `CarNowPlayingTemplate`. Native Now Playing relies on the existing iOS `SystemAudio` metadata/artwork/remote commands. Desktop Now Playing is a framework placeholder; the playback-action list makes the Java flow testable there. This navigation is a feasibility choice, not an approved final car design. Browse artwork and album grouping are outside this increment.
 

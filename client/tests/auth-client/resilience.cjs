@@ -4,7 +4,7 @@ const {spawnSync}=require('node:child_process');const {chromium}=require('playwr
 const out=path.resolve(__dirname,'../../target/auth-client'),fixture=JSON.parse(fs.readFileSync(path.join(out,'fixture.json')));
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){const end=Date.now()+20000;while(Date.now()<end){if(await fn())return;await wait(100)}throw Error(label)}
-async function click(p,name){const e=p.getByRole('button',{name,exact:true}).first();await e.waitFor();const b=await e.boundingBox();await p.mouse.click(b.x+b.width/2,b.y+b.height/2);await wait(500)}
+async function click(p,name){if(['Sign out','Change password'].includes(name)&&!(await p.getByRole('button',{name,exact:true}).count()))await click(p,'Profile');const e=p.getByRole('button',{name,exact:true}).first();await e.waitFor();const b=await e.boundingBox();await p.mouse.click(b.x+b.width/2,b.y+b.height/2);await wait(500)}
 async function login(p){
  await p.locator('input[aria-label="Username"]').waitFor();await p.locator('input[aria-label="Username"]').fill(fixture.username);await p.keyboard.press('Tab');await wait(500);
  const boxes=await p.locator('div[role="textbox"]').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()));const b=boxes.filter(b=>b.height>20).sort((a,b)=>b.y-a.y)[0];
@@ -30,7 +30,7 @@ async function login(p){
   const id=await p.evaluate(async()=>((await(await fetch('/api')).json()).session.id));
   const admin=spawnSync('java',['-jar',path.resolve(__dirname,'../../../api/target/normal-bias-api-0.1.0-SNAPSHOT.jar'),'admin','revoke',id,'--data-dir='+path.join(out,'data')],{encoding:'utf8'});assert.equal(admin.status,0,'fixture session revoked');
   await click(p,'Albums');await p.getByRole('button',{name:'Sign in',exact:true}).waitFor();assert.equal(await p.locator('audio').count(),0);checks.push('real server revocation produces 401, stops audio and returns to login');
-  await login(p);assert.equal(await p.locator('audio').count(),0);assert.ok(await p.getByText('Queue (0)',{exact:true}).count());checks.push('reauthentication starts with empty queue and no autoplay');
+  await login(p);assert.equal(await p.locator('audio').count(),0);await click(p,'Now Playing');await click(p,'Queue');assert.ok(await p.getByText('0 tracks',{exact:true}).count());await click(p,'Library');checks.push('reauthentication starts with empty queue and no autoplay');
   await click(p,'Sign out');await p.getByRole('button',{name:'Sign in',exact:true}).waitFor();fs.writeFileSync(path.join(out,'resilience-result.json'),JSON.stringify({checks},null,2));console.log(JSON.stringify({checks},null,2));
  }catch(e){await p.screenshot({path:path.join(out,'resilience-failure.png')});throw e}finally{await browser.close()}
 })().catch(e=>{console.error(e.message);process.exitCode=1});

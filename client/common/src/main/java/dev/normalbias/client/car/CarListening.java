@@ -161,7 +161,8 @@ public final class CarListening extends CarApplication {
             if (player.queue.index() + 1 < player.queue.size()) {
                 list.addRow(new CarRow("Next").setOnAction(c -> player.next()));
             }
-            return list.addRow(new CarRow("Retry track").setOnAction(c -> player.retry()))
+            return list.addRow(new CarRow(player.hasFailed() ? "Retry track" : "Restart track")
+                    .setOnAction(c -> { if (player.hasFailed()) player.retry(); else player.restart(); }))
                     .addRow(new CarRow("Now Playing").setBrowsable(true)
                             .setOnAction(c -> c.pushScreen(new NowPlaying())));
         }

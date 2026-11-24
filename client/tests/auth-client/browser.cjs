@@ -6,6 +6,7 @@ const fixture=JSON.parse(fs.readFileSync(path.join(out,'fixture.json')));
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(check,label,timeout=25000){const end=Date.now()+timeout;while(Date.now()<end){if(await check())return;await wait(100)}throw Error('Timeout: '+label)}
 async function click(page,name,role='button'){
+ if(['Sign out','Change password'].includes(name)&&!(await page.getByRole('button',{name,exact:true}).count()))await click(page,'Profile');
  const item=page.getByRole(role,{name,exact:true}).first();await item.waitFor();const box=await item.boundingBox();assert.ok(box,name);
  await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await wait(450);
 }
@@ -38,7 +39,7 @@ async function audio(page){return page.locator('audio').evaluateAll(items=>items
   await click(page,'Sign out');await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
   if(process.env.RECORD_DEMO)stop=await require('../capture-demo.cjs').start(page,path.join(out,'browser-recording'));
   await login(page);
-  await click(page,'Play Morning Circuit');await until(async()=>{const a=await audio(page);return a[0]?.time>1&&!a[0].paused},'authenticated playback');
+  await click(page,'Play Morning Circuit');await click(page,'Now Playing');await until(async()=>{const a=await audio(page);return a[0]?.time>1&&!a[0].paused},'authenticated playback');
   let state=(await audio(page))[0];assert.ok(new URL(state.src).searchParams.get('grant'));assert.ok(!state.src.includes('Bearer'));checks.push('audio uses scoped URL, never parent credential');
   await wait(3000);await click(page,'Pause');state=(await audio(page))[0];const paused=state.time,firstUrl=state.src;
   await wait(1500);assert.ok(Math.abs((await audio(page))[0].time-paused)<.3);checks.push('pause stops actual audio');
