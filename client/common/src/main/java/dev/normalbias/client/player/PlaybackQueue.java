@@ -3,6 +3,7 @@ package dev.normalbias.client.player;
 import dev.normalbias.client.Track;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /** Session-local queue, independent of the currently displayed catalogue page. */
 public final class PlaybackQueue {
@@ -27,5 +28,17 @@ public final class PlaybackQueue {
     public int index() { return index; }
     public int size() { return tracks.size(); }
     public Track get(int i) { return tracks.get(i); }
+    /** Reorder the entire session queue without changing which track is selected. */
+    public void shuffle() { shuffle(new Random()); }
+    void shuffle(Random random) {
+        Track current = current();
+        for (int i = tracks.size() - 1; i > 0; i--) {
+            int other = random.nextInt(i + 1);
+            Track track = tracks.get(i);
+            tracks.set(i, tracks.get(other));
+            tracks.set(other, track);
+        }
+        index = current == null ? -1 : tracks.indexOf(current);
+    }
     public void clear() { tracks.clear(); index = -1; }
 }

@@ -1,6 +1,6 @@
 # Normal Bias: project brief and constraints
 
-Last updated: 2026-11-23.
+Last updated: 2026-11-24.
 
 This document records Robin's requirements and decisions. It is the starting point for people and coding agents working on Normal Bias. Distinguish agreed constraints from proposals; do not silently turn an open question into an architectural decision.
 
@@ -27,11 +27,45 @@ The listening targets are desktop web, mobile and eventually CarPlay. Following 
 
 The API-first direction replaced the earlier suggestion to begin with a client playback/CarPlay spike; the completed API milestones now support the authorised web client increment. The Spring Boot/VPS decision replaces the earlier serverless API proposal.
 
-## Current progress and review checkpoint — 2026-11-23
+## Compact navigation and canonical design — authorised 2026-11-24
+
+Robin approved creating root `DESIGN.md` and updating the agent instructions before changing UI. It consolidates Graphite tokens/component/accessibility conventions and saved concept screenshots, with the existing player taking precedence over generated transport imagery. The earlier design proposal is historical where superseded.
+
+The approved navigation has two top-level destinations, Library and Now Playing, displayed separately on phones and wide desktop/browser screens. A compact fixed toolbar replaces the brand/account/tab stack; account actions move into Profile. Library retains category pills and full-width search. Queue becomes a child of Now Playing, reached through the dedicated wheel Queue control, with Back to the player. The actual PlayerFace/TransportWheel and all four outer controls are preserved. Library and Queue retain a mini-player; navigation preserves Library presentation state and active media. Queue remains session-local; no API/schema/policy or new playback feature is authorised. No retained-library/service migration, physical-phone update or deployment is included. Implementation and actual verification are recorded in [verification](verification.md).
+
+### Toolbar icon and collapsible search refinement — authorised 2026-11-24
+
+Robin requested replacing the Library toolbar disc with a rounded play triangle and a small coloured centre, and placing a Search magnifier alongside All songs / Albums / Artists. The search editor now starts collapsed; opening focuses it, and closing preserves entered text and the applied query/results. The magnifier is amber when open or filtered. Category changes retain their existing clear-query policy. The player/wheel, API and audio behaviour remain unchanged. This supersedes the always-visible Library search presentation above; [DESIGN.md](../DESIGN.md) records the current convention and verification records actual checks.
+
+### Full-screen Account and normal-workflow preference — authorised 2026-11-24
+
+Robin requested replacing the Account popup with a full-screen view and Back to its launching Library, Now Playing or Queue view, removing the Close action. Robin clarified that the ambiguous listener label was the username and requested retaining it as a clearly labelled, read-only Username well styled like the Now Playing metadata. Password-change cancellation returns to Account, retaining the original Back destination; audio and presentation state survive this navigation. Account hides the mini-player without stopping sound. Routine workflows should generally use full-screen navigation rather than popups; DESIGN records this principle; the later inline-information refinement removes the legacy Player information popup. No authentication/API policy or media change is included.
+
+### Inline player information — authorised 2026-11-24
+
+Robin requested removing Player information from the toolbar and replacing the wheel’s duplicate (…) Queue action with an information/disc toggle. Information replaces the artwork in the same player bounds, with a short horizontal slide; the disc restores artwork. Read-only title, artist, album, duration and playback state update with the current track; an empty message replaces stale details when the queue clears. The selected face survives navigation and track changes. The existing player geometry, timeline, transport controls and live media are retained; the dedicated Queue button remains. No API, authentication or playback-policy changes are included.
+
+### Queue toolbar and one-shot shuffle — authorised 2026-11-24
+
+Robin approved simplifying only the Queue toolbar to Back to Now Playing and Shuffle queue, removing Library/Profile from that child view. Library/Profile remain on Now Playing. The player’s bottom-right Library shortcut also becomes Shuffle queue. Both buttons randomise all existing session-queue entries once, retain the selected track by identity at its new index and leave audio, position and play/pause intent intact. Previous/Next and completion follow the shuffled order. With no selection, shuffle does not start playback; empty and single-track queues disable the action. An unchanged permutation is possible. This authorises queue shuffling, superseding the earlier no-new-playback-feature boundary for this specific action; no persistent shuffle mode, manual reorder/removal, API/schema, server authority, authentication or media-adapter changes are included.
+
+### Restart track and failure-only Retry — authorised 2026-11-24
+
+Robin approved repurposing the lower-left circular-arrow control as Restart track. It seeks the current track to 0:00 while preserving playing/paused intent and the healthy media resource (except existing playback-grant renewal when necessary). Empty queues disable it; completed tracks restart paused at zero. Only terminal playback failures switch that control to Retry track, using the existing stream recovery; loading/buffering alone does not expose Retry. Successful recovery restores Restart. Failure is explicit player state, not inferred from UI status text. The existing player geometry and queue remain unchanged. No API/schema/authentication policy or playback-adapter changes are authorised by this refinement.
+
+## Current progress and review checkpoint — 2026-11-24
+
+- **Accepted UI increment:** Robin reviewed the delivered changes, confirmed “looks good” and requested a PR for the complete UI increment. The canonical `DESIGN.md`, committed concept references and AGENTS/README links establish the design baseline. Library/Now Playing are separate destinations at all widths; Queue is a child with Back/Shuffle only. Category-row search collapses, Account is a full-screen view with labelled read-only username, and current-track information slides into the existing artwork area. The original player layout/wheel remain; bottom-right shuffles the session queue and bottom-left restarts while preserving playing/paused intent, switching to Retry only on failure.
+- **Verification:** final Java 21 web build passes 30 client tests; the final browser smoke and authenticated iPhone simulator suite (12 checks) pass. Focused browser navigation/search/account/artwork/information/shuffle/restart checks and verified actual-audio recordings were completed during the increment. See [verification](verification.md) for per-run source state, exact commands, artifacts and limits. This acceptance does not establish physical-device, installed-PWA, background/interruption or CarPlay device support.
+- **Review checkpoint:** implementation base is `614d2d4` (`main`), which merges account-recovery PR #14. Preparing `codex/compact-player-ui` → `main` for all agreed UI changes. No merge or deployment is requested.
+- **Retained environment:** the task-owned authenticated synthetic HTTPS service and updated iPhone simulator remain ready for manual testing. The real library, retained private service and physical phone are unchanged. Queue remains session-local; generated audio/videos, databases, credentials, certificates and build output remain ignored and outside the PR.
+
+## Authentication checkpoint — 2026-11-23 (historical)
+
 
 - **Delivered:** owner/listener accounts and server-side sessions; local account/invitation/reset/revocation commands; scoped uploader credentials; two-minute track-scoped playback URLs; and shared web/iPhone login, remembered sessions, logout and position/intent-preserving playback renewal. The API advertises allowed actions and rechecks scope/state on every request. Server authority and HATEOAS are recorded as repository principles.
 - **Verified:** Java 21 builds with 82 API + 5 CLI + 21 client tests; 14 browser account-flow, ten browser authentication, seven recovery/revocation, seven real installed-Chrome, ten native playback/session, five native account-form and four native network/revocation checks, plus the existing browser smoke test. Native evidence includes Keychain restoration, real grant expiry, background queue advance and a fresh locked-queue sound capture. Web/native recordings have verified actual sound and pause/logout silence. Exact results and limitations are in [verification](verification.md).
-- **Source checkpoint:** the authentication foundation is merged in [PR #13](https://github.com/teggr/normal-bias/pull/13), local base `5198074`. The account setup/recovery follow-up is open for review in [PR #14](https://github.com/teggr/normal-bias/pull/14), `codex/account-setup-recovery` → `main`, implementation commit `e3bd463`. A subsequent documentation-only checkpoint records the review link. No merge or deployment is requested.
+- **Source checkpoint:** the authentication foundation is merged in [PR #13](https://github.com/teggr/normal-bias/pull/13), local base `5198074`. The account setup/recovery follow-up was opened for review in [PR #14](https://github.com/teggr/normal-bias/pull/14), `codex/account-setup-recovery` → `main`, implementation commit `e3bd463`. A subsequent documentation-only checkpoint recorded the review link; PR #14 is now merged in `614d2d4`, as recorded in the current checkpoint above.
 - **Account-flow follow-up delivered:** shared invitation/reset/password-change screens, browser fragment links, native pasted-link entry and optional CLI `--app-origin`/`shareLink` output. Existing commands/API payloads remain compatible; no schema migration.
 - **Acceptance:** real installed desktop Chrome restoration/offline/cache/logout checks pass. Physical iPhone authentication, locked output and interruptions remain open. Fresh locked-screen/queue/audio simulator evidence is recorded below; the prior long silence did not recur, but its cause and physical-device reliability remain unverified. Retained-phone/service migration, public deployment and backup/restore require their separate authorised work.
 - **Retained environment:** the existing physical phone, private service and real library remain unchanged. Generated fixtures, credentials, databases, signing outputs and recordings remain outside Git; disposable test processes are stopped.

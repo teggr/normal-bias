@@ -4,6 +4,10 @@
 
 Read [docs/project-brief.md](docs/project-brief.md) before planning or changing this repository. It is the canonical record of the project's purpose, agreed constraints, current scope and open decisions. The [README](README.md) is the entry point.
 
+## Required design reference
+
+Before planning, changing or verifying application UI, read [DESIGN.md](DESIGN.md), the canonical design reference. Follow its navigation, tokens, component, responsive and accessibility conventions; reuse established components and preserve the existing player. Update DESIGN.md in the same change when approved design decisions change, keeping proposals and implementation status distinct. Review the delivered UI against it before handoff. The project brief and required skills below still apply.
+
 ## Required skill for Codename One work
 
 Before planning, editing or verifying the Codename One client, read and apply the official [codename-one authoring skill](.agent-skills/codename-one/SKILL.md), then the references relevant to the task. A discovery link lives at `.agents/skills/codename-one`; the canonical directory preserves upstream tool paths. See [upstream provenance](.agent-skills/codename-one/UPSTREAM.md) for the pinned source and refresh policy.

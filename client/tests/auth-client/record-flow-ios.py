@@ -22,7 +22,7 @@ try:
     m.probe('tap',name='Seek') # Real pointer press/release at the slider centre.
     time.sleep(2);after=m.probe();assert not after['playing'] and after['time']>before+5000
     event('paused-seek');activate('Play');m.until(lambda s:s.get('playing'),'recorded native resume');event('resumed');time.sleep(4)
-    activate('Back to library');time.sleep(1);activate('Sign out');m.until(lambda s:not s['library'] and 'Sign in' in s['labels'],'recorded native logout');event('logged-out');time.sleep(3)
+    activate('Library');time.sleep(1);activate('Profile');time.sleep(.4);activate('Sign out');m.until(lambda s:not s['library'] and 'Sign in' in s['labels'],'recorded native logout');event('logged-out');time.sleep(3)
 finally:
     (out/'events.json').write_text(json.dumps(events,indent=2));(out/'stop-recording').touch()
 print('Recorded actual native controls, paused seek, resume and logout')

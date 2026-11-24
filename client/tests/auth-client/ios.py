@@ -15,7 +15,12 @@ def tool(name,args):
         if 'error' in result:raise RuntimeError('Simulator tool failed')
         text=result['result']['content'][0]['text']
         return json.loads(text)
-def probe(op='state',**args):return tool('auth_client_probe',dict(op=op,**args))
+def probe(op='state',**args):
+    if op=='tap' and args.get('name') in ('Sign out','Change password'):
+        state=tool('auth_client_probe',{'op':'state'})
+        if args['name'] not in state['labels']:
+            tool('auth_client_probe',{'op':'tap','name':'Profile'});time.sleep(.3)
+    return tool('auth_client_probe',dict(op=op,**args))
 def until(check,label,timeout=30):
     end=time.monotonic()+timeout
     while time.monotonic()<end:

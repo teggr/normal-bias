@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const {chromium}=require('playwright-core'),{spawn,spawnSync}=require('node:child_process'),https=require('node:https');
 const out=path.resolve(__dirname,'../../target/auth-client'),fixture=JSON.parse(fs.readFileSync(path.join(out,'fixture.json')));
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-async function click(p,name){const e=p.getByRole('button',{name,exact:true}).first();await e.waitFor();const b=await e.boundingBox();await p.mouse.click(b.x+b.width/2,b.y+b.height/2);await wait(400)}
+async function click(p,name){if(['Sign out','Change password'].includes(name)&&!(await p.getByRole('button',{name,exact:true}).count()))await click(p,'Profile');const e=p.getByRole('button',{name,exact:true}).first();await e.waitFor();const b=await e.boundingBox();await p.mouse.click(b.x+b.width/2,b.y+b.height/2);await wait(400)}
 async function login(p){
  const boxes=await p.locator('div[role="textbox"][aria-readonly="false"]').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()).filter(b=>b.height>20).sort((a,b)=>a.y-b.y));
  for(const [i,value] of [fixture.username,fixture.password].entries()){const b=boxes[i];await p.mouse.click(b.x+20,b.y+b.height/2);await p.locator('input:focus').fill(value);await p.keyboard.press('Tab');await wait(150)}await click(p,'Sign in');await p.getByRole('button',{name:'Play Morning Circuit',exact:true}).waitFor();

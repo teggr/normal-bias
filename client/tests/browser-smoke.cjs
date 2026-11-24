@@ -19,24 +19,36 @@ async function until(check, description, timeout = 20000) {
     throw new Error('Timed out: ' + description);
 }
 async function click(page, name, index = 0, role = 'button') {
+    if (name === 'Library' && await page.getByRole('button',{name:'Back to Now Playing',exact:true}).count()) await click(page,'Back to Now Playing');
+    if (name === 'Now Playing' && await page.getByRole('button', {name:'Back to Now Playing',exact:true}).count()) name = 'Back to Now Playing';
+    if (name === 'Library' && await page.getByRole('button', {name:'All songs',exact:true}).count()) return;
+    if (['Search','Reset'].includes(name) && !(await page.getByRole('button',{name,exact:true}).count())) await click(page,'Show search');
     const item = page.getByRole(role, {name, exact: true}).nth(index);
     await item.waitFor();
-    // CN1 draws the controls on canvas. Its accessibility mirrors deliberately
-    // have pointer-events:none, so send real pointer input at their current bounds.
     const box = await item.boundingBox();
     assert.ok(box, 'Control bounds: ' + name);
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    // Compact Now Playing intentionally removes the radio strip; its callers
-    // assert the dedicated player instead. Other tab transitions retain it.
-    if (role === 'radio' && name !== 'Now Playing') {
-        await until(() => item.getAttribute('aria-checked').then(value => value === 'true'), name + ' selected');
-    }
+    await delay(400); // Wait for CN1 to reconcile canvas semantics after replacing a view.
     if (process.env.RECORD_DEMO) await delay(650); // Readable evidence pacing, outside asserted seek timing.
+}
+async function openQueue(page) {
+    if (await page.getByRole('button', {name:'Clear queue',exact:true}).count()) return;
+    if (await page.getByRole('button', {name:'All songs',exact:true}).count()) await click(page,'Now Playing');
+    await click(page,'Queue');
+    await page.getByRole('button', {name:'Back to Now Playing',exact:true}).waitFor();
+}
+async function assertQueue(page, count) {
+    const library = await page.getByRole('button', {name:'All songs',exact:true}).count();
+    const queue = await page.getByRole('button', {name:'Clear queue',exact:true}).count();
+    if (!queue) await openQueue(page);
+    await text(page, count + (count === 1 ? ' track' : ' tracks'));
+    if (!queue) await click(page, library ? 'Library' : 'Back to Now Playing');
 }
 async function text(page, value) {
     await until(() => page.getByText(value, {exact:true}).count().then(n => n > 0), value);
 }
 async function search(page, query, submitWithEnter = false) {
+    if (!(await page.getByRole('textbox').count())) await click(page,'Show search');
     const box = await page.getByRole('textbox').first().boundingBox();
     await page.mouse.click(box.x + 20, box.y + box.height / 2);
     const editor = page.locator('input:focus, textarea:focus');
@@ -121,17 +133,17 @@ async function seed(origin) {
     await text(page, '1–25 of 28');
     console.log('PASS empty library, pagination, search, no matches and reset');
 
-    assert.equal(await page.getByText('All songs', {exact:true}).count(), 1, 'no duplicate root heading');
+    assert.equal(await page.getByRole('button', {name:'All songs', exact:true}).count(), 1, 'one root category selector');
     const searchBounds = await page.getByRole('textbox').first().boundingBox();
-    const tabBounds = await page.getByRole('radio', {name:'Library', exact:true}).boundingBox();
-    assert.ok(searchBounds.y > tabBounds.y + tabBounds.height, 'search is inside Library beneath tabs');
+    const tabBounds = await page.getByRole('button', {name:'Now Playing', exact:true}).first().boundingBox();
+    assert.ok(searchBounds.y > tabBounds.y + tabBounds.height, 'search is inside Library beneath compact toolbar');
     await page.screenshot({path:path.join(repo,'client/target/library-layout-root.png')});
     for (const submitWithEnter of [false, true]) {
         await search(page, 'track 00', submitWithEnter);
         await text(page, '1–1 of 1');
-        await click(page, 'Queue (0)', 0, 'radio');
+        await openQueue(page);
         await until(() => page.getByRole('button', {name:'Search', exact:true}).count().then(count => count === 0), 'Queue has no library search');
-        await click(page, 'Library', 0, 'radio');
+        await click(page, 'Library');
         await text(page, '1–1 of 1');
         await click(page, 'Reset');
         await text(page, '1–25 of 28');
@@ -139,11 +151,11 @@ async function seed(origin) {
     console.log('PASS Library-only search, preserved query, Enter/Reset and no duplicate heading');
 
     const stopCapture = process.env.RECORD_DEMO ? await require('./capture-demo.cjs').start(page, path.resolve(process.env.RECORD_DEMO)) : null;
-    await click(page, 'Queue (0)', 0, 'radio');
+    await openQueue(page);
     await until(() => page.getByRole('button', {name:'Search', exact:true}).count().then(count => count === 0), 'Queue has no library search');
     await delay(700);
     await page.screenshot({path:path.join(repo,'client/target/library-layout-queue.png')});
-    await click(page, 'Library', 0, 'radio');
+    await click(page, 'Library');
     await click(page, 'Albums');
     await text(page, '1–2 of 2');
     await page.screenshot({path:path.join(repo,'client/target/library-albums.png')});
@@ -170,11 +182,11 @@ async function seed(origin) {
     await text(page, '1–25 of 28');
     console.log('PASS album/artist grouping, drill-down, paging, back and empty search');
     await click(page, '+ Queue', 0);
-    await text(page, 'Queue (1)');
+    await assertQueue(page, 1);
     await click(page, '+ Queue', 0);
-    await text(page, 'Queue (1)'); // duplicate does not grow the queue
+    await assertQueue(page, 1); // duplicate does not grow the queue
     await click(page, '+ Queue', 1);
-    await text(page, 'Queue (2)');
+    await assertQueue(page, 2);
     await click(page, 'Play Synthetic track 00');
     await until(async () => (await audio(page)).some(a => !a.paused && a.time > 0.3), 'audio advancing');
     const firstSrc = (await audio(page))[0].src;
@@ -182,7 +194,7 @@ async function seed(origin) {
     await click(page, 'Open Normal Bias tests');
     await click(page, 'Open Browser fixtures');
     await until(async () => (await audio(page)).some(a => a.src === firstSrc && !a.paused), 'browsing preserves playing track');
-    await text(page, 'Queue (2)');
+    await assertQueue(page, 2);
     await click(page, 'All songs');
     await until(() => Promise.resolve(covers.some(r => r.status() === 200)), 'embedded artwork delivered');
     const embedded = covers.find(r => r.status() === 200);
@@ -191,6 +203,9 @@ async function seed(origin) {
     await delay(400);
     await page.screenshot({path:path.join(repo,'client/target/browser-artwork.png')});
     console.log('PASS embedded cover and missing-art fallback endpoints');
+    await click(page, 'Play Synthetic track 00');
+    await until(async () => (await audio(page)).some(a => a.src === firstSrc && !a.paused && a.time > 0.2 && a.time < 3), 'fresh track for timed transport checks');
+    await click(page, 'Now Playing');
     await click(page, 'Pause');
     await until(async () => (await audio(page))[0].paused, 'pause');
     const pausedAt = (await audio(page))[0].time;
@@ -213,11 +228,12 @@ async function seed(origin) {
     console.log('PASS real audio progress, pause/resume, seek, next/previous and completion advance');
 
     await page.route('**/api/tracks/*/audio', route => route.fulfill({status:404,body:''}));
-    await click(page, 'Retry track');
+    await click(page, 'Previous'); // A new stream fails; Retry is absent during healthy playback.
     await until(async () => /Cannot play this track\.|Playback interrupted\./.test(await page.locator('body').innerText()), 'audio failure visible');
     await page.unroute('**/api/tracks/*/audio');
     await click(page, 'Retry track');
     await until(async () => (await audio(page)).some(a => !a.paused && a.time > 0), 'audio retry');
+    await click(page, 'Library');
     await page.route('**/api/tracks?**', route => route.fulfill({status:503,body:''}));
     await click(page, 'Reset');
     await text(page, 'Library unavailable');
@@ -225,13 +241,13 @@ async function seed(origin) {
     await click(page, 'Retry library');
     await text(page, '1–25 of 28');
     console.log('PASS audio failure/retry and catalogue failure/retry');
-    await click(page, 'Queue (2)', 0, 'radio');
-    await until(() => page.getByRole('radio', {name:'Queue (2)', exact:true}).getAttribute('aria-checked').then(value => value === 'true'), 'queue tab selected');
+    await openQueue(page);
+    await page.getByRole('button', {name:'Back to Now Playing', exact:true}).waitFor();
     await click(page, 'Clear queue');
-    await text(page, 'Queue (0)');
+    await assertQueue(page, 0);
     await until(async () => (await audio(page)).length === 0, 'clear releases audio');
-    await click(page, 'Library', 0, 'radio');
-    await until(() => page.getByRole('radio', {name:'Library', exact:true}).getAttribute('aria-checked').then(value => value === 'true'), 'library tab selected');
+    await click(page, 'Library');
+    await page.getByRole('button', {name:'Search', exact:true}).waitFor();
     await until(async () => {
         const bounds = await page.getByRole('button', {name:'Play Synthetic track 00', exact:true}).first().boundingBox();
         return bounds && bounds.x > 0 && bounds.x + bounds.width < 1180;
@@ -240,62 +256,80 @@ async function seed(origin) {
     await delay(600);
     await page.screenshot({path:path.join(repo,'client/target/browser-smoke.png')});
     await page.setViewportSize({width:390,height:844});
-    await until(() => page.getByRole('radio', {name:'Now Playing', exact:true}).count().then(n => n === 1), 'compact player tab');
+    await page.getByRole('button', {name:'Now Playing', exact:true}).waitFor();
     await delay(600);
     await click(page, '+ Queue', 0);
-    await text(page, 'Queue (1)');
+    await assertQueue(page, 1);
     await click(page, 'Play Synthetic track 00');
     await until(async () => (await audio(page)).some(a => !a.paused && a.time > 0.2), 'compact playback');
-    await click(page, 'Now Playing', 0, 'radio');
+    await click(page, 'Now Playing');
     await until(async () => {
-        const box = await page.getByRole('button', {name:'Back to library', exact:true}).boundingBox();
+        const box = await page.getByRole('button', {name:'Library', exact:true}).first().boundingBox();
         return box && box.x >= 0 && box.y >= 0 && box.y < 100;
     }, 'compact player opens without browsing chrome');
     await delay(600);
     // A focused control or scroll near the wheel must not scroll away navigation.
     await page.setViewportSize({width:390,height:600});
-    await delay(300);
+    await delay(700);
     const seekBeforeScroll = await page.getByRole('slider').boundingBox();
-    const headerBefore = await page.getByRole('button', {name:'Back to library', exact:true}).boundingBox();
-    await page.mouse.move(180, 450);
-    await page.mouse.down();
-    await page.mouse.move(180, 180, {steps:15});
-    await page.mouse.up();
-    await delay(300);
-    const headerAfter = await page.getByRole('button', {name:'Back to library', exact:true}).boundingBox();
+    const headerBefore = await page.getByRole('button', {name:'Library', exact:true}).first().boundingBox();
+    for (let attempt=0;attempt<3;attempt++) {
+        await page.mouse.move(180, 450);
+        await page.mouse.down();
+        await page.mouse.move(180, 180, {steps:15});
+        await page.mouse.up();
+        await delay(500);
+        const moved=await page.getByRole('slider').boundingBox();
+        if (moved.y < seekBeforeScroll.y-20) break;
+    }
+    const headerAfter = await page.getByRole('button', {name:'Library', exact:true}).first().boundingBox();
     assert.ok(Math.abs(headerBefore.y - headerAfter.y) < 2, 'player header stays pinned while face scrolls');
     const seekAfterScroll = await page.getByRole('slider').boundingBox();
     assert.ok(seekAfterScroll.y < seekBeforeScroll.y - 20, 'short player body actually scrolled');
     await page.screenshot({path:path.join(repo,'client/target/player-header-short.png')});
+    // A tap while the canvas drag is decelerating stops the scroll rather than activating a key.
+    await until(async () => {
+        const a = await page.getByRole('button',{name:'Player information',exact:true}).boundingBox();
+        await delay(300);
+        const b = await page.getByRole('button',{name:'Player information',exact:true}).boundingBox();
+        return a && b && Math.abs(a.y-b.y)<1;
+    }, 'player drag settled');
     await click(page, 'Player information');
-    await page.getByRole('button', {name:'Close', exact:true}).waitFor();
-    await click(page, 'Close');
-    await click(page, 'Back to library');
+    if (await page.getByRole('button',{name:'Player information',exact:true}).count()) await click(page,'Player information');
+    await page.getByRole('button', {name:'Show artwork', exact:true}).waitFor();
+    assert.equal(await page.getByRole('dialog').count(),0,'information swaps inline');
+    await click(page, 'Show artwork');
+    await click(page, 'Library');
     await page.setViewportSize({width:390,height:844});
     await page.getByRole('button', {name:'All songs', exact:true}).waitFor();
-    await click(page, 'Now Playing', 0, 'radio');
+    await click(page, 'Now Playing');
     await click(page, 'Pause');
     await until(async () => (await audio(page))[0].paused, 'compact pause');
     const compactSeek = await page.getByRole('slider').boundingBox();
     await page.mouse.click(compactSeek.x + compactSeek.width * 0.55, compactSeek.y + compactSeek.height / 2);
     await until(async () => Math.abs((await audio(page))[0].time - 6.6) < 0.8, 'paused compact seek changes position promptly', 2000);
     assert.equal((await audio(page))[0].paused, true, 'seeking does not resume paused playback');
+    const retainedAudio = await audio(page);
+    await click(page,'Library');
+    assert.equal(await page.getByRole('button',{name:'Queue',exact:true}).count(),0,'no top-level Queue action');
+    assert.equal(await page.getByRole('radio').count(),0,'no navigation tab strip');
+    await click(page,'Now Playing');
+    const returnedAudio = await audio(page);
+    assert.equal(returnedAudio[0].src,retainedAudio[0].src,'navigation retains stream');
+    assert.ok(Math.abs(returnedAudio[0].time-retainedAudio[0].time)<0.3,'navigation preserves paused position');
+    assert.equal(returnedAudio[0].paused,true,'navigation preserves paused intent');
     await page.screenshot({path:path.join(repo,'client/target/browser-compact.png')});
-    await click(page, 'Open queue');
-    await until(() => page.getByRole('radio', {name:'Queue (1)', exact:true}).getAttribute('aria-checked').then(v => v === 'true'), 'ellipsis opens queue directly');
-    assert.equal(await page.getByRole('dialog').count(), 0, 'ellipsis does not open a popup');
-    await click(page, 'Now Playing', 0, 'radio');
-    await until(async () => {
-        const box = await page.getByRole('button', {name:'Back to library', exact:true}).boundingBox();
-        return box && box.x >= 0 && box.y >= 0 && box.y < 100;
-    }, 'player restored after ellipsis navigation');
-    await delay(600);
+    await click(page, 'Player information');
+    await page.getByRole('button', {name:'Show artwork', exact:true}).waitFor();
+    assert.equal(await page.getByRole('dialog').count(), 0, 'information stays inline');
+    await click(page, 'Show artwork');
+    assert.equal(await page.getByRole('button', {name:'Open queue',exact:true}).count(),0,'duplicate queue action removed');
     await click(page, 'Queue', 0);
-    await until(() => page.getByRole('radio', {name:'Queue (1)', exact:true}).getAttribute('aria-checked').then(v => v === 'true'), 'wheel opens queue');
+    await page.getByRole('button', {name:'Back to Now Playing', exact:true}).waitFor();
     await click(page, 'Clear queue');
-    await text(page, 'Queue (0)');
+    await assertQueue(page, 0);
     assert.equal(await page.getByRole('button', {name:'Search', exact:true}).count(), 0, 'compact Queue has no search');
-    await click(page, 'Library', 0, 'radio');
+    await click(page, 'Library');
     await search(page, 'track 00');
     await text(page, '1–1 of 1');
     await click(page, 'Reset');
@@ -315,12 +349,47 @@ async function seed(origin) {
     await click(page, 'All songs');
     console.log('PASS compact grouped navigation and grouped request failure/retry');
     await page.setViewportSize({width:1180,height:780});
-    await until(() => page.getByRole('radio', {name:'Now Playing', exact:true}).count().then(n => n === 0), 'wide player restored');
-    await click(page, 'Library', 0, 'radio');
+    await page.getByRole('button', {name:'Now Playing', exact:true}).waitFor();
+    await click(page, 'Library');
     await delay(600);
     await click(page, '+ Queue', 0);
-    await text(page, 'Queue (1)');
+    await assertQueue(page, 1);
     console.log('PASS compact/wide resize, queue actions and wheel navigation');
+    async function libraryPixels(filename) {
+        const file=path.join(repo,'client/target/'+filename);
+        await page.screenshot({path:file});
+        const decoded=spawnSync('ffmpeg',['-v','error','-i',file,'-vf','crop=1100:400:25:245','-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','pipe:1'],{maxBuffer:2*1024*1024,timeout:10000});
+        assert.equal(decoded.status,0,'decode actual Library canvas');
+        return decoded.stdout;
+    }
+    const initialPixels=await libraryPixels('library-scroll-initial.png');
+    await page.mouse.move(500,620);await page.mouse.down();await page.mouse.move(500,280,{steps:18});await page.mouse.up();
+    // CN1's accessibility mirror can retain old scroll geometry; compare actual
+    // canvas pixels after kinetic motion, rather than its clipped placeholders.
+    let scrolledPixels, previousPixels, stableAt=0;
+    await until(async()=>{
+        scrolledPixels=await libraryPixels('library-scroll-check.png');
+        if(previousPixels && scrolledPixels.equals(previousPixels)){if(!stableAt)stableAt=Date.now();}
+        else stableAt=0;
+        previousPixels=scrolledPixels;
+        return stableAt && Date.now()-stableAt>600;
+    },'actual Library canvas stops moving after drag');
+    assert.ok(!initialPixels.equals(scrolledPixels),'Library actually scrolled');
+    let catalogueLoads=0;
+    page.on('request',r=>{if(r.method()==='GET'&&new URL(r.url()).pathname==='/api/tracks')catalogueLoads++});
+    await click(page,'Now Playing');await click(page,'Library');await delay(500);
+    const restoredPixels=await libraryPixels('library-scroll-restored.png');
+    // Reattaching a CN1 canvas can round text/scroll geometry by one pixel.
+    // Require the same rendered region within two pixels and <1/255 mean RGB error.
+    const stride=1100*3;let difference=Infinity;
+    for(let shift=-2;shift<=2;shift++){
+        let sum=0;const start=2*stride,end=scrolledPixels.length-2*stride;
+        for(let i=start;i<end;i++)sum+=Math.abs(scrolledPixels[i]-restoredPixels[i+shift*stride]);
+        difference=Math.min(difference,sum/(end-start));
+    }
+    assert.ok(difference<1,'Library renders the same scrolled rows within two-pixel rasterisation tolerance: '+difference);
+    assert.equal(catalogueLoads,0,'navigation does not reload the catalogue');
+    console.log('PASS Library scroll preservation without catalogue reload');
     assert.deepEqual(errors, [], 'no uncaught page errors');
     console.log('PASS clear releases audio; no uncaught page errors');
     if (stopCapture) await stopCapture();

@@ -16,6 +16,7 @@ async function until(check,label,timeout=20000) {
     throw new Error('Timed out: '+label);
 }
 async function click(name,index=0,role='button') {
+    if (name === 'Library' && await page.getByRole('button',{name:'Back to Now Playing',exact:true}).count()) await click('Back to Now Playing');
     const item=page.getByRole(role,{name,exact:true}).nth(index);await item.waitFor();
     let box;
     for(let i=0;i<20;i++) {
@@ -68,7 +69,7 @@ async function seed(origin) {
     const requests=[];page.on('request',r=>requests.push(r.url()));
     await page.goto(origin);await text('1–3 of 3');
     stopRecording=process.env.RECORD_DEMO?await require('./capture-demo.cjs').start(page,path.resolve(process.env.RECORD_DEMO)):null;
-    await click('+ Queue',1);await click('Play Morning Circuit');
+    await click('+ Queue',1);await click('Play Morning Circuit');await click('Now Playing');
     await until(async()=>{const a=await audio();return a.some(x=>!x.paused&&x.time>1);},'actual audio playback');
     await delay(3000);
     const playing=(await audio()).find(x=>!x.paused);const opened=requests.filter(x=>x.includes('/audio')).length;
@@ -90,14 +91,18 @@ async function seed(origin) {
         }
         return blue>minimum;
     }
-    await until(()=>blueRegion(900,210,200,200,3000),'visible blue fetched cover on player',process.env.BLOCK_ARTWORK_REVISION?40000:15000);
-    await until(()=>blueRegion(844,476,52,54,300),'visible fetched cover on metadata thumbnail',10000);
+    const seekBox=await page.getByRole('slider').boundingBox();
+    const headingBox=await page.getByRole('button',{name:'Library',exact:true}).first().boundingBox();
+    const centre=seekBox.x+seekBox.width/2;
+    await until(()=>blueRegion(Math.round(centre-120),Math.round(headingBox.y+headingBox.height+40),240,240,3000),'visible blue fetched cover on player',process.env.BLOCK_ARTWORK_REVISION?40000:15000);
+    const titleBox=await page.getByText('Morning Circuit',{exact:true}).first().boundingBox();
+    await until(()=>blueRegion(Math.round(seekBox.x),Math.round(titleBox.y-10),48,54,150),'visible fetched cover on metadata thumbnail',10000);
     const after=(await audio()).find(x=>!x.paused);
     assert.ok(after,'playback remains active after background refresh: '+JSON.stringify(await audio()));
     assert.equal(after.src,playing.src);assert.ok(after.time>playing.time+3);
     assert.equal(requests.filter(x=>x.includes('/audio')).length,opened,'background refresh does not reopen audio');
     assert.equal(requests.filter(x=>x.includes('/matches')||x.includes('/suggestions')).length,0,'no client matching workflow');
-    await text('Queue (2)');
+    await click('Queue');await text('2 tracks');await click('Back to Now Playing');
     await page.screenshot({path:path.join(repo,'client/target/album-background-library.png')});
     await delay(3500);
     await click('Pause');const paused=(await audio()).find(x=>x.src===playing.src);await delay(2000);

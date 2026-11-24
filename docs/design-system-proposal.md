@@ -1,4 +1,6 @@
-# Graphite — revised design proposal
+# Graphite — historical revised design proposal
+
+**Historical reference:** [DESIGN.md](../DESIGN.md) is the canonical current design specification. Its two top-level destinations, nested Queue, separate wide-screen views and preserved player supersede the older navigation/layout proposals below. Historical feature/support claims describe their original dates, not current capability.
 
 2026-11-19 · Revision 2 · Visual direction approved · Based on origin/main `7086be0`.
 
