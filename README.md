@@ -21,7 +21,7 @@ A self hosted music service
 
 The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated song, album and artist views, listing/search, catalogue metadata editing and track deletion. Owner/listener accounts, persistent sessions and scoped playback URLs are implemented, with invitation/reset links, password change, login, remembered sessions, logout and playback URL renewal integrated in the web/iPhone client. Java 21 JDK and Maven 3.6.3+ are required.
 
-The API requires authentication and HTTPS by default. See [authentication](docs/authentication.md) for TLS, owner setup and upload credentials. The web and iPhone clients support sign-in and scoped playback; see that guide for the private HTTPS flow. For an unauthenticated synthetic local demo, explicitly select loopback-only demo mode:
+The API requires authentication and HTTPS by default. See [authentication](docs/authentication.md) for TLS, owner setup and upload credentials. The web and iPhone clients support sign-in and scoped playback; see that guide for the private HTTPS flow. The unified sign-in page also lets you select a service: native clients remember its HTTPS address, while browsers open the selected service’s hosted app. See [service connection guidance](docs/client-poc.md#service-connection-and-sign-in). For an unauthenticated synthetic local demo, explicitly select loopback-only demo mode:
 
 ```sh
 mvn clean verify
@@ -66,4 +66,4 @@ The authentication foundation was merged in PR #13 (`5198074`). The account-flow
 
 Remaining: physical iPhone authentication/locked playback/interruption acceptance, then separately authorised retained-service migration and deployment/backup work. The signed phone build is ready; Robin subsequently selected the iPhone simulator instead of physical-device acceptance, so it was not installed. The retained phone app, library/service and public hosting were not changed.
 
-See the [current project checkpoint](docs/project-brief.md#current-progress-and-review-checkpoint--2026-11-23) and [authentication plan](docs/authentication-plan.md) for delivered scope and outstanding work. The [album matching proposal](docs/album-matching-proposal.md) remains historical where superseded by automatic background artwork filling in [the artwork guide](docs/album-artwork.md).
+See the [current project checkpoint](docs/project-brief.md#current-progress-and-review-checkpoint--2026-11-24) and [authentication plan](docs/authentication-plan.md) for delivered scope and outstanding work. The [album matching proposal](docs/album-matching-proposal.md) remains historical where superseded by automatic background artwork filling in [the artwork guide](docs/album-artwork.md).
