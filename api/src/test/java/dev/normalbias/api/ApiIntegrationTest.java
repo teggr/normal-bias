@@ -45,6 +45,36 @@ class ApiIntegrationTest {
         try (var in = getClass().getResourceAsStream("/tone.mp3")) { tone = in.readAllBytes(); }
         db.update("DELETE FROM tracks");
     }
+    @Test void alphabeticalBrowseAndIndexesShareFilteredOrderingAndLiveKeys() throws Exception {
+        String[] names = {"Zulu", "Éclair", "Alpha", "alpha", "The Apples", "42 songs", "東京", "Mellow"};
+        for (int i = 0; i < names.length; i++) db.update("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, 1000, 1, ?)",
+                String.format("%064x", i), "song" + i + ".mp3", names[i], i % 2 == 0 ? "Zulu artist" : "Alpha artist", names[i], java.time.OffsetDateTime.parse("2026-11-18T00:00:00Z"));
+        var legacy = json.readTree(get("/api/tracks").body()); assertEquals("Zulu", legacy.path("items").get(0).path("title").asText());
+        var page = json.readTree(get("/api/tracks?sort=alphabetical&limit=2").body());
+        assertEquals("Alpha", page.path("items").get(0).path("title").asText());
+        assertEquals("alpha", page.path("items").get(1).path("title").asText());
+        assertEquals("A", page.path("items").get(0).path("initial").asText());
+        var next = json.readTree(get(page.path("_links").path("next").path("href").asText()).body());
+        assertEquals("Éclair", next.path("items").get(0).path("title").asText());
+        var alphabet = json.readTree(get(page.path("_links").path("index").path("href").asText()).body());
+        assertEquals(27, alphabet.path("items").size()); assertEquals(8, alphabet.path("total").asInt());
+        assertEquals(2, alphabet.path("items").get(0).path("count").asInt());
+        var b = alphabet.path("items").get(1);
+        assertEquals("Éclair", json.readTree(get(b.path("_links").path("jump").path("href").asText()).body()).path("items").get(0).path("title").asText());
+        assertEquals(2, alphabet.path("items").get(26).path("count").asInt());
+        var albumPage = json.readTree(get("/api/library/albums?sort=alphabetical").body());
+        assertEquals("Alpha", albumPage.path("items").get(0).path("album").asText());
+        var filtered = json.readTree(get("/api/library/index?view=albums&artist=Zulu%20artist&q=Alpha").body());
+        assertEquals(1, filtered.path("total").asInt()); assertEquals(1, filtered.path("items").get(0).path("count").asInt());
+        assertEquals(200, patch(String.format("%064x", 0), "{\"title\":\"Apple\",\"album\":\"A new album\"}").statusCode());
+        assertEquals("Apple", json.readTree(get("/api/tracks?sort=alphabetical&q=Apple").body()).path("items").get(0).path("title").asText());
+        var empty = json.readTree(get("/api/library/index?view=songs&q=absent").body());
+        assertEquals(0, empty.path("total").asInt()); assertTrue(empty.path("items").get(0).path("_links").isEmpty());
+        assertEquals(400, get("/api/tracks?sort=unsupported").statusCode());
+        assertEquals(400, get("/api/library/index?view=invalid").statusCode());
+        assertEquals(400, get("/api/library/index?view=songs&limit=201").statusCode());
+    }
+
     @Test void libraryViewsGroupFilterAndReflectEdits() throws Exception {
         for (int i = 0; i < 5; i++) db.update("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, 1000, 1, CURRENT_TIMESTAMP)",
                 String.format("%064x", i), "song.mp3", "Song " + i, i == 4 ? null : i < 3 ? "Artist A" : "Artist B", i == 4 ? null : "Shared % album");
@@ -278,6 +308,14 @@ class ApiIntegrationTest {
         assertEquals(20, albumPage.get("items").get(0).get("trackCount").asInt());
         assertEquals(140, json.readTree(get("/api/library/artists?offset=140").body()).get("total").asInt());
         assertEquals(0, json.readTree(get("/api/library/artists?offset=140").body()).get("items").size());
+        long browseStarted = System.nanoTime();
+        var alphabet = json.readTree(get("/api/library/index?view=songs").body());
+        assertEquals(14000, alphabet.path("total").asInt());
+        assertEquals(14000, alphabet.path("items").get(18).path("count").asInt());
+        var sorted = json.readTree(get("/api/tracks?sort=alphabetical&offset=13750&limit=200").body());
+        assertEquals(200, sorted.path("items").size());
+        assertEquals("S", sorted.path("items").get(0).path("initial").asText());
+        System.out.printf("14,000-track alphabet index + late sorted batch: %.1f ms%n", (System.nanoTime() - browseStarted) / 1_000_000.0);
         var timings = new ArrayList<Double>();
         for (int repetition = 0; repetition < 10; repetition++) {
             for (String query : List.of("sOnG", "Artist 139", "Album 699", "track-13999.mp3", "absent")) {

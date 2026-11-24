@@ -67,7 +67,7 @@ async function seed(origin) {
     if(process.env.BLOCK_ARTWORK_REVISION) await page.route('**/api/album-artwork/revision',route=>route.fulfill({status:503,body:'revision check unavailable'}));
     const errors=[];page.on('pageerror',e=>errors.push(String(e)));
     const requests=[];page.on('request',r=>requests.push(r.url()));
-    await page.goto(origin);await text('1–3 of 3');
+    await page.goto(origin);await page.getByRole('button',{name:'Play Morning Circuit',exact:true}).waitFor();
     stopRecording=process.env.RECORD_DEMO?await require('./capture-demo.cjs').start(page,path.resolve(process.env.RECORD_DEMO)):null;
     await click('+ Queue',1);await click('Play Morning Circuit');await click('Now Playing');
     await until(async()=>{const a=await audio();return a.some(x=>!x.paused&&x.time>1);},'actual audio playback');

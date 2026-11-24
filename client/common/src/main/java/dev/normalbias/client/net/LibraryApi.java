@@ -22,7 +22,8 @@ public class LibraryApi {
     private final String origin;
     private final AuthSession session;
     private boolean disposed;
-    private final Map<String, Map<String, Object>> resources = new java.util.HashMap<>();
+    private final ResourceCache resources = new ResourceCache();
+    public void retainQueue(java.util.Collection<String> ids) { resources.retain(ids); }
     public LibraryApi(AuthSession session) { this.session = session; this.origin = session.origin; }
     public void dispose() { disposed = true; resources.clear(); artworkLoaded = ignored -> {}; }
     public String username() { return session == null ? "Local demo" : session.username(); }
@@ -78,9 +79,9 @@ public class LibraryApi {
         throw new IllegalStateException("Discovery is required for network requests");
     }
     /** EDT-only. Both positive and missing results are shared, with bounded negative lifetimes. */
-    public void artwork(Track track, Consumer<Image> loaded) {
-        if (disposed) return;
-        artworkState.get(track.id(), loaded, (key, complete) -> {
+    public Runnable artwork(Track track, Consumer<Image> loaded) {
+        if (disposed) return () -> {};
+        return artworkState.get(track.id(), loaded, (key, complete) -> {
             ConnectionRequest request = new ApiRequest() {
                 private byte[] bytes;
                 private boolean delivered;
@@ -144,6 +145,66 @@ public class LibraryApi {
     }
 
     public record Page(List<Track> items, int offset, int limit, int total) {}
+
+    public record Item(Track track, Group group, String initial, String contents, Map<String, Object> resource) {
+        public Item(Track track, Group group, String initial, String contents) { this(track, group, initial, contents, null); }
+        public String identity() { return track != null ? track.id() : group.artist() + "\u0000" + group.album(); }
+    }
+    public void remember(BrowsePage page) {
+        for (Item item : page.items()) {
+            if (item.resource() == null) continue;
+            if (item.track() != null) resources.put(item.track().id(), item.resource());
+            else if (!resources.containsKey(item.group().trackId())) resources.put(item.group().trackId(), item.resource());
+        }
+    }
+    public record BrowsePage(List<Item> items, int offset, int total, String self, String next, String previous, String index) {}
+    public record Section(String initial, int count, int offset, String jump) {}
+    public String browsePath(String view, String query, String artist, String album, boolean alphabetical) {
+        String path = collection(view + (alphabetical ? "-alphabetical" : ""),
+                (view.equals("songs") ? "/api/tracks" : "/api/library/" + view) + (alphabetical ? "?sort=alphabetical" : ""));
+        path += (path.indexOf('?') >= 0 ? "&" : "?") + "limit=" + PAGE_SIZE + "&q=" + com.codename1.io.Util.encodeUrl(query);
+        if (artist != null) path += "&artist=" + com.codename1.io.Util.encodeUrl(artist);
+        if (album != null) path += "&album=" + com.codename1.io.Util.encodeUrl(album);
+        return path;
+    }
+    @SuppressWarnings("unchecked")
+    public void browse(String path, boolean grouped, Consumer<BrowsePage> success, Consumer<String> failure) {
+        json(ApiLinks.checked(path), data -> {
+            try {
+                List<Item> items = new ArrayList<>();
+                for (Object raw : (List<?>) data.get("items")) {
+                    Map<String, Object> row = (Map<String, Object>) raw;
+                    Track track = null; Group group = null;
+                    if (grouped) {
+                        group = new Group((String) row.get("artist"), (String) row.get("album"),
+                                ((Number) row.get("trackCount")).intValue(), (String) row.get("trackId"));
+                    } else {
+                        String id = (String) row.get("id");
+                        if (id == null || id.length() != 64) throw new IllegalArgumentException("Invalid track ID");
+                        track = new Track(id, (String) row.get("title"), (String) row.get("artist"),
+                                (String) row.get("album"), ((Number) row.get("durationMs")).intValue());
+                    }
+                    items.add(new Item(track, group, (String) row.get("initial"), ApiLinks.href(row, "contents", "GET"), row));
+                }
+                success.accept(new BrowsePage(items, ((Number) data.get("offset")).intValue(), ((Number) data.get("total")).intValue(),
+                        ApiLinks.href(data, "self", "GET"), ApiLinks.href(data, "next", "GET"),
+                        ApiLinks.href(data, "previous", "GET"), ApiLinks.href(data, "index", "GET")));
+            } catch (RuntimeException error) { failure.accept("Unexpected library response. Try again."); }
+        }, failure);
+    }
+    public void alphabet(String path, Consumer<List<Section>> success, Consumer<String> failure) {
+        json(ApiLinks.checked(path), data -> {
+            try {
+                List<Section> sections = new ArrayList<>();
+                for (Object raw : (List<?>) data.get("items")) {
+                    Map<?, ?> row = (Map<?, ?>) raw;
+                    sections.add(new Section((String) row.get("initial"), ((Number) row.get("count")).intValue(),
+                            ((Number) row.get("offset")).intValue(), ApiLinks.href(row, "jump", "GET")));
+                }
+                success.accept(sections);
+            } catch (RuntimeException error) { failure.accept("Alphabet unavailable. Try again."); }
+        }, failure);
+    }
 
     public void list(String query, int offset, Consumer<Page> success, Consumer<String> failure) {
         list(query, offset, null, null, success, failure);

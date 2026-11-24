@@ -61,6 +61,15 @@ async function search(page, query, submitWithEnter = false) {
     await page.keyboard.press('Tab');
     await click(page, 'Search');
 }
+async function scrollToSong(page, title) {
+    await until(async () => {
+        const button=page.getByRole('button',{name:'Play '+title,exact:true});
+        const box=await button.count()?await button.boundingBox():null;
+        if(box && box.y>180 && box.y+box.height<page.viewportSize().height-95) return true;
+        await page.mouse.move(230,420); await page.mouse.wheel(0,320); await delay(300);
+        return false;
+    },'scroll to '+title);
+}
 async function audio(page) {
     return page.locator('audio').evaluateAll(items => items.map(el => ({
         src: el.currentSrc || el.src, time: el.currentTime, duration: el.duration,
@@ -120,19 +129,11 @@ async function seed(origin) {
     await text(page, 'Your library is empty. Upload some MP3s to begin.');
     await seed(origin);
     await click(page, 'Reset');
-    await text(page, '1–25 of 28');
-    await click(page, 'More');
-    await text(page, '26–28 of 28');
-    await click(page, 'Back');
-    await text(page, '1–25 of 28');
-    await search(page, 'does not exist');
-    await text(page, 'No tracks match your search.');
-    await search(page, 'track 00');
-    await text(page, '1–1 of 1');
-    await click(page, 'Reset');
-    await text(page, '1–25 of 28');
-    console.log('PASS empty library, pagination, search, no matches and reset');
-
+    await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'More',exact:true}).count(),0);
+    await scrollToSong(page, 'Synthetic track 27');
+    await click(page, 'All songs');
+    await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     assert.equal(await page.getByRole('button', {name:'All songs', exact:true}).count(), 1, 'one root category selector');
     const searchBounds = await page.getByRole('textbox').first().boundingBox();
     const tabBounds = await page.getByRole('button', {name:'Now Playing', exact:true}).first().boundingBox();
@@ -140,13 +141,13 @@ async function seed(origin) {
     await page.screenshot({path:path.join(repo,'client/target/library-layout-root.png')});
     for (const submitWithEnter of [false, true]) {
         await search(page, 'track 00', submitWithEnter);
-        await text(page, '1–1 of 1');
+        await until(async () => await page.getByRole('button',{name:/^(Play Synthetic track 00|Open Browser fixtures)$/}).count() === 1, 'one filtered result');
         await openQueue(page);
         await until(() => page.getByRole('button', {name:'Search', exact:true}).count().then(count => count === 0), 'Queue has no library search');
         await click(page, 'Library');
-        await text(page, '1–1 of 1');
+        await until(async () => await page.getByRole('button',{name:/^(Play Synthetic track 00|Open Browser fixtures)$/}).count() === 1, 'one filtered result');
         await click(page, 'Reset');
-        await text(page, '1–25 of 28');
+        await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     }
     console.log('PASS Library-only search, preserved query, Enter/Reset and no duplicate heading');
 
@@ -157,19 +158,18 @@ async function seed(origin) {
     await page.screenshot({path:path.join(repo,'client/target/library-layout-queue.png')});
     await click(page, 'Library');
     await click(page, 'Albums');
-    await text(page, '1–2 of 2');
+    await page.getByRole('button',{name:'Open Browser fixtures',exact:true}).first().waitFor().catch(() => page.getByRole('button',{name:'Open Normal Bias tests',exact:true}).waitFor());
     await page.screenshot({path:path.join(repo,'client/target/library-albums.png')});
     await click(page, 'Open Browser fixtures');
-    await text(page, '1–25 of 27');
-    await click(page, 'More');
-    await text(page, '26–27 of 27');
+    await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
+    await scrollToSong(page, 'Synthetic track 26');
     await click(page, 'Library views');
-    await text(page, '1–2 of 2');
+    await page.getByRole('button',{name:'Open Browser fixtures',exact:true}).first().waitFor().catch(() => page.getByRole('button',{name:'Open Normal Bias tests',exact:true}).waitFor());
     await click(page, 'Artists');
-    await text(page, '1–2 of 2');
+    await page.getByRole('button',{name:'Open Browser fixtures',exact:true}).first().waitFor().catch(() => page.getByRole('button',{name:'Open Normal Bias tests',exact:true}).waitFor());
     await page.screenshot({path:path.join(repo,'client/target/library-artists.png')});
     await click(page, 'Open Second artist');
-    await text(page, '1–1 of 1');
+    await until(async () => await page.getByRole('button',{name:/^(Play Synthetic track 00|Open Browser fixtures)$/}).count() === 1, 'one filtered result');
     await click(page, 'Open Browser fixtures');
     await page.getByRole('button', {name:'Play Synthetic track 27', exact:true}).waitFor();
     await click(page, 'Library views');
@@ -179,8 +179,8 @@ async function seed(origin) {
     await text(page, 'No artists found.');
     await click(page, 'Reset');
     await click(page, 'All songs');
-    await text(page, '1–25 of 28');
-    console.log('PASS album/artist grouping, drill-down, paging, back and empty search');
+    await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
+    console.log('PASS album/artist grouping, drill-down, continuous scrolling, back and empty search');
     await click(page, '+ Queue', 0);
     await assertQueue(page, 1);
     await click(page, '+ Queue', 0);
@@ -236,10 +236,10 @@ async function seed(origin) {
     await click(page, 'Library');
     await page.route('**/api/tracks?**', route => route.fulfill({status:503,body:''}));
     await click(page, 'Reset');
-    await text(page, 'Library unavailable');
+    await until(async () => (await page.locator('body').innerText()).includes('Library unavailable'), 'library error');
     await page.unroute('**/api/tracks?**');
     await click(page, 'Retry library');
-    await text(page, '1–25 of 28');
+    await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     console.log('PASS audio failure/retry and catalogue failure/retry');
     await openQueue(page);
     await page.getByRole('button', {name:'Back to Now Playing', exact:true}).waitFor();
@@ -331,21 +331,21 @@ async function seed(origin) {
     assert.equal(await page.getByRole('button', {name:'Search', exact:true}).count(), 0, 'compact Queue has no search');
     await click(page, 'Library');
     await search(page, 'track 00');
-    await text(page, '1–1 of 1');
+    await until(async () => await page.getByRole('button',{name:/^(Play Synthetic track 00|Open Browser fixtures)$/}).count() === 1, 'one filtered result');
     await click(page, 'Reset');
-    await text(page, '1–25 of 28');
+    await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     await click(page, 'Artists');
     await click(page, 'Open Normal Bias tests');
     await click(page, 'Open Browser fixtures');
-    await text(page, '1–25 of 27');
+    await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     await page.screenshot({path:path.join(repo,'client/target/library-compact.png')});
     await click(page, 'All songs');
     await page.route('**/api/library/albums?*', route => route.fulfill({status:503, body:'unavailable'}));
     await click(page, 'Albums');
-    await text(page, 'Library unavailable');
+    await until(async () => (await page.locator('body').innerText()).includes('Library unavailable'), 'library error');
     await page.unroute('**/api/library/albums?*');
     await click(page, 'Retry library');
-    await text(page, '1–2 of 2');
+    await page.getByRole('button',{name:'Open Browser fixtures',exact:true}).first().waitFor().catch(() => page.getByRole('button',{name:'Open Normal Bias tests',exact:true}).waitFor());
     await click(page, 'All songs');
     console.log('PASS compact grouped navigation and grouped request failure/retry');
     await page.setViewportSize({width:1180,height:780});

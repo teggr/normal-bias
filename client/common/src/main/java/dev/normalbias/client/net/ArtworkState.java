@@ -45,17 +45,18 @@ final class ArtworkState<T> {
         for (Pending<T> request:obsolete) deliver(request,null);
         return true;
     }
-    void get(String id,Consumer<T> listener,Loader<T> loader) {
+    Runnable get(String id,Consumer<T> listener,Loader<T> loader) {
         expirePending();
         String key=key(id);long now=clock.now();
         Entry<T> entry=cache.get(key);
-        if (entry!=null && now<entry.expires) { listener.accept(entry.value);return; }
+        if (entry!=null && now<entry.expires) { listener.accept(entry.value);return () -> {}; }
         cache.remove(key);
         Pending<T> request=pending.get(key);
         if (request!=null && now>=request.expires) {
             pending.remove(key);deliver(request,null);request=null;
         }
-        if (request!=null) { request.listeners.add(listener);return; }
+        if (request!=null) { request.listeners.add(listener); Pending<T> shared=request; return () -> shared.listeners.remove(listener); }
+        if (pending.size()>=8) { listener.accept(null); return () -> {}; }
         Pending<T> fresh=new Pending<>(now+REQUEST_MS);
         fresh.listeners.add(listener);pending.put(key,fresh);
         loader.load(key,(value,definitive) -> {
@@ -65,6 +66,7 @@ final class ArtworkState<T> {
             if (cache.size()>32) cache.remove(cache.keySet().iterator().next());
             deliver(fresh,value);
         });
+        return () -> fresh.listeners.remove(listener);
     }
     private void expirePending() {
         var expired=new ArrayList<Pending<T>>();

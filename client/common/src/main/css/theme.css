@@ -130,3 +130,14 @@ ConnectionSecondary, ConnectionSecondary.selected, ConnectionSecondary.pressed, 
 }
 ConnectionSecondary.selected { border: 1px solid #eac23f; }
 ConnectionSecondary.disabled { color: #77797b; }
+
+/* A compact index shares one touch/slide surface; persistent section differs from focus. */
+AlphabetRail { background-color: #27282b; border: 1px solid #353638; border-radius: 3mm; padding: 0; margin: 1mm 1mm 1mm 0; }
+AlphabetLetter, AlphabetLetter.pressed, AlphabetCurrent, AlphabetCurrent.pressed {
+    color: #b7b8bb; background-color: transparent; border: none; padding: 0; margin: 0;
+    font-family: "native:MainRegular"; font-size: 1.8mm; text-align: center;
+}
+AlphabetCurrent, AlphabetCurrent.pressed { color: #eac23f; font-family: "native:MainBold"; }
+AlphabetLetter.selected, AlphabetCurrent.selected { border: 1px solid #eac23f; }
+AlphabetLetter.disabled, AlphabetCurrent.disabled { color: #77797b; }
+AlphabetPreview { color: #eac23f; background-color: #27282b; border: 1px solid #444548; border-radius: 3mm; padding: 3mm 5mm; margin: 0; font-family: "native:MainBold"; font-size: 6mm; text-align: center; }

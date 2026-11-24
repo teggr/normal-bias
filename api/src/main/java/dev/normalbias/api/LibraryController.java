@@ -18,25 +18,20 @@ public class LibraryController {
     @GetMapping("/{view:albums|artists}")
     public Page groups(@PathVariable String view, @RequestParam(defaultValue="0") int offset,
                        @RequestParam(defaultValue="50") int limit, @RequestParam(defaultValue="") String q,
-                       @RequestParam(required=false) String artist) {
-        if (offset < 0 || limit < 1 || limit > 200 || q.length() > 1024 || (artist != null && artist.length() > 1024))
+                       @RequestParam(required=false) String artist,
+                       @RequestParam(defaultValue="") String sort) {
+        boolean alphabetical = BrowseOrder.alphabetical(sort);
+        if (offset < 0 || limit < 1 || limit > 200)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid library query");
         boolean albums = view.equals("albums");
-        var args = new ArrayList<Object>();
-        String filter = " WHERE 1=1";
-        if (artist != null) { filter += " AND COALESCE(artist, '') = ?"; args.add(artist); }
-        String term = q.strip().toLowerCase(Locale.ROOT);
-        if (!term.isEmpty()) {
-            filter += albums ? " AND (LOCATE(?, LOWER(COALESCE(album, ''))) > 0 OR LOCATE(?, LOWER(COALESCE(artist, ''))) > 0)"
-                    : " AND LOCATE(?, LOWER(COALESCE(artist, ''))) > 0";
-            args.add(term); if (albums) args.add(term);
-        }
-        String projection = "SELECT COALESCE(artist, '') AS artist, " + (albums ? "COALESCE(album, '')" : "''")
-                + " AS album, COUNT(*) AS track_count, MIN(id) AS track_id FROM tracks" + filter
-                + " GROUP BY COALESCE(artist, '')" + (albums ? ", COALESCE(album, '')" : "");
+        var selection = LibraryBrowse.selection(view, q, artist, null);
+        String projection = selection.sql();
+        var args = new ArrayList<>(selection.args());
         long total = db.queryForObject("SELECT COUNT(*) FROM (" + projection + ") library_groups", Long.class, args.toArray());
         args.add(limit); args.add(offset);
-        var rows = db.query("SELECT * FROM (" + projection + ") library_groups ORDER BY LOWER(artist), artist, LOWER(album), album LIMIT ? OFFSET ?",
+        String order = !alphabetical ? "LOWER(artist), artist, LOWER(album), album" : albums
+                ? "NB_BROWSE_KEY(album), album, NB_BROWSE_KEY(artist), artist" : "NB_BROWSE_KEY(artist), artist";
+        var rows = db.query("SELECT * FROM (" + projection + ") library_groups ORDER BY " + order + " LIMIT ? OFFSET ?",
                 (r, n) -> new Group(r.getString("artist"), r.getString("album"), r.getLong("track_count"), r.getString("track_id")), args.toArray());
         return new Page(rows, offset, limit, total);
     }
