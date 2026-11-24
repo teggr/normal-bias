@@ -6,6 +6,8 @@ import com.codename1.io.NetworkEvent;
 import com.codename1.ui.Form;
 import com.codename1.ui.Label;
 import dev.normalbias.client.net.TrialOrigin;
+import dev.normalbias.client.net.ServiceAddress;
+import com.codename1.io.Preferences;
 import dev.normalbias.client.net.LibraryApi;
 import dev.normalbias.client.net.AuthSession;
 import dev.normalbias.client.ui.LoginForm;
@@ -24,6 +26,12 @@ public class NormalBias extends Lifecycle {
     private LibraryForm library;
     private AuthSession session;
     private boolean connecting;
+    private boolean initialized;
+    private String browserOrigin;
+    private String developmentOrigin;
+    private String initialOrigin;
+    private LoginForm landing;
+    private static final String SERVICE_PREFERENCE = "normalbias.service.origin";
     private String identity;
     private String pendingLink;
     private BrowserAccountLink browserLinks;
@@ -37,28 +45,34 @@ public class NormalBias extends Lifecycle {
         event.consume();
     }
     @Override public void runApp() {
-        if (library == null && session == null) {
+        if (!initialized) {
+            initialized = true;
             CN.setProperty("platformHint.javascript.beforeUnloadMessage", null);
             String browserPage = CN.getProperty("browser.window.location.href", null);
             String bundled = TrialOrigin.bundled();
-            String page = browserPage != null ? browserPage : bundled != null ? bundled
-                    : System.getProperty("normalbias.apiOrigin", "http://127.0.0.1:8080/");
-            if (browserPage == null && bundled == null && !CN.isSimulator()) {
-                Form setup = new Form("Local device trial");
-                setup.add(new Label("Build with client/build-ios-trial.sh and a private HTTPS API origin."));
-                setup.show(); return;
-            }
-            session = new AuthSession(page, browserPage != null);
             if (browserPage != null) {
+                int end = browserPage.indexOf('/', browserPage.indexOf("://") + 3);
+                browserOrigin = end < 0 ? browserPage : browserPage.substring(0, end);
+                if (browserOrigin.startsWith("https://")) browserOrigin = ServiceAddress.normalize(browserOrigin);
+                else developmentOrigin = browserOrigin;
+                initialOrigin = browserOrigin;
                 browserLinks = NativeLookup.create(BrowserAccountLink.class);
                 takeBrowserLink();
                 linkTimer = CN.setInterval(500, () -> {
-                    if (takeBrowserLink() && !connecting) showSession();
+                    if (takeBrowserLink() && !connecting && session != null) showSession();
                 });
+            } else {
+                String configured = System.getProperty("normalbias.apiOrigin", null);
+                if (configured == null && CN.isSimulator() && !"ios".equals(CN.getPlatformName()) && bundled == null) configured = "http://127.0.0.1:8080";
+                String fallback = bundled != null ? bundled : configured;
+                if (fallback != null && fallback.startsWith("http://")) developmentOrigin = fallback;
+                String saved = Preferences.get(SERVICE_PREFERENCE, "");
+                try { initialOrigin = saved.isEmpty() ? fallback : ServiceAddress.normalize(saved); }
+                catch (IllegalArgumentException invalid) { initialOrigin = fallback; }
             }
-            session.onLost(() -> { disposeLibrary(); connect(); });
+            if (initialOrigin != null && !initialOrigin.isEmpty()) selectSession(initialOrigin);
         }
-        if (accountVisible) return;
+        if (accountVisible || landing != null && CN.getCurrentForm() == landing) return;
         if (library != null) {
             library.show(); library.resumeArtwork();
             session.restore(() -> {
@@ -69,20 +83,72 @@ public class NormalBias extends Lifecycle {
         }
         else connect();
     }
+    private void selectSession(String origin) {
+        if (session != null && session.origin.equals(origin)) return;
+        if (session != null) session.invalidate();
+        session = new AuthSession(origin, browserOrigin != null);
+        session.onLost(() -> { disposeLibrary(); connect(); });
+    }
+    private void showLanding() {
+        landing = new LoginForm(session == null ? "" : session.origin, browserOrigin, developmentOrigin,
+                this::submitConnection, origin -> {
+                    if (connecting) return;
+                    selectSession(origin);
+                    connecting = true;
+                    landing.busy("Connecting securely…");
+                    session.restore(() -> { connecting = false; rememberService(); pasteLink(); }, error -> {
+                        connecting = false; landing.status(error, true);
+                    });
+                });
+        landing.show();
+    }
     private void connect() {
         if (connecting) return;
+        showLanding();
+        if (session != null) restoreConnection(null, null);
+    }
+    private void submitConnection(String origin, String username, String password, boolean retry) {
+        if (connecting) return;
+        if (browserOrigin != null && !browserOrigin.equals(origin)) {
+            landing.busy("Opening service…");
+            browserLinks.openService(origin + "/");
+            return;
+        }
+        selectSession(origin);
+        restoreConnection(retry ? null : username, retry ? null : password);
+    }
+    private void restoreConnection(String username, String password) {
         connecting = true;
-        Form waiting = new Form("Normal Bias"); waiting.add(new Label("Connecting securely…")); waiting.show();
-        session.restore(() -> { connecting = false; showSession(); }, error -> {
+        LoginForm view = landing;
+        AuthSession selected = session;
+        view.busy("Connecting securely…");
+        selected.restore(() -> {
+            if (session != selected) return;
+            rememberService();
+            if (selected.authenticated() || selected.demo() || pendingLink != null) {
+                connecting = false; showSession();
+            } else if (username != null) {
+                view.busy("Signing in…");
+                selected.login(username, password, () -> { connecting = false; showSession(); }, error -> {
+                    connecting = false; view.status(error, true);
+                });
+            } else {
+                connecting = false;
+                view.status("Sign in to your music. You’ll stay signed in until you sign out or your session expires.", false);
+                view.focusUsername();
+            }
+        }, error -> {
             connecting = false;
-            Form failed = new Form("Normal Bias"); failed.add(new com.codename1.components.SpanLabel(error));
-            Button retry = new Button("Retry connection"); retry.addActionListener(event -> connect()); failed.add(retry); failed.show();
+            view.status(error + (selected.hasRememberedSignIn() ? " Your sign-in has been kept." : ""), true);
         });
+    }
+    private void rememberService() {
+        if (browserOrigin == null && session.origin.startsWith("https://")) Preferences.set(SERVICE_PREFERENCE, session.origin);
     }
     private void showSession() {
         if (pendingLink != null) { openPendingLink(); return; }
         accountVisible = false;
-        if (!session.authenticated() && !session.demo()) { new LoginForm(session, this::showSession, this::pasteLink).show(); return; }
+        if (!session.authenticated() && !session.demo()) { showLanding(); landing.focusUsername(); return; }
         identity = session.identity();
         library = new LibraryForm(new LibraryApi(session), () -> {
             disposeLibrary();

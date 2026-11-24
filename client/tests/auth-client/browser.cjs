@@ -13,7 +13,7 @@ async function click(page,name,role='button'){
 async function login(page){
  await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
  // Login initially focuses Username's native editor. Password remains a canvas mirror.
- const username=page.locator('input[aria-label="Username"]');await username.waitFor();await username.fill(fixture.username);await page.keyboard.press('Tab');await wait(500);
+ const username=page.locator('input[aria-label="Username"]:focus');await username.waitFor();await username.fill(fixture.username);await page.keyboard.press('Tab');await wait(500);
  const password=page.locator('div[role="textbox"]').filter({hasText:''});
  const boxes=await password.evaluateAll(items=>items.map(el=>({label:el.getAttribute('aria-label'),box:el.getBoundingClientRect().toJSON()})));
  const box=boxes.filter(x=>x.box.height>20).sort((a,b)=>b.box.y-a.box.y)[0]?.box;assert.ok(box,'Password canvas input');

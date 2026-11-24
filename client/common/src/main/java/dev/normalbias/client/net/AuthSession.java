@@ -29,6 +29,7 @@ public final class AuthSession {
         return info instanceof Map ? (String) ((Map<?, ?>) info).get("id") : "demo";
     }
     public boolean authenticated() { return Boolean.TRUE.equals(state.get("authenticated")); }
+    public boolean hasRememberedSignIn() { return bearer != null; }
     public boolean demo() { return Boolean.FALSE.equals(state.get("authRequired")); }
     public String username() {
         Object account = state.get("account");
@@ -39,6 +40,10 @@ public final class AuthSession {
     public void invalidate() { generation++; }
     public void restore(Runnable ready, Consumer<String> failure) {
         request("/api", "GET", null, false, data -> {
+            if (!(data.get("authenticated") instanceof Boolean) || !(data.get("authRequired") instanceof Boolean)
+                    || !(data.get("_links") instanceof Map)) {
+                failure.accept("This address did not return a Normal Bias service. Check the service address."); return;
+            }
             state = data;
             if (Preferences.get(storageKey + ".logout", false)) {
                 if (!authenticated()) { clearCredential(); Preferences.delete(storageKey + ".logout"); ready.run(); }
@@ -170,6 +175,6 @@ public final class AuthSession {
         if (code == 403) return "This action is not allowed. Reconnect to refresh your session.";
         if (code == 426) return "This service requires HTTPS.";
         if (code > 0) return "Service request failed (HTTP " + code + "). Retry the connection.";
-        return "Cannot reach the service. Your sign-in has been kept; retry the connection.";
+        return "Cannot reach the service. Check the address and your connection, then retry.";
     }
 }

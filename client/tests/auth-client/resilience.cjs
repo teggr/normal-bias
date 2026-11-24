@@ -4,9 +4,9 @@ const {spawnSync}=require('node:child_process');const {chromium}=require('playwr
 const out=path.resolve(__dirname,'../../target/auth-client'),fixture=JSON.parse(fs.readFileSync(path.join(out,'fixture.json')));
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){const end=Date.now()+20000;while(Date.now()<end){if(await fn())return;await wait(100)}throw Error(label)}
-async function click(p,name){if(['Sign out','Change password'].includes(name)&&!(await p.getByRole('button',{name,exact:true}).count()))await click(p,'Profile');const e=p.getByRole('button',{name,exact:true}).first();await e.waitFor();const b=await e.boundingBox();await p.mouse.click(b.x+b.width/2,b.y+b.height/2);await wait(500)}
+async function click(p,name){if(name==='Library'&&await p.getByRole('button',{name:'Back to Now Playing',exact:true}).count())await click(p,'Back to Now Playing');if(['Sign out','Change password'].includes(name)&&!(await p.getByRole('button',{name,exact:true}).count()))await click(p,'Profile');const e=p.getByRole('button',{name,exact:true}).first();await e.waitFor();const b=await e.boundingBox();await p.mouse.click(b.x+b.width/2,b.y+b.height/2);await wait(500)}
 async function login(p){
- await p.locator('input[aria-label="Username"]').waitFor();await p.locator('input[aria-label="Username"]').fill(fixture.username);await p.keyboard.press('Tab');await wait(500);
+ await p.locator('input[aria-label="Username"]:focus').waitFor();await p.locator('input[aria-label="Username"]:focus').fill(fixture.username);await p.keyboard.press('Tab');await wait(500);
  const boxes=await p.locator('div[role="textbox"]').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()));const b=boxes.filter(b=>b.height>20).sort((a,b)=>b.y-a.y)[0];
  await p.mouse.click(b.x+20,b.y+b.height/2);const editor=p.locator('input[type=password]:focus');await editor.waitFor();await editor.fill(fixture.password);await p.keyboard.press('Tab');await click(p,'Sign in');
  await p.getByRole('button',{name:'Play Morning Circuit',exact:true}).waitFor();

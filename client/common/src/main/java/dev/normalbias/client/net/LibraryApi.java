@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/** All requests go directly to the API on the page's origin. No CORS proxy. */
+/** All requests go directly to the configured service origin. No CORS proxy. */
 public class LibraryApi {
     public static final int PAGE_SIZE = 25;
     private final String origin;

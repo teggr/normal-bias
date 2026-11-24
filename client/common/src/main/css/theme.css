@@ -13,8 +13,16 @@ Button.disabled { color: #77797b; background-color: #242526; border: 1px solid #
 Header { background-color: #202124; border: none; padding: 4mm 4mm 1mm; margin: 0; }
 Brand { color: #f3f3f1; font-family: "native:MainBold"; font-size: 3.4mm; background-color: transparent; border: none; padding: 0 0 2mm; margin: 0; }
 SearchBar { background-color: #171717; border: 1px solid #3d3d3d; border-radius: 2.5mm; padding: 1.5mm; margin: 1mm 4mm 2mm; }
-TextField { color: #f3f3f1; background-color: transparent; border: none; padding: 2mm; margin: 0; font-size: 2.2mm; }
+TextField { color: #f3f3f1; background-color: transparent; border: none; padding: 3mm; margin: 0; font-size: 2.2mm; }
 TextField.selected { border: none; border-bottom: 1px solid #eac23f; }
+/* Hint labels paint across the whole field in CN1 7.0.282, independently
+ * of the editor padding. Keep both insets aligned in every interaction state. */
+TextField.selected, TextField.pressed, TextField.disabled { padding: 3mm; }
+TextHint, TextHint.selected, TextHint.pressed, TextHint.disabled {
+    color: #eac23f; font-family: "native:MainRegular"; font-size: 2.2mm; font-weight: normal; font-style: normal;
+    background-color: transparent; border: none; padding: 3mm; margin: 0;
+}
+TextHint.disabled { color: #77797b; }
 SearchAction { color: #b7b8bb; background-color: transparent; border: none; padding: 2mm; margin: 0; }
 SearchAction.selected { color: #eac23f; border: 1px solid #eac23f; }
 TabsContainer, LibraryPanel { background-color: #202124; border: none; padding: 0; margin: 0; }
@@ -97,3 +105,28 @@ AccountIdentity { background-color: transparent; border: none; padding: 0; margi
 
 TrackInformation { background-color: #141414; border: none; padding: 3mm 4mm; margin: 0; }
 InformationValue { color: #f3f3f1; background-color: transparent; border: none; font-family: "native:MainRegular"; font-size: 2.3mm; padding: 0 0 1.5mm; margin: 0; }
+
+/* Unified service connection and sign-in, including unreachable startup. */
+ConnectionPanel { background-color: transparent; padding: 4mm 6mm 6mm; margin: 0; }
+ConnectionMark { background-color: transparent; border: none; padding: 0; margin: 0; }
+ConnectionCaption { background-color: transparent; border: none; color: #b7b8bb; font-size: 2mm; padding: 2mm 0 1mm; margin: 0; }
+ConnectionMessage { background-color: transparent; border: none; color: #b7b8bb; font-size: 2.2mm; padding: 2mm 0; margin: 0; }
+ConnectionField, ConnectionField.selected, ConnectionField.disabled {
+    color: #f3f3f1; background-color: #171717; border: 1px solid #3d3d3d; border-radius: 2.5mm;
+    font-family: "native:MainRegular"; font-size: 2.4mm; padding: 3mm; margin: 0;
+}
+ConnectionField.selected { border: 1px solid #eac23f; }
+ConnectionField.disabled { color: #77797b; }
+ConnectionPrimary, ConnectionPrimary.selected, ConnectionPrimary.pressed, ConnectionPrimary.disabled {
+    color: #eac23f; background-color: #2b2c2e; border: 1px solid #444548; border-radius: 2.5mm;
+    font-family: "native:MainBold"; font-size: 2.4mm; padding: 3mm; margin: 4mm 0 1mm; text-align: center;
+}
+ConnectionPrimary.selected { border: 1px solid #eac23f; }
+ConnectionPrimary.pressed { background-color: #171717; }
+ConnectionPrimary.disabled { color: #77797b; }
+ConnectionSecondary, ConnectionSecondary.selected, ConnectionSecondary.pressed, ConnectionSecondary.disabled {
+    color: #b7b8bb; background-color: transparent; border: none; padding: 3mm 0; margin: 0;
+    font-family: "native:MainRegular"; font-size: 2.2mm; text-align: center;
+}
+ConnectionSecondary.selected { border: 1px solid #eac23f; }
+ConnectionSecondary.disabled { color: #77797b; }

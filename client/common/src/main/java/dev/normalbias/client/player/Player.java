@@ -34,7 +34,7 @@ public final class Player {
 
     public Player(LibraryApi api, Runnable changed) {
         this.api = api; this.changed = changed;
-        boolean nativeApple = dev.normalbias.client.net.TrialOrigin.bundled() != null;
+        boolean nativeApple = "ios".equals(CN.getPlatformName()) || dev.normalbias.client.net.TrialOrigin.bundled() != null;
         audio = CN.isSimulator() || nativeApple
                 ? new FrameworkAudio(this::poll) : NativeLookup.create(BrowserAudio.class);
         system = nativeApple

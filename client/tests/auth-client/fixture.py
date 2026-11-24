@@ -5,6 +5,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[3]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--private-host', help='Explicit RFC1918 IPv4 bind for the authorised disposable physical-device trial')
+parser.add_argument('--port', type=int, help='Use a separate disposable service port when the default is occupied')
 args = parser.parse_args()
 host, port = '127.0.0.1', 18444
 if args.private_host:
@@ -12,6 +13,9 @@ if args.private_host:
     if not any(address in ipaddress.ip_network(net) for net in ['10.0.0.0/8','172.16.0.0/12','192.168.0.0/16']):
         raise SystemExit('Physical trial requires an explicit RFC1918 IPv4 address')
     host, port = str(address), 18445
+if args.port is not None:
+    if not 1024 <= args.port <= 65535: parser.error('--port must be between 1024 and 65535')
+    port = args.port
 origin = f'https://{host}:{port}'
 out = root / ('client/target/auth-device' if args.private_host else 'client/target/auth-client')
 out.mkdir(parents=True, exist_ok=True, mode=0o700)
