@@ -19,6 +19,7 @@ async function until(check, description, timeout = 20000) {
     throw new Error('Timed out: ' + description);
 }
 async function click(page, name, index = 0, role = 'button') {
+    if (name === 'Library views' && await page.getByRole('button',{name:'Close album',exact:true}).count()) name = 'Close album';
     if (name === 'Library' && await page.getByRole('button',{name:'Back to Now Playing',exact:true}).count()) await click(page,'Back to Now Playing');
     if (name === 'Now Playing' && await page.getByRole('button', {name:'Back to Now Playing',exact:true}).count()) name = 'Back to Now Playing';
     if (name === 'Library' && await page.getByRole('button', {name:'All songs',exact:true}).count()) return;

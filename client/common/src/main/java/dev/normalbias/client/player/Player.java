@@ -99,10 +99,22 @@ public final class Player {
         select(index);
     }
     public void enqueue(Track track) {
+        boolean wasEmpty = queue.size() == 0;
         int added = queue.add(track);
+        if (wasEmpty && added >= 0) { queue.select(0); load(false); return; }
         if (!failed) status = added < 0 ? "Queue full (200 tracks)" : "Added to queue: " + track.title();
         syncSystem();
         changed.run();
+    }
+    /** Prepare the first queued track paused when empty; otherwise preserve current media. */
+    public int enqueueAlbum(java.util.List<Track> tracks) {
+        boolean wasEmpty = queue.size() == 0;
+        int added = queue.addAll(tracks);
+        if (wasEmpty && added > 0) { queue.select(0); load(false); return added; }
+        if (!failed) status = added < 0 ? "Album does not fit in the 200-track queue. Clear space and try again."
+                : "Album queued: " + added + (added == 1 ? " track added" : " tracks added");
+        syncSystem(); changed.run();
+        return added;
     }
     public void select(int index) { if (queue.select(index)) load(); }
     public void shuffle() {

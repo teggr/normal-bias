@@ -19,7 +19,7 @@ public final class LibraryForm extends Form {
     private final TextField search = new TextField("", "Search title, artist or album", 30, TextField.ANY);
     private final LibraryCollection collection;
     private final java.util.List<LibraryState> libraryHistory = new java.util.ArrayList<>();
-    private record LibraryState(String artist, String album, String query, String editor, LibraryCollection.Anchor anchor) {}
+    private record LibraryState(String artist, String album, String query, String editor, LibraryCollection.Anchor anchor, LibraryApi.Group albumGroup) {}
     private final Container queue = new Container(BoxLayout.y());
     private final SpanLabel title = new SpanLabel("Nothing playing", "NowTitle");
     private final SpanLabel artist = new SpanLabel("Your library, ready when you are", "Muted");
@@ -56,8 +56,18 @@ public final class LibraryForm extends Form {
     private final Container body = new Container(new BorderLayout());
     private final Container playerPanel = new Container(new BorderLayout());
     private final Container miniPlayer = new Container(new BorderLayout());
-    private final Button miniTitle = new Button("Now Playing");
-    private final Button miniPlay = new Button();
+    private final Button miniTitle = new Button("Now Playing") {
+        @Override public void paintBackground(Graphics g) {
+            super.paintBackground(g);
+            // Keep keyboard focus visible without framing the metadata on touch.
+            if (hasFocus() && !Display.getInstance().isTouchScreenDevice()) {
+                g.setColor(0xf3f3f1);
+                g.drawLine(getX(), getY() + getHeight() - 1, getX() + getWidth() - 1, getY() + getHeight() - 1);
+            }
+        }
+    };
+    private final HardwareButton miniPlay = new HardwareButton("Play", FontImage.MATERIAL_PLAY_ARROW, true);
+    private final HardwareButton miniNext = new HardwareButton("Next track", FontImage.MATERIAL_SKIP_NEXT, true);
     private final Label miniArtist = new Label("Your music, ready to play", "Muted");
     private final Container header = new Container(BoxLayout.y());
     private final Container searchBar = new Container();
@@ -69,6 +79,18 @@ public final class LibraryForm extends Form {
     private String libraryView = "songs";
     private String selectedArtist;
     private String selectedAlbum;
+    private LibraryApi.Group selectedAlbumGroup;
+    private String selectedAlbumContents;
+    private final HardwareButton closeAlbum = new HardwareButton("Close album", FontImage.MATERIAL_CLOSE, true);
+    private final HardwareButton queueAlbum = new HardwareButton("Queue album", FontImage.MATERIAL_ADD, true);
+    private final SpanLabel albumMessage = new SpanLabel("", "AlbumMessage");
+    private int albumRequest;
+    private boolean albumQueueLoading;
+    private final RecordArtwork albumCover = new RecordArtwork(false, true);
+    private final SpanLabel albumTitle = new SpanLabel("", "AlbumHeading");
+    private final SpanLabel albumArtist = new SpanLabel("", "Muted");
+    private final Label albumCount = new Label("", "Muted");
+    private final Container albumSummary = new Container(new BorderLayout());
     private final Button libraryUp = new Button("Library views");
     private final Container libraryLocationBar;
     private final Label libraryLocation = new Label("All songs", "Muted");
@@ -114,18 +136,34 @@ public final class LibraryForm extends Form {
             choice.addActionListener(e -> {
                 for (LibraryViewButton button : viewButtons) button.setActive(button == choice);
                 libraryHistory.clear();
-                libraryView = value; selectedArtist = null; selectedAlbum = null;
+                libraryView = value; selectedArtist = null; selectedAlbum = null; selectedAlbumGroup = null;
                 search.setText(""); query = ""; load(0);
             });
             views.add(choice);
         }
         libraryUp.setUIID("PagingButton");
-        libraryUp.addActionListener(e -> {
-            if (libraryHistory.isEmpty()) return;
-            LibraryState parent = libraryHistory.remove(libraryHistory.size() - 1);
-            selectedArtist = parent.artist(); selectedAlbum = parent.album(); query = parent.query(); search.setText(parent.editor());
-            load(null, parent.anchor());
-        });
+        libraryUp.setPreferredW(CN.convertToPixels(9));
+        libraryUp.setPreferredH(CN.convertToPixels(9));
+        libraryUp.addActionListener(e -> closeLibraryGroup());
+        closeAlbum.addActionListener(e -> closeLibraryGroup());
+        queueAlbum.setUIID("AlbumQueueButton");
+        queueAlbum.setGlyph("Queue album", FontImage.MATERIAL_ADD);
+        queueAlbum.addActionListener(e -> queueSelectedAlbum());
+        for (HardwareButton button : new HardwareButton[] {closeAlbum, queueAlbum, miniPlay, miniNext}) {
+            button.setPreferredW(CN.convertToPixels(9)); button.setPreferredH(CN.convertToPixels(9));
+        }
+        albumCover.setPreferredW(CN.convertToPixels(18));
+        albumCover.setPreferredH(CN.convertToPixels(18));
+        albumCover.setName("Album artwork");
+        albumTitle.setName("Album title");
+        albumArtist.setName("Album artist");
+        albumCount.setName("Album song count");
+        Container albumCopy = BoxLayout.encloseY(albumTitle, albumArtist, albumCount);
+        albumSummary.setUIID("AlbumSummary");
+        Container albumActions = BorderLayout.north(closeAlbum).add(BorderLayout.SOUTH, queueAlbum);
+        albumActions.setUIID("AlbumActions");
+        albumSummary.add(BorderLayout.WEST, albumCover).add(BorderLayout.CENTER, albumCopy)
+                .add(BorderLayout.EAST, albumActions);
         libraryLocationBar = BorderLayout.center(libraryLocation).add(BorderLayout.WEST, libraryUp);
         library.add(BorderLayout.CENTER, collection)
                 .add(BorderLayout.NORTH, BoxLayout.encloseY(BorderLayout.center(views).add(BorderLayout.EAST, searchToggle), searchBar, libraryLocationBar));
@@ -133,7 +171,10 @@ public final class LibraryForm extends Form {
         queue.setScrollableY(true);
         queue.setScrollVisible(false);
         Button clear = new Button("Clear queue");
-        clear.addActionListener(e -> player.clear());
+        clear.addActionListener(e -> {
+            if (albumQueueLoading) { finishAlbumQueue(albumRequest, "Album queueing cancelled."); albumRequest++; }
+            player.clear();
+        });
         clear.setName("Clear queue");
         Container queueSummary = BorderLayout.center(queueCount).add(BorderLayout.EAST, clear);
         queueSummary.setUIID("QueueSummary");
@@ -201,12 +242,13 @@ public final class LibraryForm extends Form {
         miniTitle.setAccessibilityText("Open Now Playing");
         miniTitle.getSemantics().setLabel("Open Now Playing");
         miniTitle.addActionListener(e -> navigate(View.NOW_PLAYING));
-        icon(miniPlay, "Play", FontImage.MATERIAL_PLAY_ARROW, "MiniPlay");
+        miniPlay.setGlyph("Play", FontImage.MATERIAL_PLAY_ARROW);
         miniPlay.addActionListener(e -> player.toggle());
+        miniNext.addActionListener(e -> player.next());
         miniPlayer.setUIID("MiniPlayer");
         Container miniCopy = BoxLayout.encloseY(miniTitle, miniArtist);
         miniCopy.setLeadComponent(miniTitle);
-        miniPlayer.add(BorderLayout.WEST, miniCover).add(BorderLayout.CENTER, miniCopy).add(BorderLayout.EAST, miniPlay);
+        miniPlayer.add(BorderLayout.WEST, miniCover).add(BorderLayout.CENTER, miniCopy).add(BorderLayout.EAST, BoxLayout.encloseX(miniPlay, miniNext));
         searchBar.setLayout(new BorderLayout());
         searchBar.add(BorderLayout.CENTER, search).add(BorderLayout.EAST, BoxLayout.encloseX(find, reset));
         navigate(View.LIBRARY);
@@ -230,6 +272,7 @@ public final class LibraryForm extends Form {
     private void refreshArtworkViews() {
         cover.refresh(); metadataCover.refresh(); miniCover.refresh();
         collection.refreshArtwork();
+        if (selectedAlbumGroup != null) albumCover.refresh();
         for (RecordArtwork art : queueArtwork) art.refresh();
     }
 
@@ -239,6 +282,10 @@ public final class LibraryForm extends Form {
         if (accountUsername != null) accountUsername.setPreferredW(Math.max(1, available - CN.convertToPixels(12)));
         accountPanel.setPreferredW(available);
         accountPanel.setShouldCalcPreferredSize(true);
+        albumTitle.setPreferredW(Math.max(1, available - CN.convertToPixels(39)));
+        albumTitle.setShouldCalcPreferredSize(true);
+        albumArtist.setPreferredW(Math.max(1, available - CN.convertToPixels(39)));
+        albumArtist.setShouldCalcPreferredSize(true);
         int width = Math.min(available, CN.convertToPixels(62));
         trackInformation.fitWidth(width);
         playerFace.setWidth(width);
@@ -339,14 +386,35 @@ public final class LibraryForm extends Form {
 
     private void load(int ignored) { load(null, null); }
     private void load(String path, LibraryCollection.Anchor anchor) {
+        albumRequest++; albumQueueLoading = false;
+        albumMessage.setText(""); albumMessage.setHidden(true); albumMessage.setVisible(false);
         updateSearchChrome();
         boolean grouped = selectedAlbum == null && (!libraryView.equals("songs") || selectedArtist != null);
         boolean artistList = grouped && libraryView.equals("artists") && selectedArtist == null;
         libraryLocationBar.setHidden(selectedArtist == null && selectedAlbum == null);
         libraryLocationBar.setVisible(selectedArtist != null || selectedAlbum != null);
         libraryUp.setHidden(libraryHistory.isEmpty()); libraryUp.setVisible(!libraryHistory.isEmpty());
-        libraryLocation.setText(selectedAlbum != null ? display(selectedAlbum, "Unknown album")
-                : selectedArtist != null ? display(selectedArtist, "Unknown artist") : "");
+        libraryLocationBar.removeAll();
+        boolean albumOpen = selectedAlbumGroup != null;
+        icon(libraryUp, "Library views", FontImage.MATERIAL_CHEVRON_LEFT, "AlbumBack");
+        libraryUp.getSemantics().setDescription(selectedAlbum != null ? "Back to albums" : "Back to artists");
+        if (albumOpen) {
+            LibraryApi.Group group = selectedAlbumGroup;
+            closeAlbum.setEnabled(!libraryHistory.isEmpty());
+            queueAlbum.setEnabled(selectedAlbumContents != null && group.trackCount() > 0);
+            albumTitle.setText(display(group.album(), "Unknown album"));
+            albumArtist.setText(display(group.artist(), "Unknown artist"));
+            albumCount.setText(group.trackCount() + (group.trackCount() == 1 ? " song" : " songs"));
+            albumCover.setTrack(new Track(group.trackId(), group.album(), group.artist(), group.album(), 0), api);
+            libraryLocationBar.add(BorderLayout.CENTER, albumSummary).add(BorderLayout.SOUTH, albumMessage);
+        } else {
+            albumCover.release();
+            libraryLocationBar.add(BorderLayout.WEST, libraryUp);
+            libraryLocation.setText(selectedArtist != null ? display(selectedArtist, "Unknown artist") : "");
+            libraryLocationBar.add(BorderLayout.CENTER, libraryLocation);
+        }
+        libraryLocationBar.setUIID(albumOpen ? "AlbumLocation" : "Container");
+        sizeContent();
         String view = grouped ? artistList ? "artists" : "albums" : "songs";
         boolean alphabetical = selectedAlbum == null;
         String empty = grouped ? "No " + view + " found." : query.isEmpty()
@@ -354,6 +422,63 @@ public final class LibraryForm extends Form {
         collection.load(path == null ? api.browsePath(view, query, selectedArtist, selectedAlbum, alphabetical) : path,
                 grouped, alphabetical, empty, anchor);
         revalidate();
+    }
+    private void closeLibraryGroup() {
+        if (libraryHistory.isEmpty()) return;
+        LibraryState parent = libraryHistory.remove(libraryHistory.size() - 1);
+        selectedArtist = parent.artist(); selectedAlbum = parent.album(); selectedAlbumGroup = parent.albumGroup();
+        selectedAlbumContents = null;
+        query = parent.query(); search.setText(parent.editor());
+        load(null, parent.anchor());
+    }
+    private void albumMessage(String message) {
+        albumMessage.setText(message); albumMessage.setHidden(false); albumMessage.setVisible(true); revalidate();
+    }
+    private void queueSelectedAlbum() {
+        if (albumQueueLoading || selectedAlbumContents == null) return;
+        if (selectedAlbumGroup.trackCount() > dev.normalbias.client.player.PlaybackQueue.MAX_TRACKS) {
+            albumMessage("Album does not fit in the 200-track queue."); return;
+        }
+        albumQueueLoading = true; queueAlbum.setEnabled(false);
+        albumMessage("Loading album for queue…");
+        fetchQueueAlbum(selectedAlbumContents, ++albumRequest, new java.util.ArrayList<>(), new java.util.HashSet<>());
+    }
+    private void fetchQueueAlbum(String path, int request, java.util.List<LibraryApi.Item> items, java.util.Set<String> visited) {
+        if (!visited.add(path)) { finishAlbumQueue(request, "Could not load the complete album. Try again."); return; }
+        api.browse(path, false, page -> {
+            if (request != albumRequest) return;
+            for (LibraryApi.Item item : page.items()) {
+                if (item.track() == null || api.scopedPlayback() &&
+                        dev.normalbias.client.net.ApiLinks.href(item.resource(), "playback-grant", "POST") == null) {
+                    finishAlbumQueue(request, "Album playback is unavailable. Refresh the library and try again."); return;
+                }
+                items.add(item);
+                if (items.size() > dev.normalbias.client.player.PlaybackQueue.MAX_TRACKS) {
+                    finishAlbumQueue(request, "Album does not fit in the 200-track queue."); return;
+                }
+            }
+            if (page.next() != null) {
+                if (page.items().isEmpty()) { finishAlbumQueue(request, "Could not load the complete album. Try again."); return; }
+                fetchQueueAlbum(page.next(), request, items, visited); return;
+            }
+            if (items.size() != page.total()) {
+                finishAlbumQueue(request, "Album changed while loading. Refresh the library and try again."); return;
+            }
+            java.util.List<Track> tracks = new java.util.ArrayList<>();
+            java.util.List<String> retained = new java.util.ArrayList<>();
+            for (int i = 0; i < player.queue.size(); i++) retained.add(player.queue.get(i).id());
+            for (LibraryApi.Item item : items) tracks.add(item.track());
+            api.rememberForQueue(items, retained);
+            int added = player.enqueueAlbum(tracks);
+            finishAlbumQueue(request, added < 0 ? "Album does not fit in the 200-track queue. Clear space and try again."
+                    : added == 0 ? "Album already in queue." : "Album queued: " + added + (added == 1 ? " track added." : " tracks added."));
+        }, error -> finishAlbumQueue(request, "Album was not queued. " + error + " Try again."));
+    }
+    private void finishAlbumQueue(int request, String message) {
+        if (request != albumRequest) return;
+        albumQueueLoading = false;
+        queueAlbum.setEnabled(selectedAlbumContents != null);
+        albumMessage(message);
     }
     private static String display(String text, String fallback) { return text == null || text.isEmpty() ? fallback : text; }
     private Container groupRow(LibraryApi.Item item) {
@@ -365,9 +490,11 @@ public final class LibraryForm extends Form {
         open.getSemantics().setLabel("Open " + name);
         open.setEnabled(item.contents() != null);
         open.addActionListener(e -> {
-            libraryHistory.add(new LibraryState(selectedArtist, selectedAlbum, query, search.getText(), collection.anchor()));
+            libraryHistory.add(new LibraryState(selectedArtist, selectedAlbum, query, search.getText(), collection.anchor(), selectedAlbumGroup));
             selectedArtist = group.artist();
             selectedAlbum = artistList ? null : group.album();
+            selectedAlbumGroup = artistList ? null : group;
+            selectedAlbumContents = artistList ? null : item.contents();
             search.setText(""); query = ""; load(item.contents(), null);
         });
         String subtitle = (artistList ? "" : display(group.artist(), "Unknown artist") + " · ")
@@ -447,6 +574,7 @@ public final class LibraryForm extends Form {
         retry.setEnabled(current != null && !player.isLoading());
         previous.setEnabled(player.queue.index() > 0);
         next.setEnabled(player.queue.index() + 1 < player.queue.size());
+        miniNext.setEnabled(next.isEnabled());
         shuffle.setEnabled(player.queue.size() > 1);
         queueShuffle.setEnabled(player.queue.size() > 1);
         queueCount.setText(player.queue.size() + (player.queue.size() == 1 ? " track" : " tracks"));
@@ -490,7 +618,7 @@ public final class LibraryForm extends Form {
         String text = player.isPlaying() ? "Pause" : "Play";
         if (!text.equals(play.getName())) {
             play.setGlyph(text, player.isPlaying() ? FontImage.MATERIAL_PAUSE : FontImage.MATERIAL_PLAY_ARROW);
-            icon(miniPlay, text, player.isPlaying() ? FontImage.MATERIAL_PAUSE : FontImage.MATERIAL_PLAY_ARROW, "MiniPlay");
+            miniPlay.setGlyph(text, player.isPlaying() ? FontImage.MATERIAL_PAUSE : FontImage.MATERIAL_PLAY_ARROW);
         }
     }
     private static String formatTime(int ms) {
@@ -498,7 +626,9 @@ public final class LibraryForm extends Form {
         return seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
     }
     public void disposePlayer() {
+        albumRequest++;
         collection.dispose();
+        albumCover.release();
         if (timer != null) timer.cancel();
         api.dispose(); queueArtwork.clear(); queue.removeAll();
         Car.endSession();
