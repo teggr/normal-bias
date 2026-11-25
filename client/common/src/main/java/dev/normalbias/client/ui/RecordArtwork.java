@@ -8,12 +8,17 @@ import com.codename1.ui.geom.Dimension;
 /** Embedded cover with an original deterministic sleeve when art is absent or unavailable. */
 final class RecordArtwork extends Component {
     private final boolean thumbnail;
+    private final boolean compactCover;
     private int variation = 1;
     private Image cached;
     private int cachedSize;
     private boolean preparing;
     private boolean coverPixelsPending;
-    RecordArtwork(boolean thumbnail) { this.thumbnail = thumbnail; setUIID("Artwork"); setFocusable(false); }
+    RecordArtwork(boolean thumbnail) { this(thumbnail, false); }
+    RecordArtwork(boolean thumbnail, boolean compactCover) {
+        this.thumbnail = thumbnail; this.compactCover = compactCover;
+        setUIID("Artwork"); setFocusable(false);
+    }
     private String trackId;
     private Image embedded;
     private Track track;
@@ -81,8 +86,8 @@ final class RecordArtwork extends Component {
         finally { g.setClip(clipX, clipY, clipW, clipH); }
     }
     private void paintSleeve(Graphics g, int clipX, int clipY, int clipW, int clipH) {
-        if (!thumbnail) { g.setColor(0x141414); g.fillRect(getX(), getY(), getWidth(), getHeight()); }
-        int size = thumbnail ? Math.min(getWidth(), getHeight()) : Math.min(getWidth() * 70 / 100, getHeight() * 94 / 100);
+        if (!thumbnail && !compactCover) { g.setColor(0x141414); g.fillRect(getX(), getY(), getWidth(), getHeight()); }
+        int size = thumbnail || compactCover ? Math.min(getWidth(), getHeight()) : Math.min(getWidth() * 70 / 100, getHeight() * 94 / 100);
         if (size <= 0) return;
         if (cached == null || cachedSize != size) {
             if (!preparing) {

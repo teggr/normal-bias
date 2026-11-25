@@ -93,7 +93,9 @@ AccountAction, AccountAction.selected, AccountAction.pressed {
 AccountAction.selected { border: 1px solid #eac23f; }
 AccountAction.pressed { background-color: #171717; }
 /* Current-track colour must remain distinct from keyboard focus. */
-QueueCurrentTitle.selected, MiniTitle.selected, MiniPlay.selected { border: 1px solid #eac23f; }
+QueueCurrentTitle.selected { border: 1px solid #eac23f; }
+/* Mini-player metadata has no focus box; Java paints a keyboard-only underline. */
+MiniTitle.selected { border: none; }
 
 SearchToggle, SearchToggle.selected, SearchToggle.pressed,
 SearchToggleActive, SearchToggleActive.selected, SearchToggleActive.pressed {
@@ -141,3 +143,15 @@ AlphabetCurrent, AlphabetCurrent.pressed { color: #eac23f; font-family: "native:
 AlphabetLetter.selected, AlphabetCurrent.selected { border: 1px solid #eac23f; }
 AlphabetLetter.disabled, AlphabetCurrent.disabled { color: #77797b; }
 AlphabetPreview { color: #eac23f; background-color: #27282b; border: 1px solid #444548; border-radius: 3mm; padding: 3mm 5mm; margin: 0; font-family: "native:MainBold"; font-size: 6mm; text-align: center; }
+
+/* Album contents share one compact identity header from Albums and Artists. */
+AlbumLocation { background-color: #202124; border: none; border-bottom: 1px solid #353638; padding: 2mm 0 3mm; margin: 0 4mm; }
+AlbumSummary { background-color: transparent; border: none; padding: 0; margin: 0; }
+AlbumHeading { color: #f3f3f1; background-color: transparent; border: none; font-family: "native:MainBold"; font-size: 2.5mm; padding: 0.3mm 0 0.5mm; margin: 0; }
+AlbumBack, AlbumBack.pressed, AlbumBack.selected { color: #b7b8bb; background-color: transparent; border: none; padding: 2mm; margin: 0 1mm 0 0; }
+AlbumBack.selected { color: #eac23f; }
+
+AlbumActions { background-color: transparent; border: none; padding: 0 0 0 1mm; margin: 0; }
+AlbumQueueButton, AlbumQueueButton.selected, AlbumQueueButton.pressed { color: #eac23f; background-color: transparent; border: none; padding: 0; margin: 0; text-align: center; }
+AlbumQueueButton.disabled { color: #767676; background-color: transparent; border: none; padding: 0; margin: 0; }
+AlbumMessage { color: #b7b8bb; background-color: transparent; border: none; font-size: 1.8mm; padding: 1mm 0 0; margin: 0; }

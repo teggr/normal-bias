@@ -17,6 +17,16 @@ public final class PlaybackQueue {
         tracks.add(track);
         return tracks.size() - 1;
     }
+    /** Append a complete album atomically, retaining existing order and selection. */
+    public int addAll(List<Track> album) {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (Track track : tracks) ids.add(track.id());
+        int added = 0;
+        for (Track track : album) if (ids.add(track.id())) added++;
+        if (tracks.size() + added > MAX_TRACKS) return -1;
+        for (Track track : album) add(track);
+        return added;
+    }
     public boolean select(int value) {
         if (value < 0 || value >= tracks.size()) return false;
         index = value;

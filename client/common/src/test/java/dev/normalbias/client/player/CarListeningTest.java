@@ -54,12 +54,13 @@ class CarListeningTest {
         CarContext context = context(bridge);
         context.pushScreen(car.onCreateRootScreen(context));
         for (int i = 0; i < 8; i++) player.enqueue(new Track("track" + i, "Track " + i, "Demo", "Synthetic", 42000));
+        assertEquals(0, player.queue.index()); assertEquals(1, audio.opens); assertFalse(player.isPlaying());
         tap(context, "Queue (8)");
         assertTrue(rows(context).size() <= bridge.getListRowLimit());
         tap(context, "More queued tracks");
         tap(context, "Track 2");
         assertEquals(2, player.queue.index());
-        assertEquals(1, audio.opens);
+        assertEquals(2, audio.opens);
         tap(context, "Next");
         assertEquals(3, player.queue.index());
         tap(context, "Previous");

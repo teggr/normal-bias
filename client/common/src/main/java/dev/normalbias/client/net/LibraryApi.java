@@ -157,6 +157,15 @@ public class LibraryApi {
             else if (!resources.containsKey(item.group().trackId())) resources.put(item.group().trackId(), item.resource());
         }
     }
+    /** Pin staged album capabilities before the bounded browse cache can evict them. */
+    public void rememberForQueue(List<Item> items, java.util.Collection<String> queueIds) {
+        java.util.Set<String> ids = new java.util.HashSet<>(queueIds);
+        for (Item item : items) {
+            ids.add(item.track().id());
+            resources.put(item.track().id(), item.resource());
+            resources.retain(ids);
+        }
+    }
     public record BrowsePage(List<Item> items, int offset, int total, String self, String next, String previous, String index) {}
     public record Section(String initial, int count, int offset, String jump) {}
     public String browsePath(String view, String query, String artist, String album, boolean alphabetical) {

@@ -99,6 +99,16 @@ The Node/Playwright script is test orchestration, not application code or a clie
 
 See [verification](verification.md) for the actual environment/results and remaining gaps. Chromium success does not establish Firefox/Safari support, device background audio, system media controls or CarPlay feasibility.
 
+### Album and mini-player acceptance
+
+After packaging the API and building the browser client as above:
+
+```sh
+node client/tests/album-header.cjs
+```
+
+This focused suite uses a separate loopback service and synthetic music. It verifies album headers from both navigation paths, Close/parent restoration, whole-album queueing across pages, duplicate/capacity policy, failed-page retry and cancellation, paused first-track preparation, immediate Play, Clear unloading, mini-player Next on Library/Queue, disabled queue-end controls, title pixels and compact/wide bounds. Capacity rejection is covered by the client JUnit suite; the browser suite exercises multi-page success/failure. It always records actual synthetic client audio/video under ignored `client/target/recordings/mini-next/` and stops its owned processes. Node/FFmpeg and Chrome are required; `CHROMIUM_PATH` overrides the default installed macOS Chrome executable. The recording is local evidence, not a public attachment; see verification for saved-file replay/audio checks and native acceptance.
+
 ### Large-library browser acceptance
 
 After `mvn clean verify` and `./client/build-web.sh`, prepare the runtime classpath and run:
@@ -152,3 +162,17 @@ Run `RECORD_DEMO=1 node client/tests/player-information.cjs` for focused artwork
 The focused navigation check launches its own loopback demo-mode API, creates two original synthetic 90-second musical clips and verifies separate Library/Now Playing destinations, nested Queue/back, the dedicated Queue entry and inline information/artwork toggle, mini-player navigation, bounded wide player, resize continuity, the same media stream, preserved paused position/intent and clearing/release. It stops its API afterward. `RECORD_DEMO=1` saves an actual 390×844 browser/app-audio MP4 plus screenshots and state/timing evidence under ignored `client/target/recordings/compact-navigation/`. The capture helper preserves the initial viewport size; no replacement soundtrack is used. Browser smoke continues to cover search, grouping, automatic scrolling, seeking, completion and failure/retry. These demo suites block service workers and do not establish native reliability.
 
 Account browser/native helpers open Profile before Sign out or Change password. Existing account-link and server authorisation contracts are unchanged. See [DESIGN.md](../DESIGN.md) for the saved concepts, their precedence and the requirement to retain the real circular player rather than the generated transport alternatives.
+
+### Album contents header
+
+Albums opened from either Albums or an artist's album list show the same compact cover/title header, with artist, song count and a right-hand Close × / Queue album + column. Close restores the parent search and scroll anchor. The title wraps; missing artwork uses the existing generated sleeve. Queue album adds all tracks in server catalogue order, skips existing queue entries and preserves existing playback. When the queue was empty, it selects and prepares the first track paused at 0:00 so you can press Play directly; it does not autoplay. It follows all contents pages, adds nothing on a failed/incomplete load or when the complete addition would exceed 200 tracks, and reports results/errors inline. Close, a Library context change or Clear queue cancels a pending load. Track rows, the fixed mini-player and current playback remain as before; album tracks do not show the alphabet rail. See [DESIGN](../DESIGN.md) for the approved concept and [verification](verification.md) for actual platform checks.
+
+The album Close/Queue and Library/Queue mini-player play/pause controls use the **Graphite hardware button** finish, reusing the player's restrained moulded component. The mini-player retains its existing playback behaviour; per-track queue pluses retain their unframed appearance.
+
+### Ready after queueing; empty after clearing
+
+The first single-track or album addition to an empty queue loads its first item into Now Playing and the mini-player, paused at zero. Once loading finishes, press Play to start that prepared track. Later additions preserve the current track and playback state. Clear queue unloads both prepared and playing audio, removes the current selection/artwork/metadata and resets timing; Play stays disabled until another track is queued or selected. Late preparation responses cannot restore a cleared track.
+
+### Mini-player skip
+
+The lower player bar on Library and Queue offers play/pause followed by Next track, using the same Graphite hardware finish. Next uses the full player's existing action and queue order, and is disabled when there is no next track. The title still opens Now Playing; its orange rectangular highlight is removed, with a thin white underline retained for keyboard focus. Both controls and metadata fit compact and wide layouts.
