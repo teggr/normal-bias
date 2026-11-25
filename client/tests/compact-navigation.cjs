@@ -15,7 +15,7 @@ async function until(check, label) {
 }
 async function click(name) {
     if (name === 'Library' && await page.getByRole('button',{name:'Back to Now Playing',exact:true}).count()) await click('Back to Now Playing');
-    if (['Search','Reset'].includes(name) && !(await page.getByRole('button',{name,exact:true}).count())) await click('Show search');
+    if (name === 'Search' && !(await page.getByRole('button',{name,exact:true}).count())) await click('Show search');
     const item=page.getByRole('button',{name,exact:true}).first(); await item.waitFor();
     let b=await item.boundingBox();
     if(b.y+b.height>844) {
@@ -66,7 +66,7 @@ function event(name) { events.push({name,at:Date.now()/1000}); }
     await page.getByText('1–1 of 1',{exact:true}).first().waitFor();
     await click('Show search');await page.locator('input:focus,textarea:focus').waitFor();
     assert.equal(await page.locator('input:focus,textarea:focus').inputValue(),'Morning','query survives collapse');
-    await page.keyboard.press('Tab');await click('Reset');await click('Hide search');
+    await page.keyboard.press('Tab');await require('./search-input.cjs').clear(page, click);await click('Hide search');
     await page.getByText('1–2 of 2',{exact:true}).first().waitFor();
     await click('+ Queue');await click('Play Morning Circuit');
     // Enqueue the second track without replacing the first.
@@ -106,7 +106,7 @@ function event(name) { events.push({name,at:Date.now()/1000}); }
     const longTitle='Morning Circuit — a long synthetic title for checking compact list and information accessibility';
     const longArtist='Normal Bias synthetic trial with deliberately extended artist metadata';
     assert.equal((await fetch(origin+'/api/tracks/'+catalogue.items[0].id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:longTitle,artist:longArtist})})).status,200);
-    await click('Library');await click('Reset');
+    await click('Library');await require('./search-input.cjs').clear(page, click);
     await page.getByRole('button',{name:'Play '+longTitle,exact:true}).waitFor();
     const addBounds=await page.getByRole('button',{name:'+ Queue',exact:true}).first().boundingBox();
     assert.ok(addBounds.x>=0&&addBounds.x+addBounds.width<=390,'long row retains reachable queue action');

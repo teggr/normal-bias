@@ -72,7 +72,6 @@ public final class LibraryForm extends Form {
     private final Container header = new Container(BoxLayout.y());
     private final Container searchBar = new Container();
     private final Button find = new Button("Search");
-    private final Button reset = new Button("Reset");
     private final HardwareButton searchToggle = new HardwareButton("Show search", FontImage.MATERIAL_SEARCH, true);
     private boolean searchVisible;
     private final LibraryViewButton[] viewButtons = new LibraryViewButton[3];
@@ -112,10 +111,8 @@ public final class LibraryForm extends Form {
         getToolbar().setHidden(true);
         getToolbar().setVisible(false);
         icon(find, "Search", FontImage.MATERIAL_SEARCH, "SearchAction");
-        icon(reset, "Reset", FontImage.MATERIAL_CLOSE, "SearchAction");
         find.addActionListener(e -> searchLibrary());
         search.addActionListener(e -> searchLibrary());
-        reset.addActionListener(e -> { search.setText(""); searchLibrary(); });
         searchBar.setUIID("SearchBar");
         search.setName("Library search");
         searchToggle.setPreferredW(CN.convertToPixels(9));
@@ -250,7 +247,7 @@ public final class LibraryForm extends Form {
         miniCopy.setLeadComponent(miniTitle);
         miniPlayer.add(BorderLayout.WEST, miniCover).add(BorderLayout.CENTER, miniCopy).add(BorderLayout.EAST, BoxLayout.encloseX(miniPlay, miniNext));
         searchBar.setLayout(new BorderLayout());
-        searchBar.add(BorderLayout.CENTER, search).add(BorderLayout.EAST, BoxLayout.encloseX(find, reset));
+        searchBar.add(BorderLayout.CENTER, search).add(BorderLayout.EAST, find);
         navigate(View.LIBRARY);
         addSizeChangedListener(e -> { sizeContent(); revalidate(); });
         timer = new UITimer(() -> {

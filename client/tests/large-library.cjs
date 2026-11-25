@@ -77,7 +77,7 @@ async function audio(){return page.locator('audio').evaluateAll(es=>es.map(e=>({
  await click('All songs');await search('M track');await song('M track 06000');
  await jump('A');await song('M track 06000'); // Missing A falls forward to M in the filtered collection.
  await search('absent result');await until(async()=>(await page.locator('body').innerText()).includes('No tracks match your search.'),'empty search');
- await click('Reset');await song('A listening demo');
+ await require('./search-input.cjs').clear(page, click);await song('A listening demo');
  console.log('PASS filtered index, missing-letter fallback and empty results');
  // Failed incremental request preserves currently rendered rows and supports retry.
  await page.route('**/api/tracks?**',route=>{const u=new URL(route.request().url());return Number(u.searchParams.get('offset')||0)>0?route.fulfill({status:503,body:''}):route.continue();});

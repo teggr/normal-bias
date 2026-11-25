@@ -23,7 +23,7 @@ async function click(page, name, index = 0, role = 'button') {
     if (name === 'Library' && await page.getByRole('button',{name:'Back to Now Playing',exact:true}).count()) await click(page,'Back to Now Playing');
     if (name === 'Now Playing' && await page.getByRole('button', {name:'Back to Now Playing',exact:true}).count()) name = 'Back to Now Playing';
     if (name === 'Library' && await page.getByRole('button', {name:'All songs',exact:true}).count()) return;
-    if (['Search','Reset'].includes(name) && !(await page.getByRole('button',{name,exact:true}).count())) await click(page,'Show search');
+    if (name === 'Search' && !(await page.getByRole('button',{name,exact:true}).count())) await click(page,'Show search');
     const item = page.getByRole(role, {name, exact: true}).nth(index);
     await item.waitFor();
     const box = await item.boundingBox();
@@ -129,7 +129,7 @@ async function seed(origin) {
     await page.goto(origin);
     await text(page, 'Your library is empty. Upload some MP3s to begin.');
     await seed(origin);
-    await click(page, 'Reset');
+    await search(page, '');
     await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     assert.equal(await page.getByRole('button',{name:'More',exact:true}).count(),0);
     await scrollToSong(page, 'Synthetic track 27');
@@ -147,10 +147,10 @@ async function seed(origin) {
         await until(() => page.getByRole('button', {name:'Search', exact:true}).count().then(count => count === 0), 'Queue has no library search');
         await click(page, 'Library');
         await until(async () => await page.getByRole('button',{name:/^(Play Synthetic track 00|Open Browser fixtures)$/}).count() === 1, 'one filtered result');
-        await click(page, 'Reset');
+        await search(page, '');
         await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     }
-    console.log('PASS Library-only search, preserved query, Enter/Reset and no duplicate heading');
+    console.log('PASS Library-only search, preserved query, Enter/clearing input and no duplicate heading');
 
     const stopCapture = process.env.RECORD_DEMO ? await require('./capture-demo.cjs').start(page, path.resolve(process.env.RECORD_DEMO)) : null;
     await openQueue(page);
@@ -178,7 +178,7 @@ async function seed(origin) {
     await page.getByRole('button', {name:'Open Normal Bias tests', exact:true}).waitFor();
     await search(page, 'missing artist');
     await text(page, 'No artists found.');
-    await click(page, 'Reset');
+    await search(page, '');
     await click(page, 'All songs');
     await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     console.log('PASS album/artist grouping, drill-down, continuous scrolling, back and empty search');
@@ -236,7 +236,7 @@ async function seed(origin) {
     await until(async () => (await audio(page)).some(a => !a.paused && a.time > 0), 'audio retry');
     await click(page, 'Library');
     await page.route('**/api/tracks?**', route => route.fulfill({status:503,body:''}));
-    await click(page, 'Reset');
+    await search(page, '');
     await until(async () => (await page.locator('body').innerText()).includes('Library unavailable'), 'library error');
     await page.unroute('**/api/tracks?**');
     await click(page, 'Retry library');
@@ -333,7 +333,7 @@ async function seed(origin) {
     await click(page, 'Library');
     await search(page, 'track 00');
     await until(async () => await page.getByRole('button',{name:/^(Play Synthetic track 00|Open Browser fixtures)$/}).count() === 1, 'one filtered result');
-    await click(page, 'Reset');
+    await search(page, '');
     await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     await click(page, 'Artists');
     await click(page, 'Open Normal Bias tests');
