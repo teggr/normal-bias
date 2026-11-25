@@ -14,7 +14,7 @@ async function login(p){
 (async()=>{
  const c=new crypto.X509Certificate(fs.readFileSync(path.join(out,'tls.crt'))),pin=crypto.createHash('sha256').update(c.publicKey.export({type:'spki',format:'der'})).digest('base64');
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--ignore-certificate-errors-spki-list='+pin]});
- const context=await browser.newContext({viewport:{width:1180,height:844}}),p=await context.newPage();p.setDefaultTimeout(20000);const checks=[];
+ const context=await browser.newContext({viewport:{width:1000,height:844}}),p=await context.newPage();p.setDefaultTimeout(20000);const checks=[];
  try{
   await p.goto(fixture.origin+'/');await login(p);await click(p,'Play Morning Circuit');await until(()=>p.locator('audio').evaluateAll(es=>es.some(e=>!e.paused&&e.currentTime>1)),'playback');
   await p.route('**/api/library/albums?**',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));await click(p,'Albums');

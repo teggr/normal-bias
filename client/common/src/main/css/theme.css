@@ -34,6 +34,9 @@ TrackTitle.selected { color: #eac23f; }
 Muted { color: #b7b8bb; background-color: transparent; border: none; font-size: 2mm; padding: 0.2mm 0; margin: 0; }
 RowAction, RowAction.pressed { color: #eac23f; background-color: transparent; border: none; padding: 2mm; margin: 0; }
 RowAction.selected { color: #eac23f; background-color: transparent; border: 1px solid #eac23f; }
+AlbumRowAction, AlbumRowAction.pressed { color: #b7b8bb; background-color: transparent; border: none; padding: 2mm; margin: 0; }
+AlbumRowAction.selected { color: #f3f3f1; border: 1px solid #eac23f; }
+AlbumRowAction.disabled { color: #767676; background-color: transparent; border: none; }
 Artwork { background-color: transparent; border: none; margin: 0 2mm 0 0; padding: 0; }
 QueueRow { color: #f3f3f1; background-color: #202124; border: none; border-bottom: 1px solid #2c2d30; padding: 4mm 0; margin: 0 4mm; text-align: left; }
 QueueRow.selected { color: #eac23f; border: 1px solid #eac23f; }
@@ -79,6 +82,9 @@ LoginPanel {
 /* Canonical compact shell: DESIGN.md. PlayerFace and TransportWheel are retained. */
 Header { padding: 2mm 4mm; }
 ScreenHeading { color: #f3f3f1; font-family: "native:MainBold"; font-size: 3.2mm; background-color: transparent; padding: 0; margin: 0; }
+ListeningPane { background-color: #202124; border: none; border-left: 1px solid #111111; padding: 0; margin: 0; }
+ListeningPlayerPane { background-color: #272727; border: none; border-left: 1px solid #111111; padding: 0; margin: 0; }
+ListeningHeading { color: #f3f3f1; font-family: "native:MainBold"; font-size: 3mm; background-color: transparent; border: none; padding: 2mm 4mm; margin: 0; }
 QueueSummary { background-color: transparent; padding: 1mm 4mm; margin: 0; }
 QueueCurrentTitle, QueueCurrentTitle.selected, QueueCurrentTitle.pressed { color: #eac23f; font-family: "native:MainBold"; font-size: 2.3mm; background-color: transparent; border: none; padding: 0.8mm 0 0.3mm; margin: 0; text-align: left; }
 QueueIndicator { color: #eac23f; background-color: transparent; padding: 2mm; margin: 0; font-size: 2.4mm; }

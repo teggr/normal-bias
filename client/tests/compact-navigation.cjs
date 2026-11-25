@@ -81,7 +81,7 @@ function event(name) { events.push({name,at:Date.now()/1000}); }
     await page.screenshot({path:path.join(output,'now-playing.png')});
     await click('Queue');event('queue');await page.getByText('2 tracks',{exact:true}).first().waitFor();await wait(2500);
     await page.screenshot({path:path.join(output,'queue.png')});
-    await page.setViewportSize({width:1180,height:844});await wait(500);
+    await page.setViewportSize({width:1000,height:844});await wait(500);
     await page.getByRole('button',{name:'Back to Now Playing',exact:true}).waitFor();
     await click('Back to Now Playing');await page.getByRole('slider').waitFor();
     const slider=await page.getByRole('slider').boundingBox();assert.ok(slider.width<500,'wide player stays bounded');

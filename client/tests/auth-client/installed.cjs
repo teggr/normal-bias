@@ -10,7 +10,7 @@ async function login(p){
 }
 (async()=>{
  const cert=new crypto.X509Certificate(fs.readFileSync(path.join(out,'tls.crt'))),pin=crypto.createHash('sha256').update(cert.publicKey.export({type:'spki',format:'der'})).digest('base64');
- const context=await chromium.launchPersistentContext(path.join(out,'installed-profile'),{executablePath:process.env.CHROMIUM_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:false,viewport:{width:1180,height:844},args:['--ignore-certificate-errors-spki-list='+pin]});
+ const context=await chromium.launchPersistentContext(path.join(out,'installed-profile'),{executablePath:process.env.CHROMIUM_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:false,viewport:{width:1000,height:844},args:['--ignore-certificate-errors-spki-list='+pin]});
  let cdp,installed=false,replacement,log;const checks=[];
  try {
   let p=context.pages()[0];p.setDefaultTimeout(25000);await p.goto(fixture.origin+'/');await p.getByRole('button',{name:'Sign in',exact:true}).waitFor();

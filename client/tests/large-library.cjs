@@ -89,7 +89,7 @@ async function audio(){return page.locator('audio').evaluateAll(es=>es.map(e=>({
  await page.setViewportSize({width:390,height:600});await delay(700);await page.screenshot({path:path.join(out,'short.png')});
  const first=await page.getByRole('button',{name:'Jump to A',exact:true}).boundingBox(),last=await page.getByRole('button',{name:'Jump to #',exact:true}).boundingBox();
  assert.ok(first.y>=100&&last.y+last.height<540,'full rail fits short viewport above mini-player');
- await page.setViewportSize({width:1180,height:780});await delay(700);await page.screenshot({path:path.join(out,'wide.png')});
+ await page.setViewportSize({width:1000,height:780});await delay(700);await page.screenshot({path:path.join(out,'wide.png')});
  // Keyboard can focus and activate an individual letter, independently of the persistent highlight.
  await page.getByRole('button',{name:'Jump to Z',exact:true}).focus();await page.keyboard.press('Enter');await song('Z track 12500');
  console.log('PASS short/wide layout and keyboard letter activation');
