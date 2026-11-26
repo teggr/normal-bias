@@ -7,8 +7,8 @@ import com.codename1.ui.geom.Dimension;
 
 /** Embedded cover with an original deterministic sleeve when art is absent or unavailable. */
 final class RecordArtwork extends Component {
-    private final boolean thumbnail;
-    private final boolean compactCover;
+    private boolean thumbnail;
+    private boolean compactCover;
     private int variation = 1;
     private Image cached;
     private int cachedSize;
@@ -19,6 +19,8 @@ final class RecordArtwork extends Component {
         this.thumbnail = thumbnail; this.compactCover = compactCover;
         setUIID("Artwork"); setFocusable(false);
     }
+    void thumbnail(boolean value) { thumbnail = value; cached = null; repaint(); }
+    void compact(boolean value) { if (compactCover != value) { compactCover = value; cached = null; repaint(); } }
     private String trackId;
     private Image embedded;
     private Track track;

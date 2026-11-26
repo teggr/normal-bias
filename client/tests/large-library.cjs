@@ -48,7 +48,7 @@ async function audio(){return page.locator('audio').evaluateAll(es=>es.map(e=>({
  for(let i=0;i<22;i++)await drag(true);
  const forward=loads.slice(startLoads).filter(p=>p.startsWith('/api/tracks?'));
  assert.ok(forward.length>=5,'automatic forward loading across five batches');
- assert.ok(await page.getByRole('button',{name:/^Play [A-Z7].*track/}).count()<=125,'bounded rendered rows after forward eviction');
+ await until(async()=>await page.getByRole('button',{name:/^Play [A-Z7].*track/}).count()<=125,'accessibility mirror retires evicted track rows');
  await page.screenshot({path:path.join(out,'forward.png')});
  startLoads=loads.length;for(let i=0;i<16;i++)await drag(false);
  assert.ok(loads.slice(startLoads).some(p=>p.startsWith('/api/tracks?')),'backward scrolling reloads evicted rows');
@@ -106,6 +106,21 @@ async function audio(){return page.locator('audio').evaluateAll(es=>es.map(e=>({
  assert.equal(await page.getByRole('button',{name:'Play M track 06000',exact:true}).count(),0,'obsolete response cannot replace a new category');
  await page.unroute('**/api/tracks?**');
  console.log('PASS stale response discarded after category change');
+ // Group grids retain the same bounded bidirectional window as compact rows.
+ await page.setViewportSize({width:1024,height:1366});await delay(700);await click('Albums');await page.getByRole('button',{name:'Open A Album 0',exact:true}).waitFor();await until(async()=>{const b=await page.getByRole('button',{name:'Jump to #',exact:true}).boundingBox();return b&&b.y>1100;},'grid rail reflow');await jump('M');
+ await page.getByRole('button',{name:'Open M Album 0',exact:true}).waitFor();
+ const gridStart=loads.length;
+ for(let i=0;i<10;i++){await page.mouse.move(400,1000);await page.mouse.wheel(0,1800);await delay(550);}
+ const gridForward=loads.slice(gridStart).filter(p=>p.startsWith('/api/library/albums?')).map(p=>Number(new URL(p,'http://fixture').searchParams.get('offset')||0));
+ assert.ok(gridForward.length>=5,'grid loads beyond its five-batch window');
+ await until(async()=>await page.getByRole('button',{name:/^Open .* Album /}).count()<=125,'accessibility mirror retires evicted group tiles');
+ const reverseStart=loads.length;
+ for(let i=0;i<12;i++){await page.mouse.move(400,1000);await page.mouse.wheel(0,-1800);await delay(550);}
+ const gridReverse=loads.slice(reverseStart).filter(p=>p.startsWith('/api/library/albums?')).map(p=>Number(new URL(p,'http://fixture').searchParams.get('offset')||0));
+ assert.ok(gridReverse.some(offset=>offset<Math.max(...gridForward)),'reverse grid scrolling reloads earlier batches');
+ await page.screenshot({path:path.join(out,'group-grid-reverse.png')});
+ console.log('PASS group-grid batch eviction and reverse reloading within 125 tiles');
+
  if(process.env.RECORD_DEMO){
    await page.setViewportSize({width:390,height:844});await click('All songs');await song('A listening demo');
    if(await page.getByRole('button',{name:'Hide search',exact:true}).count())await click('Hide search');

@@ -61,13 +61,13 @@ function event(name) { events.push({name,at:Date.now()/1000}); }
     event('library');await wait(1000);
     await click('Show search');await page.locator('input:focus,textarea:focus').waitFor();
     await page.locator('input:focus,textarea:focus').fill('Morning');await page.keyboard.press('Tab');await click('Search');
-    await page.getByText('1–1 of 1',{exact:true}).first().waitFor();
+    await page.getByRole('button',{name:'Play Morning Circuit',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Play Evening Signal',exact:true}).count(),0);
     await click('Hide search');assert.equal(await page.getByRole('textbox').count(),0,'collapse hides editor');
-    await page.getByText('1–1 of 1',{exact:true}).first().waitFor();
+    await page.getByRole('button',{name:'Play Morning Circuit',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Play Evening Signal',exact:true}).count(),0);
     await click('Show search');await page.locator('input:focus,textarea:focus').waitFor();
     assert.equal(await page.locator('input:focus,textarea:focus').inputValue(),'Morning','query survives collapse');
     await page.keyboard.press('Tab');await require('./search-input.cjs').clear(page, click);await click('Hide search');
-    await page.getByText('1–2 of 2',{exact:true}).first().waitFor();
+    await page.getByRole('button',{name:'Play Evening Signal',exact:true}).waitFor();
     await click('+ Queue');await click('Play Morning Circuit');
     // Enqueue the second track without replacing the first.
     const plus=await page.getByRole('button',{name:'+ Queue',exact:true}).nth(1).boundingBox();
@@ -81,7 +81,7 @@ function event(name) { events.push({name,at:Date.now()/1000}); }
     await page.screenshot({path:path.join(output,'now-playing.png')});
     await click('Queue');event('queue');await page.getByText('2 tracks',{exact:true}).first().waitFor();await wait(2500);
     await page.screenshot({path:path.join(output,'queue.png')});
-    await page.setViewportSize({width:1000,height:844});await wait(500);
+    await page.setViewportSize({width:800,height:844});await wait(500);
     await page.getByRole('button',{name:'Back to Now Playing',exact:true}).waitFor();
     await click('Back to Now Playing');await page.getByRole('slider').waitFor();
     const slider=await page.getByRole('slider').boundingBox();assert.ok(slider.width<500,'wide player stays bounded');

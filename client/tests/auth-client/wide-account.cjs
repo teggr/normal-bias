@@ -46,11 +46,12 @@ await click(page,'Play Morning Circuit');await page.waitForFunction(()=>Array.fr
 const before=await page.locator('audio').first().evaluate(e=>({src:e.currentSrc,time:e.currentTime}));
 await click(page,'Profile');assert.equal(await page.getByRole('button',{name:'All songs',exact:true}).count(),0);assert.equal(await page.getByRole('slider').count(),0);assert.equal(await page.getByRole('button',{name:'Clear queue',exact:true}).count(),0);
 await click(page,'Change password');await click(page,'Cancel');await page.getByText('Username',{exact:true}).first().waitFor();
-await click(page,'Back to Library');await page.getByRole('button',{name:'Clear queue',exact:true}).waitFor();
+await click(page,'Back to Library');await page.getByRole('button',{name:'Albums',exact:true}).waitFor();
 const after=await page.locator('audio').first().evaluate(e=>({src:e.currentSrc,time:e.currentTime,paused:e.paused}));assert.equal(before.src,after.src);assert.ok(after.time>before.time&&!after.paused);
+await click(page,'Queue');await page.getByRole('button',{name:'Close queue',exact:true}).waitFor();await click(page,'Profile');await click(page,'Back to Queue');await page.getByRole('button',{name:'Close queue',exact:true}).waitFor();await click(page,'Close queue');
 await click(page,'Profile');await page.setViewportSize({width:390,height:844});await wait(600);await click(page,'Back to Library');assert.equal(await page.getByRole('button',{name:'Open Now Playing',exact:true}).count(),1);
-await page.setViewportSize({width:1440,height:960});await wait(600);await page.getByRole('button',{name:'Clear queue',exact:true}).waitFor();await click(page,'Pause');
+await page.setViewportSize({width:1440,height:960});await wait(600);await page.getByRole('button',{name:'Albums',exact:true}).waitFor();await click(page,'Pause');
 await page.screenshot({path:root+'/client/target/recordings/wide-listening/account-restored.png'});
-console.log('PASS wide full-screen Account/password Cancel/Back and resize, preserving actual synthetic playback');
+console.log('PASS console Queue return, full-screen Account/password Cancel/Back and resize, preserving actual synthetic playback');
 }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

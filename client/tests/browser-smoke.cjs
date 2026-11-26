@@ -115,7 +115,7 @@ async function seed(origin) {
     }, 'API startup');
     browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',
         headless:true, args: [...(process.env.CI ? ['--no-sandbox'] : []), '--window-size=1280,1000']});
-    const context = await browser.newContext({viewport:{width:1000,height:780}, serviceWorkers:'block'});
+    const context = await browser.newContext({viewport:{width:800,height:780}, serviceWorkers:'block'});
     const page = await context.newPage();
     currentPage = page;
     const errors = [];
@@ -349,7 +349,7 @@ async function seed(origin) {
     await page.getByRole('button',{name:'Open Browser fixtures',exact:true}).first().waitFor().catch(() => page.getByRole('button',{name:'Open Normal Bias tests',exact:true}).waitFor());
     await click(page, 'All songs');
     console.log('PASS compact grouped navigation and grouped request failure/retry');
-    await page.setViewportSize({width:1000,height:780});
+    await page.setViewportSize({width:800,height:780});
     await page.getByRole('button', {name:'Now Playing', exact:true}).waitFor();
     await click(page, 'Library');
     await delay(600);
@@ -359,7 +359,7 @@ async function seed(origin) {
     async function libraryPixels(filename) {
         const file=path.join(repo,'client/target/'+filename);
         await page.screenshot({path:file});
-        const decoded=spawnSync('ffmpeg',['-v','error','-i',file,'-vf','crop=900:400:25:245','-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','pipe:1'],{maxBuffer:2*1024*1024,timeout:10000});
+        const decoded=spawnSync('ffmpeg',['-v','error','-i',file,'-vf','crop=700:400:25:245','-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','pipe:1'],{maxBuffer:2*1024*1024,timeout:10000});
         assert.equal(decoded.status,0,'decode actual Library canvas');
         return decoded.stdout;
     }
@@ -382,7 +382,7 @@ async function seed(origin) {
     const restoredPixels=await libraryPixels('library-scroll-restored.png');
     // Reattaching a CN1 canvas can round text/scroll geometry by one pixel.
     // Require the same rendered region within two pixels and <1/255 mean RGB error.
-    const stride=900*3;let difference=Infinity;
+    const stride=700*3;let difference=Infinity;
     for(let shift=-2;shift<=2;shift++){
         let sum=0;const start=2*stride,end=scrolledPixels.length-2*stride;
         for(let i=start;i<end;i++)sum+=Math.abs(scrolledPixels[i]-restoredPixels[i+shift*stride]);

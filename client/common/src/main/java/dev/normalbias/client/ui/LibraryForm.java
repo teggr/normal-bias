@@ -56,12 +56,13 @@ public final class LibraryForm extends Form {
     private final Container body = new Container(new BorderLayout());
     private final Container playerPanel = new Container(new BorderLayout());
     private final Container miniPlayer = new Container(new BorderLayout());
-    private final Container wideShell = new Container(new ListeningColumns());
+    private final Container wideShell = new Container(new BorderLayout());
     private final Container wideLibrary = new Container(new BorderLayout());
     private final Container widePlayer = new Container(new BorderLayout());
     private final Container wideQueue = new Container(new BorderLayout());
     private final Container wideQueueActions = new Container(BoxLayout.x());
     private boolean wide;
+    private final HardwareButton showQueue = new HardwareButton("Queue", FontImage.MATERIAL_QUEUE_MUSIC, true);
     private final Button miniTitle = new Button("Now Playing") {
         @Override public void paintBackground(Graphics g) {
             super.paintBackground(g);
@@ -218,11 +219,10 @@ public final class LibraryForm extends Form {
         previous.addActionListener(e -> player.previous());
         next.addActionListener(e -> player.next());
         retry.addActionListener(e -> { if (player.hasFailed()) player.retry(); else player.restart(); });
-        HardwareButton showQueue = new HardwareButton("Queue", FontImage.MATERIAL_QUEUE_MUSIC, true);
         informationToggle.addActionListener(e -> toggleInformation());
         shuffle.addActionListener(e -> player.shuffle());
         queueShuffle.addActionListener(e -> player.shuffle());
-        showQueue.addActionListener(e -> navigate(View.QUEUE));
+        showQueue.addActionListener(e -> navigate(wide && view == View.QUEUE ? View.LIBRARY : View.QUEUE));
         TransportWheel wheel = new TransportWheel(previous, play, next, informationToggle, showQueue, retry, shuffle);
         icon(previous, "Previous", FontImage.MATERIAL_SKIP_PREVIOUS, "WheelAction");
         icon(next, "Next", FontImage.MATERIAL_SKIP_NEXT, "WheelAction");
@@ -250,9 +250,10 @@ public final class LibraryForm extends Form {
         widePlayer.setUIID("ListeningPlayerPane");
         wideQueue.setUIID("ListeningPane");
         wideLibrary.add(BorderLayout.NORTH, paneHeading("Library"));
-        widePlayer.add(BorderLayout.NORTH, paneHeading("Now Playing"));
-        wideQueue.add(BorderLayout.NORTH, BorderLayout.center(paneHeading("Queue")).add(BorderLayout.EAST, wideQueueActions));
-        wideShell.add(wideLibrary).add(widePlayer).add(wideQueue);
+        wideQueue.add(BorderLayout.NORTH, BorderLayout.center(paneHeading("Queue"))
+                .add(BorderLayout.WEST, navigation("Close queue", FontImage.MATERIAL_CLOSE, () -> navigate(View.LIBRARY)))
+                .add(BorderLayout.EAST, wideQueueActions));
+        wideShell.add(BorderLayout.NORTH, widePlayer);
         queue.setName("Playback queue");
         miniTitle.setUIID("MiniTitle");
         miniTitle.setName("Open Now Playing");
@@ -302,21 +303,35 @@ public final class LibraryForm extends Form {
         accountPanel.setPreferredW(available);
         accountPanel.setShouldCalcPreferredSize(true);
         boolean wasWide = wide;
-        wide = available >= CN.convertToPixels(ListeningColumns.MIN_WIDTH_MM);
+        int height = getHeight() > 0 ? getHeight() : CN.getDisplayHeight();
+        wide = available >= CN.convertToPixels(130) && height >= CN.convertToPixels(100);
         wideShell.setPreferredW(available);
         if (wide != wasWide) libraryViews.setLayout(wide ? new FlowLayout(Component.LEFT) : new GridLayout(1, 3));
-        int libraryWidth = wide ? ListeningColumns.libraryWidth(available) : available;
+        int libraryWidth = available;
+        collection.presentation(wide, available);
         albumNavigationMessage.setPreferredW(Math.max(1, libraryWidth - CN.convertToPixels(8)));
         albumNavigationMessage.setShouldCalcPreferredSize(true);
         albumTitle.setPreferredW(Math.max(1, libraryWidth - CN.convertToPixels(39)));
         albumTitle.setShouldCalcPreferredSize(true);
         albumArtist.setPreferredW(Math.max(1, libraryWidth - CN.convertToPixels(39)));
         albumArtist.setShouldCalcPreferredSize(true);
-        int width = Math.min(wide ? ListeningColumns.playerWidth(available) : available, CN.convertToPixels(62));
-        trackInformation.fitWidth(width);
+        int width = wide ? available : Math.min(available, CN.convertToPixels(62));
+        playerFace.horizontal(wide);
+        metadataCover.setHidden(wide); metadataCover.setVisible(!wide);
+        artworkSlot.setUIID(wide ? "ConsoleArtwork" : "ArtworkRecess");
+        cover.compact(wide);
+        // BorderLayout otherwise retains the cover's 43 mm preferred height and
+        // centres it inside the smaller console slot, cropping its lower edge.
+        com.codename1.ui.geom.Dimension sleeve = wide ? new com.codename1.ui.geom.Dimension(
+                PlayerFace.artworkWidth(width), PlayerFace.artworkWidth(width)) : null;
+        artworkSlot.setPreferredSize(sleeve);
+        cover.setPreferredSize(sleeve);
+        trackInformation.fitWidth(wide ? PlayerFace.artworkWidth(width) : width);
+        // CN1 setPreferredW also freezes the previous preferred height.
+        playerFace.setPreferredSize(null);
         playerFace.setWidth(width);
-        playerFace.setPreferredW(width);
         playerFace.setShouldCalcPreferredSize(true);
+        if (wide) widePlayer.setPreferredH(Math.min(playerFace.getPreferredH(), Math.max(CN.convertToPixels(45), height * 48 / 100)));
         if (wasWide != wide && body.getComponentCount() > 0) navigate(view, true);
     }
 
@@ -341,13 +356,18 @@ public final class LibraryForm extends Form {
         boolean combined = wide && target != View.ACCOUNT;
         if (target == View.ACCOUNT || !combined && target != View.LIBRARY) cancelAlbumNavigation();
         queue.setFocusable(combined);
-        collection.shown(combined || target == View.LIBRARY);
+        collection.shown(combined ? target != View.QUEUE : target == View.LIBRARY);
         library.remove(); playerPanel.remove(); queuePanel.remove(); accountPanel.remove();
         body.removeAll();
         if (combined) {
             wideLibrary.add(BorderLayout.CENTER, library);
             widePlayer.add(BorderLayout.CENTER, playerPanel);
             wideQueue.add(BorderLayout.CENTER, queuePanel);
+            Container lower = target == View.QUEUE ? wideQueue : wideLibrary;
+            wideLibrary.remove(); wideQueue.remove();
+            wideShell.add(BorderLayout.CENTER, lower);
+            // Keep a bounded scroll viewport for large text without hiding the wheel.
+            widePlayer.setPreferredH(Math.min(playerFace.getPreferredH(), Math.max(CN.convertToPixels(45), getHeight() * 48 / 100)));
             wideShell.remove(); body.add(BorderLayout.CENTER, wideShell);
         } else {
             Container content = target == View.LIBRARY ? library : target == View.QUEUE ? queuePanel : target == View.ACCOUNT ? accountPanel : playerPanel;
@@ -355,6 +375,9 @@ public final class LibraryForm extends Form {
         }
         miniPlayer.remove();
         if (!combined && (target == View.LIBRARY || target == View.QUEUE)) add(BorderLayout.SOUTH, miniPlayer);
+        showQueue.setUIID(combined && target == View.QUEUE ? "QueueToggleActive" : "HardwareButton");
+        showQueue.setGlyph("Queue", FontImage.MATERIAL_QUEUE_MUSIC);
+        showQueue.getSemantics().setDescription(combined ? (target == View.QUEUE ? "Close queue" : "Open queue") : "Open queue");
         header.removeAll();
         Container actions = new Container(BoxLayout.x());
         queueShuffle.remove();
@@ -547,12 +570,8 @@ public final class LibraryForm extends Form {
         });
         String subtitle = (artistList ? "" : display(group.artist(), "Unknown artist") + " · ")
                 + group.trackCount() + (group.trackCount() == 1 ? " song" : " songs");
-        RecordArtwork art = new RecordArtwork(true);
-        art.setTrack(new Track(group.trackId(), name, group.artist(), group.album(), 0), api, false);
-        Container row = BorderLayout.center(BoxLayout.encloseY(open, new Label(subtitle, "Muted")))
-                .add(BorderLayout.WEST, art);
-        row.setLeadComponent(open); row.setUIID("TrackRow"); row.putClientProperty("artwork", art);
-        return row;
+        return new GroupEntry(open, name, subtitle,
+                new Track(group.trackId(), name, group.artist(), group.album(), 0), api);
     }
 
     private Container trackRow(Track track) {
