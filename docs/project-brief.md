@@ -408,3 +408,8 @@ Robin requested an artist-header queue button matching albums. Implemented a ver
 ### Artist queue simulator/service refresh — 2026-11-26
 
 At Robin's request, rebuilt and updated the existing Normal Bias app in place on iPhone 17 Pro and iPad Pro 11-inch (M5). Robin additionally approved updating/restarting the existing local HTTPS 19544 service to supply the new artist `tracks` relation. Its configuration, TLS, account metadata and 24 music files were preserved, with private ignored rollback copies. Both apps restored sign-in; iPad Queue artist successfully added 12 tracks paused, then Clear removed them. Both are left open on Oasis's artist albums, empty queues and playback stopped. Exact build/install and service evidence is in verification. No physical-device action or deployment.
+
+
+### Artist queue review publication — 2026-11-26
+
+Robin accepted the delivered artist queue and simulator refresh and requested commit/push. PR #21 had already merged, with no open PR to update. Published implementation commit `c9eab83` on `codex/artist-queue`, rebased onto main `b5e7e4d`, in [PR #24](https://github.com/teggr/normal-bias/pull/24). Combined client tests pass 48 tests; original browser/native/recording evidence retains its checkpoint scope. Generated/private artifacts remain ignored. No merge, further service refresh, simulator installation or deployment is requested by this publication.
