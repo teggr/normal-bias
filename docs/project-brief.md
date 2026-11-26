@@ -394,3 +394,7 @@ Robin requested tidying both simulators and loading the latest app. Each now has
 ## Top-console review publication — authorised 2026-11-26
 
 Robin accepted the delivered UI and consolidated simulator apps, then requested committing/pushing for review. GitHub confirms PR #19 is already merged and there are no open PRs to update. Published the approved increment as implementation commit `12c160b` on `codex/top-console-library-tiles`, based on merged main `b2067e6`, in open [PR #20](https://github.com/teggr/normal-bias/pull/20). The implementation and simulator-handoff evidence above remains current; generated builds, recordings, credentials, catalogue files and simulator backups stay ignored. No merge or deployment is requested.
+
+## Player wheel repaint correction — authorised 2026-11-26
+
+Robin reported grey squares behind highlighted player buttons on larger layouts. The shared wheel now paints its existing background using its absolute position relative to the current graphics translation so button-only repaints restore the wheel at the correct origin. This is a presentation bug fix; player geometry, playback, queue and API policy are unchanged. Actual verification and platform limits are recorded in [verification](verification.md).
