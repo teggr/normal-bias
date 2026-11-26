@@ -86,7 +86,10 @@ public final class CarPlayProbe extends NormalBias {
             SimulatorRecorder.Result result = recorder.stop();
             return result.file + " durationMs=" + result.durationMs + " audio=" + result.audio;
         } else if (op.equals("screenshot")) {
-            ImageIO.write(frame(), "png", new File(output, "head-unit.png"));
+            String name = (String) args.get("title");
+            if (name == null) name = "head-unit";
+            if (!name.matches("[a-z-]+")) throw new IllegalArgumentException("Invalid screenshot name");
+            ImageIO.write(frame(), "png", new File(output, name + ".png"));
         }
         String[] result = new String[1];
         Exception[] error = new Exception[1];
@@ -101,14 +104,23 @@ public final class CarPlayProbe extends NormalBias {
                     for (CarSection section : list.getSections()) for (CarRow row : section.getRows()) {
                         if (row.getTitle().equals(args.get("title"))) selected = row;
                     }
-                    if (selected == null || selected.getOnAction() == null) throw new IllegalStateException("No action: " + args.get("title"));
-                    selected.getOnAction().actionPerformed(context);
+                    CarActionListener action = selected == null ? null : selected.getOnAction();
+                    if (action == null && list.getHeaderActions() != null) {
+                        for (CarAction header : list.getHeaderActions().getActions()) {
+                            if (header.getTitle().equals(args.get("title"))) action = header.getOnAction();
+                        }
+                    }
+                    if (action == null) throw new IllegalStateException("No action: " + args.get("title"));
+                    action.actionPerformed(context);
                 }
                 CarTemplate template = context.getTopScreen().dispatchCreateTemplate();
                 StringBuilder text = new StringBuilder(template.getClass().getSimpleName());
                 if (template instanceof CarListTemplate) {
-                    for (CarSection section : ((CarListTemplate) template).getSections()) {
-                        for (CarRow row : section.getRows()) text.append(" | ").append(row.getTitle());
+                    CarListTemplate list = (CarListTemplate) template;
+                    text.append(" title=").append(list.getTitle());
+                    if (list.getHeaderActions() != null) for (CarAction action : list.getHeaderActions().getActions()) text.append(" | ").append(action.getTitle());
+                    for (CarSection section : list.getSections()) {
+                        for (CarRow row : section.getRows()) text.append(" | ").append(row.getTitle()).append(row.getImage() == null ? "" : " [artwork]");
                     }
                 }
                 Player player = (Player) field(Car.getApplication(), Car.getApplication().getClass(), "player");

@@ -6,7 +6,9 @@ Authorised 2026-11-20: prove Codename One's Java car API in its desktop head uni
 
 `CarListening` projects the existing `LibraryApi`, `Track`, `Player` and finite session queue. Phone and car share one player instance; selection, pause, restart/retry, navigation and Clear use the same Java methods. The portable Controls row is Restart track during normal playback and Retry track only after a playback failure, matching the phone player’s lower-left control. Restart seeks to zero and preserves playing/paused intent. Disconnect preserves playback and the queue. No second audio engine, catalogue, album model, theme or artwork pipeline was added.
 
-The mobile Graphite components remain in the phone app. CarPlay renders system templates rather than Codename One forms or mobile CSS. The PoC uses framework list templates for Library, Queue and playback actions, plus `CarNowPlayingTemplate`. Native Now Playing relies on the existing iOS `SystemAudio` metadata/artwork/remote commands. Desktop Now Playing is a framework placeholder; the playback-action list makes the Java flow testable there. This navigation is a feasibility choice, not an approved final car design. Browse artwork and album grouping are outside this increment.
+The mobile Graphite components remain in the phone app. CarPlay renders system templates rather than Codename One forms or mobile CSS. The PoC uses framework list templates for Library, Queue and playback actions, plus `CarNowPlayingTemplate`. Native Now Playing relies on the existing iOS `SystemAudio` metadata/artwork/remote commands. Desktop Now Playing is a framework placeholder; the playback-action list makes the Java flow testable there. The 2026-11-26 adaptation follows the canonical [CarPlay design mapping](../DESIGN.md#carplay-adaptation--authorised-2026-11-26): Library / Now Playing home destinations, All songs / Albums / Artists, grouped identity/counts and existing API artwork. This supersedes the initial feasibility-only navigation. Native runtime acceptance remains outstanding.
+
+Library follows advertised alphabetical collection, contents and next/previous links. Artist/album steps share a native stack slot with contextual Back; it restores the parent page/window, while system Back exits to Library categories. Track selection inserts/plays with the shared player; Back from playback retains the browsed collection. The portable Now Playing list has title/artist/album, Play/Pause, Previous/Next track and Restart/terminal-failure Retry, with Queue and System player header actions. Queue selection stays on Queue; its header offers one-shot Shuffle for two or more entries. System player opens Apple's native Now Playing template; the pinned iOS bridge does not wire that template's custom actions or Up Next callback, so Queue remains in the portable header. No new native glue is needed. The pinned desktop renderer omits header strips; a desktop row fallback exposes Queue, Shuffle and More controls / Back to Now Playing visibly, keeping control pages within five rows. The desktop launchers set `-Dnormalbias.carRowActions=true` explicitly (an iPhone skin can report an iOS platform name). This is a renderer accommodation; iOS retains Queue/System player and Shuffle header actions.
 
 Library/Queue pagination reserves rows for navigation and respects the connected head unit's row limit. Loading, empty and failure states are explicit. A 16-second Java deadline makes Library retryable if the platform does not deliver its configured network timeout; late replies and replies to destroyed screens are ignored. Retry does not imply cancellation or recovery of every underlying platform network operation.
 
@@ -15,10 +17,10 @@ Library/Queue pagination reserves rows for navigation and respects the connected
 Select Java 21, Maven and FFmpeg as in the [simulator guide](simulator-poc.md). First terminal:
 
 ```sh
-./client/demo-simulator.sh
+NORMALBIAS_DEMO_ARTWORK=1 ./client/demo-simulator.sh
 ```
 
-This starts the disposable, synthetic two-track API and normal phone simulator. Keep it running. Its **Car → Connect CarPlay** menu opens the framework head-unit window for manual use, sharing the phone's player/queue.
+This starts the disposable, synthetic two-track API and normal phone simulator. The optional `NORMALBIAS_DEMO_ARTWORK=1` embeds an original geometric sleeve for positive artwork checks; omit it to verify clean missing-art rows. Keep it running. Its **Car → Connect CarPlay** menu opens the framework head-unit window for manual use, sharing the phone's player/queue.
 
 For repeatable callback/recording checks, run in a second terminal:
 
@@ -29,10 +31,10 @@ For repeatable callback/recording checks, run in a second terminal:
 This opens a separate probe simulator using the same disposable API. It compiles `client/tests/CarPlayProbe.java` into ignored output, outside application sources, and adds a loopback-only development MCP tool on port 18866. Third terminal:
 
 ```sh
-python3 client/tests/carplay-smoke.py
+CARPLAY_EXPECT_ARTWORK=1 python3 client/tests/carplay-smoke.py
 ```
 
-The script connects the actual framework head-unit renderer and invokes the template callbacks that selections dispatch. It asserts shared player/queue state and records empty Queue, library selection, play/pause, previous/next, the Now Playing placeholder and Clear, then verifies a fresh connection. It does not synthesize OS mouse input or establish native touch/rotary behaviour. The framework recorder captures real Swing head-unit frames and decoded application PCM on its own clock, under ignored `client/target/recordings/carplay/`.
+Omit `CARPLAY_EXPECT_ARTWORK=1` when using the default demo without covers. The script connects the actual framework head-unit renderer and invokes the template callbacks that selections dispatch. It asserts the two-destination home, category/artist/album navigation and contextual Back, shared playback, play/pause, previous/next, Queue selection remaining in place, Shuffle, the native-player placeholder and Clear, then verifies a fresh connection. It does not synthesize OS mouse input or establish native touch/rotary behaviour. The framework recorder captures real Swing head-unit frames and decoded application PCM on its own clock, under ignored `client/target/recordings/carplay/`.
 
 For a different disposable port, pass the same loopback `NORMALBIAS_API_ORIGIN` to both simulator launchers; `NORMALBIAS_DEMO_PORT` configures the demo API. `NORMALBIAS_CARPLAY_MCP_PORT` overrides the probe/test port. Do not run smoke checks against a personal library. Close both task-owned simulators afterward; the demo helper stops its API and deletes its disposable catalogue.
 
@@ -79,7 +81,7 @@ Sources checked 2026-11-20: [Codename One car API](https://www.codenameone.com/b
 
 Robin requested saving this work in a separate PR for later continuation. A different Apple account is an option to investigate, not a selected account or authorisation to switch now. No further account changes, purchase or entitlement submission are part of this checkpoint.
 
-Saved in [draft PR #10](https://github.com/teggr/normal-bias/pull/10), branch `codex/carplay-poc`, based on `main` after merged album-art PR #9. The PR remains unmerged; its account/profile and native runtime gates are intentional resume checkpoints.
+Saved in [draft PR #10](https://github.com/teggr/normal-bias/pull/10), branch `codex/carplay-poc`, based on `main` after merged album-art PR #9. PR #10 subsequently merged as `6162c1e`; its account/profile and native runtime gates remain intentional resume checkpoints.
 
 When resuming:
 
@@ -89,3 +91,12 @@ When resuming:
 4. Verify native scene launch in Apple's CarPlay Simulator, then the parked real head unit with a reachable private API. Treat cold launch, phone/car coexistence, locked queue advance, system controls and reconnect as acceptance gates.
 
 The verified demo remains an ignored local artifact at `client/target/recordings/carplay/carplay-demo.mp4`, delivered in chat. It is not a public GitHub attachment and must not be added to Git with music, signing files or generated native build products.
+
+
+## Design and platform limits
+
+The car uses native list artwork and secondary metadata without a separate Graphite theme. Apple controls template surfaces, fonts, highlights and targets. The wheel, hardware relief, amber focus, recessed wells and responsive phone/tablet compositions stay in the shared phone UI. Explicit Earlier/More rows accommodate finite head-unit limits; phone search/A–Z navigation, per-track append and Queue album remain phone interactions. Missing browse artwork leaves a text row. Artwork subscriptions and thumbnail references are released on collection changes/destruction; parent restoration uses bounded page snapshots. Current car browsing does not independently poll artwork revisions; refreshed covers follow the existing shared cache/revision lifecycle.
+
+The desktop renderer validates template content/callbacks, not Apple's layout, rotary/touch input, accessibility or native audio. This task does not remove the entitlement gate or verify background/locked/physical CarPlay playback. See [verification](verification.md) for this adaptation's actual checks and recording.
+
+Pinned native-bridge source inspection also leaves two acceptance items: its scene delegate does not expose a system-Back-to-Java stack callback, and its image registry clears on disconnect rather than when Java releases a collection. Java page/thumbnail references are bounded; native stack synchronisation and long-session image memory are **not** established by these desktop checks. Resolve/verify these in the entitled native trial before treating the adaptation as ready for a real head unit. No dependency or generated-native-code change was made in this design task.

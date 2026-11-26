@@ -8,7 +8,7 @@ if [[ ! "$origin" =~ ^http://(127\.0\.0\.1|localhost|\[::1\])(:[0-9]+)?/?$ ]]; t
     exit 2
 fi
 # cn1:run forks Maven and then Java. JAVA_TOOL_OPTIONS reaches the simulator JVM.
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dnormalbias.apiOrigin=$origin"
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dnormalbias.apiOrigin=$origin -Dnormalbias.carRowActions=true"
 # FFmpeg inherits environment proxies independently of the simulator's Java proxy setting.
 export no_proxy="${no_proxy:-},127.0.0.1,localhost,::1"
 export NO_PROXY="${NO_PROXY:-},127.0.0.1,localhost,::1"
