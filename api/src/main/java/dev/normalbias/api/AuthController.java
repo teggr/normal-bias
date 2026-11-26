@@ -23,7 +23,7 @@ class AuthController {
     @GetMapping({"/api", "/api/auth/session"})
     Map<String, Object> session(Authentication authentication, HttpServletRequest request, HttpServletResponse response) {
         Identity identity = identity(authentication); var result = new LinkedHashMap<String, Object>();
-        result.put("authenticated", identity != null); result.put("authRequired", !security.demo());
+        result.put("authenticated", identity != null); result.put("authRequired", !security.demo()); result.put("httpsRequired", security.requireHttps() && !security.demo());
         var links = new LinkedHashMap<String, Link>(); links.put("self", link(security.demo() ? "/api" : "/api/auth/session", "GET"));
         if (identity == null) {
             if (!security.demo()) {
@@ -65,7 +65,7 @@ class AuthController {
     @PostMapping(value="/api/auth/browser-sessions", consumes="application/json")
     Map<String, Object> browser(@RequestBody Login login, HttpServletRequest request, HttpServletResponse response) {
         var issued = service.login(login.username(), login.password(), "COOKIE", request.getRemoteAddr());
-        cookie(response, issued.token(), issued.identity(), clock.millis());
+        cookie(response, issued.token(), issued.identity(), clock.millis(), security);
         // Rotate the anonymous CSRF token at the authentication boundary; fetch /api again.
         csrf.saveToken(null, request, response);
         return Map.of("authenticated", true, "_links", Map.of("session", link("/api/auth/session", "GET")));
@@ -106,15 +106,15 @@ class AuthController {
         var grant = service.grant(identity(authentication), id);
         return Map.of("expiresAt", Instant.ofEpochMilli(grant.expiresAt()), "_links", Map.of("audio", link(grant.href(), "GET")));
     }
-    static void cookie(HttpServletResponse response, String token, Identity identity, long now) {
-        response.addHeader("Set-Cookie", ResponseCookie.from(AuthSecurity.COOKIE, token).httpOnly(true).secure(true).sameSite("Lax").path("/")
+    static void cookie(HttpServletResponse response, String token, Identity identity, long now, AuthSecurity security) {
+        response.addHeader("Set-Cookie", ResponseCookie.from(security.sessionCookie(), token).httpOnly(true).secure(security.requireHttps()).sameSite("Lax").path("/")
                 .maxAge(Duration.ofSeconds(Math.max(0, (Math.min(identity.idleExpires(), identity.absoluteExpires()) - now) / 1000))).build().toString());
     }
     private void clear(HttpServletRequest request, HttpServletResponse response) {
-        clearCookie(response);
+        clearCookie(response, security);
         csrf.saveToken(null, request, response);
     }
-    static void clearCookie(HttpServletResponse response) {
-        response.addHeader("Set-Cookie", ResponseCookie.from(AuthSecurity.COOKIE, "").httpOnly(true).secure(true).sameSite("Lax").path("/").maxAge(0).build().toString());
+    static void clearCookie(HttpServletResponse response, AuthSecurity security) {
+        response.addHeader("Set-Cookie", ResponseCookie.from(security.sessionCookie(), "").httpOnly(true).secure(security.requireHttps()).sameSite("Lax").path("/").maxAge(0).build().toString());
     }
 }

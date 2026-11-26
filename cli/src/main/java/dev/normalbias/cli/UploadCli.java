@@ -57,8 +57,8 @@ public final class UploadCli {
     }
     public int run(Path directory, URI base, PrintStream out, String token) throws IOException {
         validateBase(base);
-        if (token != null && (!"https".equals(base.getScheme()) || !token.matches("[a-f0-9]{64}")))
-            throw new IllegalArgumentException("Authenticated uploads require a valid token and a loopback HTTPS origin");
+        if (token != null && !token.matches("[a-f0-9]{64}"))
+            throw new IllegalArgumentException("Authenticated uploads require a valid token and a loopback HTTP or HTTPS origin");
         if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
             throw new IllegalArgumentException("DIRECTORY must be a directory, not a symlink");
         }

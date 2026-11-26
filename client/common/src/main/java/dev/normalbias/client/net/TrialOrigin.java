@@ -4,7 +4,7 @@ import com.codename1.ui.CN;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-/** Explicit build-time address for the private iPhone trial (HTTPS for authentication). */
+/** Explicit build-time address for the private iPhone trial (private LAN or Tailscale IPv4). */
 public final class TrialOrigin {
     private TrialOrigin() { }
 
@@ -43,7 +43,8 @@ public final class TrialOrigin {
             start = end + 1;
         }
         return tls && host.equals("127.0.0.1") || octets[0] == 10 || octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31
-                || octets[0] == 192 && octets[1] == 168;
+                || octets[0] == 192 && octets[1] == 168
+                || octets[0] == 100 && octets[1] >= 64 && octets[1] <= 127;
     }
 
     private static boolean digits(String value) {

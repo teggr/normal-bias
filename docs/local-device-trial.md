@@ -1,5 +1,7 @@
 # Local device trial plan
 
+Current transport decision (2026-11-26): initial hosting will use authenticated HTTP over Tailscale. See [configuration and limits](authentication.md#http-over-tailscale--current-default-authorised-2026-11-26). The source defaults to `normalbias.auth.require-https=false`; the iPhone build helper accepts literal `100.64.0.0/10` addresses and retains host-specific HTTP exceptions. Existing installed builds and retained services were not changed by this increment. Earlier HTTPS/private-demo trial steps below are historical or explicitly selected alternatives.
+
 ## Simulator continuation completed — 2026-11-26
 
 Robin switched acceptance to the simulator. The physical phone has been restored/launched on the prior working HTTP build. The new physical HTTPS18448 fixture and public-certificate18449 server are stopped; phone certificate setup is no longer needed for this run. The isolated Plus/iOS26 simulator passed remembered sign-in, real grant expiry/seek/renewal, service restart/reconnect and native revocation, with separate later Range/HEAD/renewal rejection checks. A verified native recording contains actual simulator app audio. This closes simulator gaps; physical authenticated/audio/interruption acceptance remains open. Retained HTTPS18445/HTTP18447 services are unchanged. See verification for evidence and limits.

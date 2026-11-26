@@ -16,7 +16,7 @@ import java.security.KeyStore;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={"normalbias.artwork.background-enabled=false", "normalbias.auth.mode=required"})
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT, properties={"normalbias.artwork.background-enabled=false", "normalbias.auth.mode=required", "normalbias.auth.require-https=true"})
 class AuthHttpTest {
     static final String PASSWORD = AuthServiceTest.PASSWORD;
     static final Path DATA, TLS;

@@ -66,7 +66,6 @@ public final class AuthSession {
         });
     }
     public void login(String username, String password, Runnable ready, Consumer<String> failure) {
-        if (!origin.startsWith("https://")) { failure.accept("Sign in requires HTTPS."); return; }
         String action = link(browser ? "browser-login" : "device-login", "POST");
         if (action == null) { failure.accept("Sign in is not currently available. Retry the connection."); return; }
         Map<String, Object> body = new HashMap<>(); body.put("username", username); body.put("password", password);

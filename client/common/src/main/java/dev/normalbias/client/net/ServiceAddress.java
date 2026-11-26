@@ -8,8 +8,9 @@ public final class ServiceAddress {
         if (value == null) throw invalid();
         String address = value.trim();
         if (address.endsWith("/")) address = address.substring(0, address.length() - 1);
-        if (!address.startsWith("https://")) throw invalid();
-        String authority = address.substring(8).toLowerCase();
+        boolean tls = address.startsWith("https://");
+        if (!tls && !address.startsWith("http://")) throw invalid();
+        String authority = address.substring(tls ? 8 : 7).toLowerCase();
         if (authority.isEmpty() || authority.length() > 260) throw invalid();
         for (int i = 0; i < authority.length(); i++) {
             char c = authority.charAt(i);
@@ -49,18 +50,13 @@ public final class ServiceAddress {
             for (int i = 0; i < raw.length(); i++) if (raw.charAt(i) < '0' || raw.charAt(i) > '9') throw invalid();
             int number = Integer.parseInt(raw);
             if (number < 1 || number > 65535) throw invalid();
-            if (number != 443) port = ":" + number;
+            if (number != (tls ? 443 : 80)) port = ":" + number;
         }
-        return "https://" + host + port;
+        return (tls ? "https://" : "http://") + host + port;
     }
 
-    /** HTTP is accepted only when it is the unchanged, explicit development origin. */
+    /** Both transports use the same strict origin validation; the server advertises allowed actions. */
     public static String selected(String value, String developmentOrigin) {
-        String trimmed = value == null ? "" : value.trim();
-        String development = developmentOrigin == null ? "" : developmentOrigin;
-        if (development.endsWith("/")) development = development.substring(0, development.length() - 1);
-        if (trimmed.endsWith("/")) trimmed = trimmed.substring(0, trimmed.length() - 1);
-        if (development.startsWith("http://") && trimmed.equals(development)) return trimmed;
         return normalize(value);
     }
 
@@ -97,6 +93,6 @@ public final class ServiceAddress {
     }
 
     private static IllegalArgumentException invalid() {
-        return new IllegalArgumentException("Enter an HTTPS service address, such as https://music.example.com, with an optional port and no path.");
+        return new IllegalArgumentException("Enter an HTTP or HTTPS service address, such as http://music.example.ts.net:8080, with an optional port and no path.");
     }
 }

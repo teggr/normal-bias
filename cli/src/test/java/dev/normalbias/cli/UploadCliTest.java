@@ -63,14 +63,14 @@ class UploadCliTest {
         assertEquals(130, cli.run(dir, URI.create("http://127.0.0.1:1"), System.out));
     }
 
-    @Test void credentialsRequireOwnerOnlyFilesAndTlsEvenOnLoopback() throws Exception {
+    @Test void credentialsRequireOwnerOnlyFilesAndValidTokens() throws Exception {
         Path token = dir.resolve("upload-token"); Files.writeString(token, "a".repeat(64) + "\n");
         Files.setPosixFilePermissions(token, java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
         assertEquals("a".repeat(64), UploadCli.readToken(token));
         Files.setPosixFilePermissions(token, java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
         assertThrows(IOException.class, () -> UploadCli.readToken(token));
         Path link = dir.resolve("token-link"); Files.createSymbolicLink(link, token); assertThrows(IOException.class, () -> UploadCli.readToken(link));
-        assertThrows(IllegalArgumentException.class, () -> new UploadCli().run(dir, URI.create("http://127.0.0.1:1"), System.out, "a".repeat(64)));
+        assertThrows(IllegalArgumentException.class, () -> new UploadCli().run(dir, URI.create("http://127.0.0.1:1"), System.out, "invalid"));
         var cancelled = new UploadCli(); cancelled.cancel();
         assertEquals(130, cancelled.run(dir, URI.create("https://127.0.0.1:1"), System.out, "a".repeat(64)));
     }

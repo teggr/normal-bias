@@ -25,7 +25,7 @@ public final class LoginForm extends Form {
         this.browserOrigin = browserOrigin; this.developmentOrigin = developmentOrigin;
         this.check = check;
         getToolbar().setHidden(true); getContentPane().setSafeArea(true);
-        address = new TextField(origin, "https://music.example.com", 30, TextField.URL);
+        address = new TextField(origin, "http://music.example.ts.net:8080", 30, TextField.URL);
         address.setName("Service address"); address.setMaxSize(300); address.setUIID("ConnectionField");
         username = new TextField("", "Username", 24, TextField.NON_PREDICTIVE);
         username.setName("Username"); username.setMaxSize(64); username.setUIID("ConnectionField");

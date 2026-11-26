@@ -23,9 +23,14 @@ import static dev.normalbias.api.AuthPolicy.*;
 @Configuration
 class AuthSecurity {
     static final String COOKIE = "__Host-NormalBias-Session";
+    private final boolean requireHttps;
     private final boolean demo;
     private final boolean privateDemo;
-    AuthSecurity(@Value("${normalbias.auth.mode:required}") String mode, @Value("${server.address:127.0.0.1}") String address) {
+    AuthSecurity(String mode, String address) { this(mode, address, false); }
+    @org.springframework.beans.factory.annotation.Autowired
+    AuthSecurity(@Value("${normalbias.auth.mode:required}") String mode, @Value("${server.address:127.0.0.1}") String address,
+                 @Value("${normalbias.auth.require-https:false}") boolean requireHttps) {
+        this.requireHttps = requireHttps;
         if (!Set.of("required", "demo", "private-demo").contains(mode)) throw new IllegalArgumentException("normalbias.auth.mode must be required, demo or private-demo");
         privateDemo = mode.equals("private-demo");
         demo = mode.equals("demo") || privateDemo;
@@ -35,6 +40,8 @@ class AuthSecurity {
             throw new IllegalArgumentException("private-demo requires an explicit literal RFC1918 IPv4 server.address");
     }
     boolean demo() { return demo; }
+    boolean requireHttps() { return requireHttps; }
+    String sessionCookie() { return requireHttps ? COOKIE : "NormalBias-Session"; }
     private static boolean privateAddress(String address) {
         if (!address.matches("(?:0|[1-9][0-9]{0,2})(?:\\.(?:0|[1-9][0-9]{0,2})){3}")) return false;
         int[] octets = Arrays.stream(address.split("\\.")).mapToInt(Integer::parseInt).toArray();
@@ -50,9 +57,9 @@ class AuthSecurity {
     }
     @Bean CookieCsrfTokenRepository authCsrf() {
         var repository = new CookieCsrfTokenRepository();
-        repository.setCookieName("__Host-NormalBias-Csrf");
+        repository.setCookieName(requireHttps ? "__Host-NormalBias-Csrf" : "NormalBias-Csrf");
         repository.setHeaderName("X-CSRF-TOKEN");
-        repository.setCookieCustomizer(cookie -> cookie.httpOnly(true).secure(true).path("/").sameSite("Lax"));
+        repository.setCookieCustomizer(cookie -> cookie.httpOnly(true).secure(requireHttps).path("/").sameSite("Lax"));
         return repository;
     }
     @Bean SecurityFilterChain security(HttpSecurity http, AuthService service, ObjectMapper json, CookieCsrfTokenRepository csrf, Clock clock) throws Exception {
@@ -77,7 +84,7 @@ class AuthSecurity {
                         response.setHeader("Cache-Control", "no-store"); response.setHeader("Referrer-Policy", "no-referrer");
                     }
                 }))
-                .addFilterBefore(new CredentialsFilter(service, json, demo, clock), CsrfFilter.class);
+                .addFilterBefore(new CredentialsFilter(service, json, this, clock), CsrfFilter.class);
         http.authorizeHttpRequests(c -> {
             c.requestMatchers("/error").permitAll();
             if (demo) {
@@ -122,17 +129,17 @@ class AuthSecurity {
                 : Map.of("status", status, "message", message, "_links", Map.of("session", link("/api", "GET"))));
     }
     private static final class CredentialsFilter extends OncePerRequestFilter {
-        private final AuthService service; private final ObjectMapper json; private final boolean demo; private final Clock clock;
-        CredentialsFilter(AuthService service, ObjectMapper json, boolean demo, Clock clock) { this.service = service; this.json = json; this.demo = demo; this.clock = clock; }
+        private final AuthService service; private final ObjectMapper json; private final AuthSecurity security; private final Clock clock;
+        CredentialsFilter(AuthService service, ObjectMapper json, AuthSecurity security, Clock clock) { this.service = service; this.json = json; this.security = security; this.clock = clock; }
         @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
             String path = request.getServletPath();
             if (!path.equals("/api") && !path.startsWith("/api/")) { chain.doFilter(request, response); return; }
-            if (demo) { chain.doFilter(request, response); return; }
-            if (!request.isSecure()) { write(json, response, 426, "HTTPS required"); return; }
+            if (security.demo()) { chain.doFilter(request, response); return; }
+            if (security.requireHttps() && !request.isSecure()) { write(json, response, 426, "HTTPS required"); return; }
             Identity identity = null;
             String grant = request.getParameter("grant"), authorization = request.getHeader("Authorization");
             String cookie = null;
-            if (request.getCookies() != null) for (Cookie value : request.getCookies()) if (value.getName().equals(COOKIE)) {
+            if (request.getCookies() != null) for (Cookie value : request.getCookies()) if (value.getName().equals(security.sessionCookie())) {
                 if (cookie != null) { write(json, response, 401, "Invalid credentials"); return; } cookie = value.getValue();
             }
             if (grant != null) {
@@ -145,7 +152,7 @@ class AuthSecurity {
                 if (authorization.startsWith("Bearer ")) identity = service.authenticate(authorization.substring(7), "BEARER").orElse(null);
             } else if (cookie != null) identity = service.authenticate(cookie, "COOKIE").orElse(null);
             if (cookie != null && authorization == null && grant == null && identity == null) {
-                AuthController.clearCookie(response);
+                AuthController.clearCookie(response, security);
                 // An expired cookie must not prevent recovery or a fresh sign-in.
                 if (Set.of("/api", "/api/auth/session", "/api/auth/browser-sessions", "/api/auth/device-sessions",
                         "/api/auth/invitations/inspect", "/api/auth/invitations/accept", "/api/auth/resets/inspect", "/api/auth/resets/complete").contains(path)) cookie = null;
@@ -156,7 +163,7 @@ class AuthSecurity {
             if (identity != null) {
                 var context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(new UsernamePasswordAuthenticationToken(identity, null, List.of())); SecurityContextHolder.setContext(context);
-                if (identity.kind().equals("COOKIE")) AuthController.cookie(response, cookie, identity, clock.millis());
+                if (identity.kind().equals("COOKIE")) AuthController.cookie(response, cookie, identity, clock.millis(), security);
             }
             // Bound credential-bearing JSON before parsing, including chunked requests.
             if (path.startsWith("/api/auth/") && Set.of("POST", "PUT", "PATCH").contains(request.getMethod())) {
