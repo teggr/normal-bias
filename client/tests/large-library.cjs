@@ -9,7 +9,7 @@ const out=path.join(repo,'client/target/recordings/library-scroll');fs.mkdirSync
 let server,browser,page,stopCapture;
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,description,timeout=25000){const end=Date.now()+timeout;while(Date.now()<end){if(await check())return;await delay(150);}throw new Error('Timed out: '+description);}
-async function click(name){if(name==='Library views'&&await page.getByRole('button',{name:'Close album',exact:true}).count())name='Close album';const b=page.getByRole('button',{name,exact:true}).first();await b.waitFor();const box=await b.boundingBox();assert.ok(box,name);await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await delay(450);}
+async function click(name){if (name === 'Library views' || name === 'Close album') name = await page.getByRole('button', {name: /^Back to /}).first().getAttribute('aria-label');const b=page.getByRole('button',{name,exact:true}).first();await b.waitFor();const box=await b.boundingBox();assert.ok(box,name);await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await delay(450);}
 async function song(name){await page.getByRole('button',{name:'Play '+name,exact:true}).waitFor();}
 async function jump(letter){await until(async()=>{const b=page.getByRole('button',{name:'Jump to '+letter,exact:true});return await b.count()&&await b.isEnabled();},'alphabet ready for '+letter);await click('Jump to '+letter);await delay(500);}
 async function drag(up=true){await page.mouse.move(160,up?600:250);await page.mouse.down();await page.mouse.move(160,up?230:620,{steps:18});await page.mouse.up();await delay(450);}

@@ -154,6 +154,8 @@ AlphabetPreview { color: #eac23f; background-color: #27282b; border: 1px solid #
 AlbumLocation { background-color: #202124; border: none; border-bottom: 1px solid #353638; padding: 2mm 0 3mm; margin: 0 4mm; }
 AlbumSummary { background-color: transparent; border: none; padding: 0; margin: 0; }
 AlbumHeading { color: #f3f3f1; background-color: transparent; border: none; font-family: "native:MainBold"; font-size: 2.5mm; padding: 0.3mm 0 0.5mm; margin: 0; }
+/* Artist identity follows the album header with a more prominent wrapping name. */
+ArtistHeading { color: #f3f3f1; background-color: transparent; border: none; font-family: "native:MainBold"; font-size: 3.3mm; padding: 0.3mm 0 0.5mm; margin: 0; }
 AlbumBack, AlbumBack.pressed, AlbumBack.selected { color: #b7b8bb; background-color: transparent; border: none; padding: 2mm; margin: 0 1mm 0 0; }
 AlbumBack.selected { color: #eac23f; }
 

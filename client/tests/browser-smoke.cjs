@@ -19,7 +19,7 @@ async function until(check, description, timeout = 20000) {
     throw new Error('Timed out: ' + description);
 }
 async function click(page, name, index = 0, role = 'button') {
-    if (name === 'Library views' && await page.getByRole('button',{name:'Close album',exact:true}).count()) name = 'Close album';
+    if (name === 'Library views' || name === 'Close album') name = await page.getByRole('button', {name: /^Back to /}).first().getAttribute('aria-label');
     if (name === 'Library' && await page.getByRole('button',{name:'Back to Now Playing',exact:true}).count()) await click(page,'Back to Now Playing');
     if (name === 'Now Playing' && await page.getByRole('button', {name:'Back to Now Playing',exact:true}).count()) name = 'Back to Now Playing';
     if (name === 'Library' && await page.getByRole('button', {name:'All songs',exact:true}).count()) return;
@@ -34,12 +34,12 @@ async function click(page, name, index = 0, role = 'button') {
 }
 async function openQueue(page) {
     if (await page.getByRole('button', {name:'Clear queue',exact:true}).count()) return;
-    if (await page.getByRole('button', {name:'All songs',exact:true}).count()) await click(page,'Now Playing');
+    if (await page.getByRole('button', {name:'Now Playing',exact:true}).count()) await click(page,'Now Playing');
     await click(page,'Queue');
     await page.getByRole('button', {name:'Back to Now Playing',exact:true}).waitFor();
 }
 async function assertQueue(page, count) {
-    const library = await page.getByRole('button', {name:'All songs',exact:true}).count();
+    const library = await page.getByRole('button', {name:'Now Playing',exact:true}).count();
     const queue = await page.getByRole('button', {name:'Clear queue',exact:true}).count();
     if (!queue) await openQueue(page);
     await text(page, count + (count === 1 ? ' track' : ' tracks'));
@@ -118,6 +118,7 @@ async function seed(origin) {
     const context = await browser.newContext({viewport:{width:800,height:780}, serviceWorkers:'block'});
     const page = await context.newPage();
     currentPage = page;
+    page.setDefaultTimeout(20000);
     const errors = [];
     const ranges = [];
     const covers = [];
@@ -196,6 +197,8 @@ async function seed(origin) {
     await click(page, 'Open Browser fixtures');
     await until(async () => (await audio(page)).some(a => a.src === firstSrc && !a.paused), 'browsing preserves playing track');
     await assertQueue(page, 2);
+    await click(page, 'Library views');
+    await click(page, 'Library views');
     await click(page, 'All songs');
     await until(() => Promise.resolve(covers.some(r => r.status() === 200)), 'embedded artwork delivered');
     const embedded = covers.find(r => r.status() === 200);
@@ -248,6 +251,7 @@ async function seed(origin) {
     await assertQueue(page, 0);
     await until(async () => (await audio(page)).length === 0, 'clear releases audio');
     await click(page, 'Library');
+    if (await page.getByRole('button', {name:'Show search', exact:true}).count()) await click(page,'Show search');
     await page.getByRole('button', {name:'Search', exact:true}).waitFor();
     await until(async () => {
         const bounds = await page.getByRole('button', {name:'Play Synthetic track 00', exact:true}).first().boundingBox();
@@ -340,6 +344,8 @@ async function seed(origin) {
     await click(page, 'Open Browser fixtures');
     await page.getByRole('button',{name:'Play Synthetic track 00',exact:true}).waitFor();
     await page.screenshot({path:path.join(repo,'client/target/library-compact.png')});
+    await click(page, 'Library views');
+    await click(page, 'Library views');
     await click(page, 'All songs');
     await page.route('**/api/library/albums?*', route => route.fulfill({status:503, body:'unavailable'}));
     await click(page, 'Albums');
