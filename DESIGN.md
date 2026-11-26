@@ -37,6 +37,8 @@ These values reconcile the current theme with the approved Graphite direction. T
 
 Reuse `HardwareButton` / `HardwareButton.paintSurface` for implementation rather than introducing a separate approximation. Preserve the darker pressed treatment, muted disabled glyphs and distinct amber keyboard-focus outline. Glyphs are white for neutral/transport actions; Queue album and Queue artist use amber. Scale the glyph within a comfortable touch region (at least the existing 9 mm convention); do not copy concept-image pixel dimensions. The circular treatment applies to the album/artist Queue + controls and the mini-player play/pause and Next track controls, consistently on Library and Queue. Per-track queue pluses retain their existing unframed treatment. Keep the player wheel and its geometry unchanged. The wheel gradient must also survive button-only focus/press repaints: resolve its origin from the component’s absolute position and the current graphics translation, so transparent transport controls never leave rectangular body-coloured patches.
 
+The larger-view Queue toggle keeps its glyph centred in the same circular bounds in neutral, active, focused and pressed states; opening Queue changes the glyph to amber without moving it.
+
 ![Graphite hardware button concept](docs/design/graphite-hardware-buttons-concept.png)
 
 **Implementation status:** implemented in the shared Java client on 2026-11-25. Album Queue and mini-player play/pause reuse `HardwareButton`; actual checks are recorded in verification. The concept shows the intended control arrangement and restrained finish; generated artwork, other toolbar symbols and raster spacing do not supersede the actual application components.

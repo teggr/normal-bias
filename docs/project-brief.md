@@ -413,3 +413,7 @@ At Robin's request, rebuilt and updated the existing Normal Bias app in place on
 ### Artist queue review publication — 2026-11-26
 
 Robin accepted the delivered artist queue and simulator refresh and requested commit/push. PR #21 had already merged, with no open PR to update. Published implementation commit `c9eab83` on `codex/artist-queue`, rebased onto main `b5e7e4d`, in [PR #24](https://github.com/teggr/normal-bias/pull/24). Combined client tests pass 48 tests; original browser/native/recording evidence retains its checkpoint scope. Generated/private artifacts remain ignored. No merge, further service refresh, simulator installation or deployment is requested by this publication.
+
+### Queue toggle alignment correction — authorised 2026-11-26
+
+Robin reported the larger-view Queue glyph shifting left when highlighted. Its active theme now explicitly centres the glyph, matching the neutral hardware button in every interactive state. This is a presentation correction within the existing circular control; verification records actual checks and recording evidence.

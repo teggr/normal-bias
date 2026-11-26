@@ -170,4 +170,4 @@ LibraryTile { background-color: transparent; border: none; padding: 0; margin: 0
 TileTitle { color: #f3f3f1; background-color: transparent; border: none; padding: 0.5mm 0; margin: 0; font-family: "native:MainBold"; font-size: 2.3mm; }
 TileAction, TileAction.pressed, TileAction.disabled { background-color: transparent; border: none; padding: 0; margin: 0; }
 TileAction.selected { background-color: transparent; border: 1px solid #eac23f; padding: 0; margin: 0; }
-QueueToggleActive, QueueToggleActive.selected, QueueToggleActive.pressed { color: #eac23f; background-color: transparent; border: none; padding: 0; margin: 0; }
+QueueToggleActive, QueueToggleActive.selected, QueueToggleActive.pressed { color: #eac23f; background-color: transparent; border: none; padding: 0; margin: 0; text-align: center; }
