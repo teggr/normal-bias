@@ -24,13 +24,24 @@ import static dev.normalbias.api.AuthPolicy.*;
 class AuthSecurity {
     static final String COOKIE = "__Host-NormalBias-Session";
     private final boolean demo;
+    private final boolean privateDemo;
     AuthSecurity(@Value("${normalbias.auth.mode:required}") String mode, @Value("${server.address:127.0.0.1}") String address) {
-        if (!Set.of("required", "demo").contains(mode)) throw new IllegalArgumentException("normalbias.auth.mode must be required or demo");
-        demo = mode.equals("demo");
-        if (demo && !Set.of("127.0.0.1", "::1", "[::1]").contains(address))
+        if (!Set.of("required", "demo", "private-demo").contains(mode)) throw new IllegalArgumentException("normalbias.auth.mode must be required, demo or private-demo");
+        privateDemo = mode.equals("private-demo");
+        demo = mode.equals("demo") || privateDemo;
+        if (mode.equals("demo") && !Set.of("127.0.0.1", "::1", "[::1]").contains(address))
             throw new IllegalArgumentException("Unauthenticated demo mode requires a literal loopback server.address");
+        if (privateDemo && !privateAddress(address))
+            throw new IllegalArgumentException("private-demo requires an explicit literal RFC1918 IPv4 server.address");
     }
     boolean demo() { return demo; }
+    private static boolean privateAddress(String address) {
+        if (!address.matches("(?:0|[1-9][0-9]{0,2})(?:\\.(?:0|[1-9][0-9]{0,2})){3}")) return false;
+        int[] octets = Arrays.stream(address.split("\\.")).mapToInt(Integer::parseInt).toArray();
+        if (Arrays.stream(octets).anyMatch(value -> value > 255)) return false;
+        return octets[0] == 10 || octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31
+                || octets[0] == 192 && octets[1] == 168;
+    }
     @Bean @ConditionalOnMissingBean(Clock.class) Clock authClock() { return Clock.systemUTC(); }
     @Bean PasswordEncoder authPasswords() {
         // Versioned adaptive hashes; no bcrypt truncation of Unicode passwords.
@@ -69,7 +80,17 @@ class AuthSecurity {
                 .addFilterBefore(new CredentialsFilter(service, json, demo, clock), CsrfFilter.class);
         http.authorizeHttpRequests(c -> {
             c.requestMatchers("/error").permitAll();
-            if (demo) { c.requestMatchers("/api/auth/**", "/api/tracks/*/playback-grants").denyAll().anyRequest().permitAll(); return; }
+            if (demo) {
+                c.requestMatchers("/api/auth/**", "/api/tracks/*/playback-grants").denyAll();
+                if (privateDemo) {
+                    // Listening-only LAN trial: never accept passwords, uploads or management actions.
+                    c.requestMatchers(HttpMethod.GET, "/api", "/api/tracks", "/api/tracks/*", "/api/tracks/*/audio", "/api/tracks/*/artwork", "/api/library/**", "/api/album-artwork/revision").permitAll()
+                            .requestMatchers(HttpMethod.HEAD, "/api/tracks/*/audio", "/api/tracks/*/artwork").permitAll()
+                            .requestMatchers("/api/**").denyAll()
+                            .requestMatchers(HttpMethod.GET, "/**").permitAll().anyRequest().denyAll();
+                } else c.anyRequest().permitAll();
+                return;
+            }
             c.requestMatchers(HttpMethod.GET, "/api", "/api/auth/session").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/auth/browser-sessions", "/api/auth/device-sessions",
                             "/api/auth/invitations/inspect", "/api/auth/invitations/accept", "/api/auth/resets/inspect", "/api/auth/resets/complete").permitAll()

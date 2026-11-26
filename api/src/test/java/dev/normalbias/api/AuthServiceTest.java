@@ -168,6 +168,10 @@ class AuthServiceTest {
         assertThrows(IllegalArgumentException.class, () -> new AuthSecurity("demo", "0.0.0.0"));
         assertThrows(IllegalArgumentException.class, () -> new AuthSecurity("demo", "192.168.1.205"));
         assertThrows(IllegalArgumentException.class, () -> new AuthSecurity("typo", "127.0.0.1"));
+        for (String address : List.of("0.0.0.0", "::", "localhost", "127.0.0.1", "8.8.8.8", "192.168.1.999", "192.168.01.2", "172.15.1.1", "172.32.1.1", "169.254.1.1", "10.1.2.3.example"))
+            assertThrows(IllegalArgumentException.class, () -> new AuthSecurity("private-demo", address), address);
+        for (String address : List.of("10.1.2.3", "172.16.0.1", "172.31.255.254", "192.168.1.38"))
+            assertTrue(new AuthSecurity("private-demo", address).demo(), address);
     }
     @Test void inspectionAffordanceTracksBusyStateAndPermissions() throws Exception {
         try (var f = new Fixture(directory, new Time())) {

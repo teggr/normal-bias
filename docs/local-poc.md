@@ -13,7 +13,7 @@ java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar --normalbias.auth.mode=d
 java -jar cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar api/src/test/resources
 ```
 
-The server binds to `127.0.0.1:8080`. Keep this binding for demo mode; startup rejects non-loopback demo binds. Required mode has server accounts/sessions and enforces HTTPS (plain API requests return 426); client login integration and public deployment are not delivered. H2's web console is disabled. There is no cloud storage, deployment configuration or network database. Start only one service per data directory. An exclusive data-directory lock prevents a second API process; H2 also locks its embedded catalogue.
+The server binds to `127.0.0.1:8080`. Keep this binding for demo mode; startup rejects non-loopback demo binds. Required mode has server accounts/sessions and enforces HTTPS (plain API requests return 426); shared-client login and scoped playback are integrated, while public deployment remains deferred. A separate explicitly opted-in `private-demo` mode permits read-only catalogue/artwork/audio on a literal RFC1918 IPv4 bind, denies account/upload/management routes and is intended only for the isolated LAN phone demo. It does not change loopback-only `demo` or permit authenticated HTTP; see the [authentication guide](authentication.md) and [device helper](local-device-trial.md#authorised-http-phone-demo--2026-11-26). H2's web console is disabled. There is no cloud storage, deployment configuration or network database. Start only one service per data directory. An exclusive data-directory lock prevents a second API process; H2 also locks its embedded catalogue.
 
 To use a separate test data directory and loopback port:
 

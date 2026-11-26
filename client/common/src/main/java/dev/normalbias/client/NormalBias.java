@@ -26,6 +26,7 @@ public class NormalBias extends Lifecycle {
     private LibraryForm library;
     private AuthSession session;
     private boolean connecting;
+    private int connectionAttempt;
     private boolean initialized;
     private String browserOrigin;
     private String developmentOrigin;
@@ -41,12 +42,15 @@ public class NormalBias extends Lifecycle {
     @Override protected void bindCrashProtection() { }
     @Override protected void handleNetworkError(NetworkEvent event) {
         if (event.getSource() instanceof dev.normalbias.client.net.ApiRequest)
-            ((dev.normalbias.client.net.ApiRequest) event.getSource()).networkFailed();
+            ((dev.normalbias.client.net.ApiRequest) event.getSource()).networkFailed(event.getError());
         event.consume();
     }
     @Override public void runApp() {
         if (!initialized) {
             initialized = true;
+            // Phones keep the full-size portrait player; tablets retain both orientations.
+            if ("ios".equals(CN.getPlatformName()) && !CN.isTablet() && CN.canForceOrientation())
+                CN.lockOrientation(true);
             CN.setProperty("platformHint.javascript.beforeUnloadMessage", null);
             String browserPage = CN.getProperty("browser.window.location.href", null);
             String bundled = TrialOrigin.bundled();
@@ -91,13 +95,13 @@ public class NormalBias extends Lifecycle {
     }
     private void showLanding() {
         landing = new LoginForm(session == null ? "" : session.origin, browserOrigin, developmentOrigin,
-                this::submitConnection, origin -> {
+                this::submitConnection, this::checkConnection, origin -> {
                     if (connecting) return;
                     selectSession(origin);
                     connecting = true;
-                    landing.busy("Connecting securely…");
+                    landing.busy("Opening account link…");
                     session.restore(() -> { connecting = false; rememberService(); pasteLink(); }, error -> {
-                        connecting = false; landing.status(error, true);
+                        connecting = false; landing.connectionFailed(error);
                     });
                 });
         landing.show();
@@ -117,29 +121,44 @@ public class NormalBias extends Lifecycle {
         selectSession(origin);
         restoreConnection(retry ? null : username, retry ? null : password);
     }
+    private void checkConnection(String origin) {
+        if (origin == null) {
+            connectionAttempt++; connecting = false;
+            if (session != null) session.invalidate();
+            return;
+        }
+        selectSession(origin);
+        restoreConnection(null, null);
+    }
     private void restoreConnection(String username, String password) {
         connecting = true;
+        final int attempt = ++connectionAttempt;
         LoginForm view = landing;
         AuthSession selected = session;
-        view.busy("Connecting securely…");
+        selected.invalidate();
+        view.checking();
         selected.restore(() -> {
-            if (session != selected) return;
+            if (session != selected || landing != view || attempt != connectionAttempt) return;
+            view.connected();
             rememberService();
             if (selected.authenticated() || selected.demo() || pendingLink != null) {
                 connecting = false; showSession();
             } else if (username != null) {
                 view.busy("Signing in…");
                 selected.login(username, password, () -> { connecting = false; showSession(); }, error -> {
-                    connecting = false; view.status(error, true);
+                    if (landing != view || session != selected || attempt != connectionAttempt) return;
+                    connecting = false;
+                    if (selected.reachable()) view.status(error, false); else view.connectionFailed(error);
                 });
             } else {
                 connecting = false;
                 view.status("Sign in to your music. You’ll stay signed in until you sign out or your session expires.", false);
-                view.focusUsername();
+                view.focusAfterCheck();
             }
         }, error -> {
+            if (session != selected || landing != view || attempt != connectionAttempt) return;
             connecting = false;
-            view.status(error + (selected.hasRememberedSignIn() ? " Your sign-in has been kept." : ""), true);
+            view.connectionFailed(error + (selected.hasRememberedSignIn() ? " Your sign-in has been kept." : ""));
         });
     }
     private void rememberService() {
@@ -148,7 +167,7 @@ public class NormalBias extends Lifecycle {
     private void showSession() {
         if (pendingLink != null) { openPendingLink(); return; }
         accountVisible = false;
-        if (!session.authenticated() && !session.demo()) { showLanding(); landing.focusUsername(); return; }
+        if (!session.authenticated() && !session.demo()) { connect(); return; }
         identity = session.identity();
         library = new LibraryForm(new LibraryApi(session), () -> {
             disposeLibrary();

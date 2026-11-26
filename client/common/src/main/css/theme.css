@@ -119,6 +119,9 @@ ConnectionPanel { background-color: transparent; padding: 4mm 6mm 6mm; margin: 0
 ConnectionMark { background-color: transparent; border: none; padding: 0; margin: 0; }
 ConnectionCaption { background-color: transparent; border: none; color: #b7b8bb; font-size: 2mm; padding: 2mm 0 1mm; margin: 0; }
 ConnectionMessage { background-color: transparent; border: none; color: #b7b8bb; font-size: 2.2mm; padding: 2mm 0; margin: 0; }
+ConnectionBadge, ConnectionReady, ConnectionFailed { background-color: transparent; border: none; color: #eac23f; padding: 2mm; margin: 0; }
+ConnectionReady { color: #8fc497; }
+ConnectionFailed { color: #e69b91; }
 ConnectionField, ConnectionField.selected, ConnectionField.disabled {
     color: #f3f3f1; background-color: #171717; border: 1px solid #3d3d3d; border-radius: 2.5mm;
     font-family: "native:MainRegular"; font-size: 2.4mm; padding: 3mm; margin: 0;

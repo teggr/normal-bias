@@ -62,6 +62,8 @@ public final class LibraryForm extends Form {
     private final Container wideQueue = new Container(new BorderLayout());
     private final Container wideQueueActions = new Container(BoxLayout.x());
     private boolean wide;
+    private java.util.Timer resizeSettle;
+    private boolean disposed;
     private final HardwareButton showQueue = new HardwareButton("Queue", FontImage.MATERIAL_QUEUE_MUSIC, true);
     private final Button miniTitle = new Button("Now Playing") {
         @Override public void paintBackground(Graphics g) {
@@ -256,12 +258,42 @@ public final class LibraryForm extends Form {
         Container timeline = BorderLayout.center(seek).add(BorderLayout.SOUTH, times);
         timeline.setUIID("Timeline");
         playerPanel.setUIID("PlayerPanel");
-        // Preserve the actual player face/wheel, bounded and centred at all widths.
-        Container playerContent = new Container(new FlowLayout(Component.CENTER, Component.TOP));
+        // Fit the compact face to its actual safe-area/header-adjusted viewport.
+        // The old fixed-width, top-aligned face stranded extra Plus-phone height below the wheel.
+        FlowLayout consoleFlow = new FlowLayout(Component.CENTER, Component.TOP);
+        Container playerContent = new Container(new Layout() {
+            @Override public com.codename1.ui.geom.Dimension getPreferredSize(Container parent) {
+                return consoleFlow.getPreferredSize(parent);
+            }
+            @Override public void layoutContainer(Container parent) {
+                if (wide) { consoleFlow.layoutContainer(parent); return; }
+                int availableWidth = Math.max(1, parent.getWidth() - parent.getStyle().getHorizontalPadding() - parent.getSideGap());
+                int availableHeight = Math.max(1, parent.getHeight() - parent.getStyle().getVerticalPadding() - parent.getBottomGap());
+                int minimumWidth = Math.min(availableWidth, CN.convertToPixels(62));
+                // Reserve wrapped errors at the comfort width before expanding the face.
+                status.setWidth(Math.max(1, minimumWidth * 92 / 100));
+                int statusHeight = status.isHidden() ? 0 : status.getPreferredH();
+                int fitWidth = Math.max(1, (availableHeight - statusHeight) * 100 / 184);
+                int width = Math.min(availableWidth, Math.max(minimumWidth, fitWidth));
+                if (playerFace.getWidth() != width) {
+                    playerFace.setPreferredSize(null); playerFace.setWidth(width);
+                    playerFace.setShouldCalcPreferredSize(true);
+                    trackInformation.fitWidth(width);
+                }
+                status.setWidth(Math.max(1, width * 92 / 100));
+                int height = playerFace.getPreferredH();
+                playerFace.setX(parent.getStyle().getPaddingLeftNoRTL() + (availableWidth - width) / 2);
+                playerFace.setY(parent.getStyle().getPaddingTop() + Math.max(0, (availableHeight - height) / 2));
+                playerFace.setWidth(width); playerFace.setHeight(height);
+            }
+        });
+        playerContent.setName("Now Playing content");
+        playerContent.getSemantics().setLabel("Now Playing content");
         playerContent.setUIID("PlayerPanel");
         playerContent.setScrollableY(true);
         playerContent.setScrollVisible(false);
         playerFace = new PlayerFace(artworkSlot, metadata, timeline, wheel, status);
+        playerFace.setName("Player"); playerFace.getSemantics().setLabel("Player");
         sizeContent();
         playerContent.add(playerFace);
         playerPanel.add(BorderLayout.CENTER, playerContent);
@@ -292,7 +324,15 @@ public final class LibraryForm extends Form {
         navigate(View.LIBRARY);
         // The port updates the Form bounds during its resize callback. Recompose
         // on the next EDT turn, after the Form has its current window bounds.
-        addSizeChangedListener(e -> CN.callSerially(() -> { sizeContent(); revalidate(); }));
+        addSizeChangedListener(e -> {
+            if (resizeSettle != null) resizeSettle.cancel();
+            CN.callSerially(() -> { if (!disposed) { sizeContent(); revalidate(); } });
+            // Some ports publish Form bounds before the final window-resize turn.
+            resizeSettle = CN.setTimeout(120, () -> {
+                resizeSettle = null;
+                if (!disposed) { sizeContent(); revalidate(); }
+            });
+        });
         timer = new UITimer(() -> {
             player.poll(); refreshProgress(); refreshArtworkViews();
             checkArtwork(false);
@@ -318,13 +358,13 @@ public final class LibraryForm extends Form {
     }
 
     private void sizeContent() {
-        int available = getWidth() > 0 ? getWidth() : CN.getDisplayWidth();
+        int available = CN.getDisplayWidth();
         // SpanLabel retains its measured width; bound it again when the viewport changes.
         if (accountUsername != null) accountUsername.setPreferredW(Math.max(1, available - CN.convertToPixels(12)));
         accountPanel.setPreferredW(available);
         accountPanel.setShouldCalcPreferredSize(true);
         boolean wasWide = wide;
-        int height = getHeight() > 0 ? getHeight() : CN.getDisplayHeight();
+        int height = CN.getDisplayHeight();
         wide = available >= CN.convertToPixels(130) && height >= CN.convertToPixels(100);
         wideShell.setPreferredW(available);
         if (wide != wasWide) libraryViews.setLayout(wide ? new FlowLayout(Component.LEFT) : new GridLayout(1, 3));
@@ -341,7 +381,8 @@ public final class LibraryForm extends Form {
         albumTitle.setShouldCalcPreferredSize(true);
         albumArtist.setPreferredW(Math.max(1, libraryWidth - CN.convertToPixels(39)));
         albumArtist.setShouldCalcPreferredSize(true);
-        int width = wide ? available : Math.min(available, CN.convertToPixels(62));
+        // Compact placement refines this width against the actual player viewport at layout time.
+        int width = available;
         playerFace.horizontal(wide);
         metadataCover.setHidden(wide); metadataCover.setVisible(!wide);
         artworkSlot.setUIID(wide ? "ConsoleArtwork" : "ArtworkRecess");
@@ -789,6 +830,8 @@ public final class LibraryForm extends Form {
         return seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
     }
     public void disposePlayer() {
+        disposed = true;
+        if (resizeSettle != null) { resizeSettle.cancel(); resizeSettle = null; }
         cancelAlbumNavigation();
         groupQueueRequest++;
         collection.dispose();

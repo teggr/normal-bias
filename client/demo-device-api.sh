@@ -4,6 +4,9 @@ client_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_dir=$(dirname -- "$client_dir")
 source "$client_dir/trial-env.sh"
 trial_origin
+if [[ "$NORMALBIAS_API_ORIGIN" != http://* ]]; then
+    printf 'This unauthenticated helper requires an explicit private HTTP origin; use the authentication fixture for HTTPS\n' >&2; exit 2
+fi
 for program in java ffmpeg curl; do command -v "$program" >/dev/null || { printf 'Missing %s\n' "$program" >&2; exit 2; }; done
 for module in api cli; do test -f "$repo_dir/$module/target/normal-bias-$module-0.1.0-SNAPSHOT.jar" || { printf 'Run mvn clean verify first\n' >&2; exit 2; }; done
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/normal-bias-device.XXXXXX")
@@ -23,10 +26,11 @@ ffmpeg -v error -f lavfi -i 'aevalsrc=0.12*sin(2*PI*261.63*t)+0.07*sin(2*PI*392*
     -af 'afade=t=in:d=0.5,afade=t=out:st=40:d=2' -metadata title='Morning Circuit' \
     -metadata artist='Normal Bias Demo' -metadata album='Device Trial' "$work_dir/music/morning.mp3"
 start_api() {
-    local host=$1 ready=false
+    local host=$1 mode=$2 ready=false
     : > "$work_dir/api.log"
     java -jar "$repo_dir/api/target/normal-bias-api-0.1.0-SNAPSHOT.jar" \
-        --server.address="$host" --server.port="$trial_port" --normalbias.data-dir="$work_dir/data" --normalbias.artwork.background-enabled=false > "$work_dir/api.log" 2>&1 &
+        --server.address="$host" --server.port="$trial_port" --normalbias.auth.mode="$mode" --normalbias.data-dir="$work_dir/data" --normalbias.artwork.background-enabled=false \
+        --spring.web.resources.static-locations="file:$client_dir/target/web/" > "$work_dir/api.log" 2>&1 &
     api_pid=$!
     for ((attempt=0; attempt<60; attempt++)); do
         if ! kill -0 "$api_pid" 2>/dev/null; then cat "$work_dir/api.log" >&2; return 1; fi
@@ -37,9 +41,12 @@ start_api() {
     if [[ $ready != true ]]; then cat "$work_dir/api.log" >&2; return 1; fi
 }
 # Upload through loopback, then restart the same disposable data on the selected private interface.
-start_api 127.0.0.1
+start_api 127.0.0.1 demo
 java -jar "$repo_dir/cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar" "$work_dir/music" "http://127.0.0.1:$trial_port"
+if [[ -n "${NORMALBIAS_DEMO_MUSIC_DIR:-}" ]]; then
+    java -jar "$repo_dir/cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar" "$NORMALBIAS_DEMO_MUSIC_DIR" "http://127.0.0.1:$trial_port"
+fi
 kill "$api_pid"; wait "$api_pid" || true; api_pid=
-start_api "$trial_host"
+start_api "$trial_host" private-demo
 printf 'Disposable API ready: %s\nLogs: %s/api.log\nHelper PID: %s\nCtrl-C or kill -TERM %s stops it and removes its synthetic library.\n' "$NORMALBIAS_API_ORIGIN" "$work_dir" "$$" "$$"
 wait "$api_pid"
