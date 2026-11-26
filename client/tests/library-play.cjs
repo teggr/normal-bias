@@ -10,7 +10,7 @@ let server, browser, context;
 const delay = ms => new Promise(r=>setTimeout(r,ms));
 async function until(check, label) { for(let i=0;i<200;i++){if(await check())return;await delay(100)} throw Error('Timeout: '+label); }
 async function click(page,name) {
- if(name==='Library views'&&await page.getByRole('button',{name:'Close album',exact:true}).count())name='Close album';
+ if (name === 'Library views' || name === 'Close album') name = await page.getByRole('button', {name: /^Back to /}).first().getAttribute('aria-label');
  const control=page.getByRole('button',{name,exact:true}).first();await control.waitFor();
  const b=await control.boundingBox();assert.ok(b,name);await page.mouse.click(b.x+b.width/2,b.y+b.height/2);await delay(550);
 }

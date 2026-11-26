@@ -10,7 +10,7 @@ let server, browser, context;
 const delay = ms => new Promise(r=>setTimeout(r,ms));
 async function until(check, label) { for(let i=0;i<200;i++){if(await check())return;await delay(100)} throw Error('Timeout: '+label); }
 async function click(page,name) {
- if(name==='Library views'&&await page.getByRole('button',{name:'Close album',exact:true}).count())name='Close album';
+ if (name === 'Library views' || name === 'Close album') name = await page.getByRole('button', {name: /^Back to /}).first().getAttribute('aria-label');
  const control=page.getByRole('button',{name,exact:true}).first();await control.waitFor();
  const b=await control.boundingBox();assert.ok(b,name);await page.mouse.click(b.x+b.width/2,b.y+b.height/2);await delay(550);
 }
@@ -39,7 +39,7 @@ function command(program,args) {const r=spawnSync(program,args,{encoding:'utf8'}
  await text(page,album);await text(page,'2 songs');await text(page,'Example Artist');
  assert.equal(await page.getByRole('button',{name:/Jump to/}).count(),0,'album contents omit rail');
  await delay(1200);await page.screenshot({path:path.join(out,'albums.png')});
- assert.equal(await page.getByRole('button',{name:'Library views',exact:true}).count(),0,'album replaces Back with Close');
+ assert.equal(await page.getByRole('button',{name:'Close album',exact:true}).count(),0,'contextual Back replaces Close');
  await click(page,'Queue album');await text(page,'Album queued: 2 tracks added.');
  assert.equal(await page.locator('audio').evaluateAll(es=>es.some(e=>!e.paused)),false,'queueing does not start playback');
  await until(()=>page.locator('audio').evaluateAll(es=>es.some(e=>e.paused&&e.readyState>=1&&e.currentTime<.1)),'first album track prepared paused');
@@ -97,7 +97,7 @@ function command(program,args) {const r=spawnSync(program,args,{encoding:'utf8'}
  for(const [width,height] of [[390,600],[800,780]]) {
   await page.setViewportSize({width,height});await delay(900);await text(page,album);
   const track=await page.getByRole('button',{name:'Play First light',exact:true}).boundingBox();
-  const back=await page.getByRole('button',{name:'Close album',exact:true}).boundingBox();
+  const back=await page.getByRole('button',{name:'Back to Albums',exact:true}).boundingBox();
   assert.ok(track.y>back.y+back.height,'header does not overlap first track');
   const skip=await page.getByRole('button',{name:'Next track',exact:true}).boundingBox();
   const titleBox=await page.getByRole('button',{name:'Open Now Playing',exact:true}).boundingBox();
@@ -143,6 +143,6 @@ function command(program,args) {const r=spawnSync(program,args,{encoding:'utf8'}
  await click(page,'Close album');release();await until(async()=>continued,'released pending request');await page.unroute(pattern);await delay(700);
  await click(page,'Now Playing');await click(page,'Queue');await text(page,'0 tracks');
  assert.deepEqual(errors,[]);await context.close();context=null;
- fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({checks:['Albums header/title/artist/count and embedded square cover','Artist → album header','Close album restores both parents','Queue album preserves playing stream and deduplicates','Queue album prepares first track paused for immediate Play','Single row prepares first track paused','Clear unloads both playing and prepared audio','Hardware mini-player pause/resume','Missing-cover fallback','No album alphabet rail','Short and wide header separation','Multi-page album commits in catalogue order','Second-page failure leaves queue empty','Retry and repeated album queue deduplicate','Close cancels pending album queue','Mini-player Next advances on Library and Queue','Next disables at queue end','Title has no orange focus highlight after navigation','Mini-player controls fit compact and wide widths','No uncaught browser errors'],serviceWorkers:'blocked',audio:'actual synthetic client playback and pause/resume'},null,2));
- console.log('PASS album actions from Albums and Artists; Close, deduplication, live audio, mini-player, fallback, short/wide layouts');
+ fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({checks:['Albums header/title/artist/count and embedded square cover','Artist → album header','Contextual Back restores both parents','Queue album preserves playing stream and deduplicates','Queue album prepares first track paused for immediate Play','Single row prepares first track paused','Clear unloads both playing and prepared audio','Hardware mini-player pause/resume','Missing-cover fallback','No album alphabet rail','Short and wide header separation','Multi-page album commits in catalogue order','Second-page failure leaves queue empty','Retry and repeated album queue deduplicate','Back cancels pending album queue','Mini-player Next advances on Library and Queue','Next disables at queue end','Title has no orange focus highlight after navigation','Mini-player controls fit compact and wide widths','No uncaught browser errors'],serviceWorkers:'blocked',audio:'actual synthetic client playback and pause/resume'},null,2));
+ console.log('PASS album actions from Albums and Artists; contextual Back, deduplication, live audio, mini-player, fallback, short/wide layouts');
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{if(context)await context.close();if(browser)await browser.close();if(server)server.kill('SIGTERM');if(!process.exitCode)fs.rmSync(work,{recursive:true,force:true});});

@@ -44,6 +44,7 @@ final class AlphabetRail extends Container {
             letters[i].setUIID(selected ? "AlphabetCurrent" : "AlphabetLetter");
             letters[i].getSemantics().setDescription(selected ? "Current section" : "");
         }
+        fitLetterFonts();
         repaint();
     }
     void available(boolean enabled) { for (Button button : letters) button.setEnabled(enabled); }
@@ -58,9 +59,30 @@ final class AlphabetRail extends Container {
     @Override public void pointerPressed(int x, int y) { touching = -1; touch(y); }
     @Override public void pointerDragged(int x, int y) { touch(y); }
     @Override public void pointerReleased(int x, int y) { touch(y); touching = -1; preview.accept(null); }
+    private int fittedHeight = -1;
+    private Font fittedRegular, fittedCurrent;
+    private void fitLetterFonts() {
+        int rowHeight = Math.max(1, getHeight() / letters.length);
+        if (rowHeight != fittedHeight) {
+            fittedHeight = rowHeight;
+            fittedRegular = fittedFont("AlphabetLetter", rowHeight);
+            fittedCurrent = fittedFont("AlphabetCurrent", rowHeight);
+        }
+        for (int i = 0; i < letters.length; i++) {
+            letters[i].getAllStyles().setFont(LETTERS.substring(i, i + 1).equals(current) ? fittedCurrent : fittedRegular);
+        }
+    }
+    private static Font fittedFont(String uiid, int height) {
+        Font base = com.codename1.ui.plaf.UIManager.getInstance().getComponentStyle(uiid).getFont();
+        if (base.getHeight() <= height || !base.isTTFNativeFont()) return base;
+        // Native font size and measured line height differ. Fit the line, not only the point size.
+        float pixels = base.getPixelSize() * Math.max(1, height - 1) / base.getHeight();
+        return base.derive(Math.max(1, pixels), base.getStyle());
+    }
     private static final class RailLayout extends Layout {
         @Override public void layoutContainer(Container parent) {
             int height = parent.getHeight(), width = parent.getWidth();
+            ((AlphabetRail) parent).fitLetterFonts();
             for (int i = 0; i < parent.getComponentCount(); i++) {
                 Component child = parent.getComponentAt(i);
                 child.setX(0); child.setY(i * height / 27);

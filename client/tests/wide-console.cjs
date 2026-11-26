@@ -62,7 +62,7 @@ async function gridColumns(expected){
  await click('Open 00 Album');await page.getByRole('button',{name:'Queue album',exact:true}).waitFor();
  await click('Queue album');mark('playing');await click('Play');await until(async()=>(await audio())[0]?.time>.4,'actual audio');
  const live=(await audio())[0];
- await click('Close album');await page.getByRole('button',{name:'Open 00 Album',exact:true}).waitFor();await wait(1000);await click('Queue');await page.getByRole('button',{name:'Close queue',exact:true}).waitFor();
+ await click('Back to Albums');await page.getByRole('button',{name:'Open 00 Album',exact:true}).waitFor();await wait(1000);await click('Queue');await page.getByRole('button',{name:'Close queue',exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Albums',exact:true}).count(),0,'Queue replaces Library');
  assert.equal(await page.getByRole('button',{name:'Clear queue',exact:true}).count(),1);
  await consoleBounds();await wait(1200);await click('Close queue');await gridColumns(5);
@@ -73,7 +73,7 @@ async function gridColumns(expected){
  await click('Artists');await page.getByRole('button',{name:'Open 00 Artist',exact:true}).waitFor();
  await click('Open 00 Artist');await page.getByRole('button',{name:'Open 00 Album',exact:true}).waitFor();
  const a=await box('Open 00 Album');assert.ok(a.height>a.width,'artist albums retain tile presentation');
- await click('Library views');await page.getByRole('button',{name:'Open 00 Artist',exact:true}).waitFor();await click('Albums');await gridColumns(4);checks.push('portrait four-column grid, Artists and artist albums');
+ await click('Back to Artists');await page.getByRole('button',{name:'Open 00 Artist',exact:true}).waitFor();await click('Albums');await gridColumns(4);checks.push('portrait four-column grid, Artists and artist albums');
  await click('Player information');await wait(900);await click('Show artwork');
  await click('Pause');mark('paused');const paused=(await audio())[0];await click('Queue');await page.getByRole('button',{name:'Close queue',exact:true}).waitFor();await click('Queue');await gridColumns(4);
  assert.ok((await audio())[0].paused);assert.ok(Math.abs((await audio())[0].time-paused.time)<.3);checks.push('information and paused queue toggle retain media');
