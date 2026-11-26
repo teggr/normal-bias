@@ -39,9 +39,14 @@ final class TransportWheel extends Container {
     @Override public void paintBackground(Graphics g) {
         super.paintBackground(g);
         boolean aa = g.isAntiAliased(); g.setAntiAliased(true);
-        g.setColor(0x1b1b1b); g.drawLine(getX(), getY(), getX() + getWidth(), getY());
+        // Ancestor restoration during a button-only repaint translates Graphics
+        // to this container, whereas a full paint uses its parent's origin.
+        // Resolve the same screen position in either graphics coordinate space.
+        int originX = getAbsoluteX() - g.getTranslateX();
+        int originY = getAbsoluteY() - g.getTranslateY();
+        g.setColor(0x1b1b1b); g.drawLine(originX, originY, originX + getWidth(), originY);
         int d = Math.min(getWidth() * 55 / 100, getHeight() * 88 / 100);
-        int x = getX() + (getWidth() - d) / 2, y = getY() + (getHeight() - d) / 2;
+        int x = originX + (getWidth() - d) / 2, y = originY + (getHeight() - d) / 2;
         for (int i = 0; i < 32; i++) {
             int inset = i * d / 100;
             int shade = 20 + i / 3;
