@@ -42,7 +42,12 @@ class AuthRepresentations implements ResponseBodyAdvice<Object> {
                 if (alphabetical) row.put("initial", BrowseOrder.initial(artists ? group.artist() : group.album()));
                 String href = artists ? "/api/library/albums?sort=alphabetical&artist=" + artist
                         : "/api/tracks?artist=" + artist + "&album=" + URLEncoder.encode(group.album(), StandardCharsets.UTF_8);
-                row.put("_links", Map.of("contents", link(href + "&limit=" + page.limit(), "GET"), "artwork", link("/api/tracks/" + row.get("trackId") + "/artwork", "GET"))); return row;
+                var links = new LinkedHashMap<String, Link>();
+                links.put("contents", link(href + "&limit=" + page.limit(), "GET"));
+                links.put("artwork", link("/api/tracks/" + row.get("trackId") + "/artwork", "GET"));
+                if (artists && (security.demo() || allows(identity, Action.LISTEN)))
+                    links.put("tracks", link("/api/tracks?artist=" + artist + "&limit=" + page.limit(), "GET"));
+                row.put("_links", links); return row;
             }).toList());
             result.put("_links", pages(request, page.offset(), page.limit(), page.total())); return result;
         }

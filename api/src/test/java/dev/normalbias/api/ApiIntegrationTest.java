@@ -116,6 +116,23 @@ class ApiIntegrationTest {
         assertEquals(1, missing.path("total").asInt()); assertEquals(2, missing.path("items").get(0).path("trackCount").asInt());
     }
 
+    @Test void artistTracksLinkIncludesAllAlbumsAndNoOtherArtists() throws Exception {
+        String artist = "Artist % & é";
+        for (int i = 0; i < 4; i++) db.update("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, 'song.mp3', ?, ?, ?, 1000, 1, CURRENT_TIMESTAMP)",
+                String.format("%064x", i), "Song " + i, i < 3 ? artist : "Other", "Album " + i);
+        var artists = json.readTree(get("/api/library/artists").body()).path("items");
+        for (var group : artists) if (artist.equals(group.path("artist").asText())) {
+            String tracks = group.path("_links").path("tracks").path("href").asText();
+            assertFalse(tracks.isBlank());
+            var page = json.readTree(get(tracks).body());
+            assertEquals(3, page.path("total").asInt());
+            for (var track : page.path("items")) assertEquals(artist, track.path("artist").asText());
+            assertEquals(3, json.readTree(get(group.path("_links").path("contents").path("href").asText()).body()).path("total").asInt());
+            return;
+        }
+        fail("Artist group missing");
+    }
+
     @AfterEach void close() { client.close(); }
 
     URI uri(String path) { return URI.create("http://127.0.0.1:" + port + path); }

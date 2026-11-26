@@ -108,11 +108,14 @@ public final class Player {
     }
     /** Prepare the first queued track paused when empty; otherwise preserve current media. */
     public int enqueueAlbum(java.util.List<Track> tracks) {
+        return enqueueGroup(tracks, "Album");
+    }
+    public int enqueueGroup(java.util.List<Track> tracks, String subject) {
         boolean wasEmpty = queue.size() == 0;
         int added = queue.addAll(tracks);
         if (wasEmpty && added > 0) { queue.select(0); load(false); return added; }
-        if (!failed) status = added < 0 ? "Album does not fit in the 200-track queue. Clear space and try again."
-                : "Album queued: " + added + (added == 1 ? " track added" : " tracks added");
+        if (!failed) status = added < 0 ? subject + " does not fit in the 200-track queue. Clear space and try again."
+                : subject + " queued: " + added + (added == 1 ? " track added" : " tracks added");
         syncSystem(); changed.run();
         return added;
     }
