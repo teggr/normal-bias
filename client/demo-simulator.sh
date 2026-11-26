@@ -30,6 +30,16 @@ ffmpeg -v error -f lavfi -i 'aevalsrc=0.12*sin(2*PI*220*t)+0.07*sin(2*PI*330*t)+
 ffmpeg -v error -f lavfi -i 'aevalsrc=0.12*sin(2*PI*261.63*t)+0.07*sin(2*PI*392*t)+0.05*sin(2*PI*523.25*t):s=44100:d=42' \
     -af 'afade=t=in:d=0.5,afade=t=out:st=40:d=2' -metadata title='Morning Circuit' \
     -metadata artist='Normal Bias Demo' -metadata album='Simulator Sessions' "$work_dir/music/morning.mp3"
+# Optional original synthetic sleeve for head-unit/list-artwork verification.
+if [[ "${NORMALBIAS_DEMO_ARTWORK:-0}" == 1 ]]; then
+    ffmpeg -v error -f lavfi -i 'color=c=0x272727:s=128x128:d=0.04,drawbox=x=12:y=12:w=104:h=104:color=0xeac23f:t=2' \
+        -frames:v 1 "$work_dir/cover.jpg"
+    for name in evening morning; do
+        ffmpeg -v error -i "$work_dir/music/$name.mp3" -i "$work_dir/cover.jpg" \
+            -map 0:a -map 1:v -c copy -id3v2_version 3 -disposition:v attached_pic "$work_dir/$name.mp3"
+        mv "$work_dir/$name.mp3" "$work_dir/music/$name.mp3"
+    done
+fi
 origin="http://127.0.0.1:$port"
 java -jar "$repo_dir/api/target/normal-bias-api-0.1.0-SNAPSHOT.jar" \
     --server.address=127.0.0.1 --server.port="$port" --normalbias.auth.mode=demo --normalbias.data-dir="$work_dir/data" --normalbias.artwork.background-enabled=false > "$work_dir/api.log" 2>&1 &

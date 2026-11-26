@@ -14,11 +14,13 @@ class CarListeningTest {
         int opens, closes;
         public boolean isSupported() { return true; }
         public void open(String url) { opens++; }
-        public void play() { }
-        public void pause() { }
+        boolean playing;
+        public void play() { playing = true; }
+        public void pause() { playing = false; }
         public void close() { closes++; }
         public void seek(int time) { }
-        public String snapshot() { return "{}"; }
+        String error = "";
+        public String snapshot() { return "{\"error\":\"" + error + "\",\"time\":0,\"duration\":42000,\"playing\":" + playing + ",\"loading\":false}"; }
     }
     private static final class HeadUnit implements CarBridge {
         int invalidations;
@@ -42,12 +44,36 @@ class CarListeningTest {
         return ((CarListTemplate) context.getTopScreen().dispatchCreateTemplate()).getSections().get(0).getRows();
     }
     private void tap(CarContext context, String title) {
+        CarListTemplate list = (CarListTemplate) context.getTopScreen().dispatchCreateTemplate();
+        if (list.getHeaderActions() != null) {
+            for (CarAction action : list.getHeaderActions().getActions()) if (action.getTitle().equals(title)) {
+                action.getOnAction().actionPerformed(context); return;
+            }
+        }
         rows(context).stream().filter(row -> row.getTitle().equals(title)).findFirst().orElseThrow()
                 .getOnAction().actionPerformed(context);
     }
+    @Test void carOnlyOffersAdvertisedCollections() throws Exception {
+        LibraryApi api = new LibraryApi("http://127.0.0.1:8080") {
+            @Override public String browsePath(String view, String query, String artist, String album, boolean alphabetical) {
+                if (!view.equals("albums")) throw new IllegalStateException("No collection affordance");
+                return "/advertised-albums";
+            }
+        };
+        CarListening car = new CarListening(api, new Player(api, () -> {}, new Audio()));
+        CarContext context = context(new HeadUnit());
+        context.pushScreen(car.onCreateRootScreen(context));
+        tap(context, "Library");
+        assertEquals(List.of("Albums"), rows(context).stream().map(CarRow::getTitle).toList());
+    }
+
     @Test void carAndPhoneShareQueueAndDisconnectDoesNotStopPlayback() throws Exception {
         Audio audio = new Audio();
-        LibraryApi api = new LibraryApi("http://127.0.0.1:8080");
+        LibraryApi api = new LibraryApi("http://127.0.0.1:8080") {
+            @Override public Runnable artwork(Track track, java.util.function.Consumer<com.codename1.ui.Image> loaded) {
+                return () -> {}; // This portable-stack test has no initialized image/network port.
+            }
+        };
         Player player = new Player(api, () -> {}, audio);
         CarListening car = new CarListening(api, player);
         HeadUnit bridge = new HeadUnit();
@@ -55,29 +81,56 @@ class CarListeningTest {
         context.pushScreen(car.onCreateRootScreen(context));
         for (int i = 0; i < 8; i++) player.enqueue(new Track("track" + i, "Track " + i, "Demo", "Synthetic", 42000));
         assertEquals(0, player.queue.index()); assertEquals(1, audio.opens); assertFalse(player.isPlaying());
-        tap(context, "Queue (8)");
+        assertEquals(List.of("Library", "Now Playing"), rows(context).stream().map(CarRow::getTitle).toList());
+        tap(context, "Now Playing");
+        tap(context, "Queue");
         assertTrue(rows(context).size() <= bridge.getListRowLimit());
-        tap(context, "More queued tracks");
+        tap(context, "More");
         tap(context, "Track 2");
+        assertTrue(((CarListTemplate) context.getTopScreen().dispatchCreateTemplate()).getTitle().startsWith("Queue"));
+        context.popScreen();
         assertEquals(2, player.queue.index());
         assertEquals(2, audio.opens);
-        tap(context, "Next");
+        assertTrue(rows(context).stream().anyMatch(r -> r.getTitle().equals("Loading track…")));
+        assertTrue(rows(context).stream().noneMatch(r -> r.getTitle().equals("Restart track")));
+        tap(context, "Next track");
         assertEquals(3, player.queue.index());
-        tap(context, "Previous");
+        tap(context, "Previous track");
         assertEquals(2, player.queue.index());
+        player.poll();
+        tap(context, "Pause");
+        assertFalse(player.isPlaying());
         tap(context, "Play");
         assertTrue(player.isPlaying());
         tap(context, "Pause");
         assertFalse(player.isPlaying());
-        tap(context, "Now Playing");
+        audio.error = "Stream unavailable";
+        player.poll();
+        assertTrue(rows(context).stream().anyMatch(r -> r.getTitle().equals("Retry track")));
+        assertTrue(rows(context).stream().noneMatch(r -> r.getTitle().equals("Restart track")));
+        audio.error = "";
+        tap(context, "Retry track");
+        player.poll();
+        if (player.isPlaying()) tap(context, "Pause");
+        assertFalse(player.hasFailed());
+        assertTrue(rows(context).stream().anyMatch(r -> r.getTitle().equals("Restart track")));
+        tap(context, "System player");
         assertInstanceOf(CarNowPlayingTemplate.class, context.getTopScreen().dispatchCreateTemplate());
+        context.popScreen();
+        tap(context, "Queue");
+        int opens = audio.opens;
+        Track current = player.queue.current();
+        tap(context, "Shuffle queue");
+        assertEquals(current, player.queue.current());
+        assertEquals(opens, audio.opens);
+        assertFalse(player.isPlaying());
+        context.popScreen();
         int closes = audio.closes;
         car.onCarDisconnected();
         car.refresh();
         assertEquals(closes, audio.closes);
         assertEquals(8, player.queue.size());
-        context.popScreen();
-        context.popScreen();
+        tap(context, "Queue");
         tap(context, "Clear queue");
         assertEquals(0, player.queue.size());
         assertEquals(closes + 1, audio.closes);

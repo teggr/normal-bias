@@ -33,7 +33,7 @@ PY
 javac @"$client_dir/target/carplay-probe/compile.args"
 export no_proxy="${no_proxy:-},127.0.0.1,localhost,::1"
 export NO_PROXY="${NO_PROXY:-},127.0.0.1,localhost,::1"
-exec java -Dcn1.mcp.port="$port" -Dnormalbias.apiOrigin="$origin" \
+exec java -Dnormalbias.carRowActions=true -Dcn1.mcp.port="$port" -Dnormalbias.apiOrigin="$origin" \
     -Dnormalbias.carProbeOutput="$client_dir/target/recordings/carplay" \
     @"$client_dir/target/carplay-probe/run.args" \
     com.codename1.impl.javase.Simulator dev.normalbias.client.CarPlayProbe
