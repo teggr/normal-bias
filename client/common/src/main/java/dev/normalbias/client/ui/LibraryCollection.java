@@ -24,6 +24,8 @@ final class LibraryCollection extends Container {
     private final Label preview = new Label("", "AlphabetPreview");
     private final Map<String, Section> sections = new HashMap<>();
     private int generation, requestSerial;
+    private boolean wide;
+    private int columns = 1, presentationSerial;
     private boolean grouped, alphabetical, loading, changing, failed, shown;
     private String emptyMessage, initialPath, indexPath, pendingJump;
     private Runnable retryAction;
@@ -50,6 +52,34 @@ final class LibraryCollection extends Container {
             if (y != oldY) prefetch(y < oldY ? -1 : 1);
         });
         state(null, null);
+    }
+    void presentation(boolean value, int width) {
+        // Reserve the alphabet gutter and outer content insets before choosing density.
+        int gap = CN.convertToPixels(3), available = Math.max(1, width - CN.convertToPixels(14));
+        int next = Math.max(1, (available + gap) / (CN.convertToPixels(28) + gap));
+        if (width <= CN.convertToPixels(240)) next = Math.min(5, next);
+        // Larger native text gets more width rather than being clipped into a dense grid.
+        int textMinimum = Font.getDefaultFont().getHeight() * 9;
+        next = Math.min(next, Math.max(1, (available + gap) / (textMinimum + gap)));
+        if (wide == value && columns == next) return;
+        Anchor anchor = anchor(); wide = value; columns = next;
+        int version = generation, serial = ++presentationSerial;
+        applyPresentation();
+        rows.revalidate(); rows.layoutContainer();
+        restore(anchor);
+        CN.callSerially(() -> {
+            if (version != generation || serial != presentationSerial) return;
+            rows.layoutContainer(); restore(anchor); highlight(); prefetch(1);
+        });
+    }
+    private void applyPresentation() {
+        boolean tiles = wide && grouped && !rendered.isEmpty();
+        rows.setLayout(tiles ? new TileGrid(columns) : BoxLayout.y());
+        for (Component item : rendered.values()) if (item instanceof GroupEntry) ((GroupEntry) item).tiled(tiles);
+    }
+    private void restore(Anchor anchor) {
+        Component target = anchor == null ? null : rendered.get(anchor.identity());
+        rows.position(target == null ? 0 : Math.max(0, target.getY() - Math.max(1 - target.getHeight(), anchor.pixel())));
     }
     void shown(boolean value) { shown = value; if (value) CN.callSerially(() -> { highlight(); prefetch(1); }); }
     void load(String path, boolean grouped, boolean alphabetical, String emptyMessage, Anchor anchor) {
@@ -137,9 +167,10 @@ final class LibraryCollection extends Container {
         Component focused = getComponentForm() == null ? null : getComponentForm().getFocused();
         rows.removeAll(); rendered.clear(); rendered.putAll(next);
         for (Component row : rendered.values()) rows.add(row);
+        applyPresentation();
         rows.revalidate(); rows.layoutContainer();
         Component target = anchor == null ? null : rendered.get(anchor.identity());
-        rows.position(target == null ? 0 : Math.max(0, target.getY() - anchor.pixel()));
+        rows.position(target == null ? 0 : Math.max(0, target.getY() - Math.max(1 - target.getHeight(), anchor.pixel())));
         if (focused != null && rows.contains(focused)) focused.requestFocus();
         changing = false;
         putClientProperty("retainedRows", rendered.size());
@@ -150,7 +181,7 @@ final class LibraryCollection extends Container {
         getSemantics().setDescription("Library section " + (anchor == null ? "" : initials.get(anchor.identity())));
     }
     private void prefetch(int direction) {
-        if (!shown || changing || loading || failed || rendered.isEmpty() || pendingJump != null) return;
+        if (!shown || changing || loading || failed || rendered.isEmpty() || rows.getComponentCount() == 0 || pendingJump != null) return;
         int y = rows.getScrollY(), height = rows.getHeight();
         Component last = rows.getComponentAt(rows.getComponentCount() - 1);
         if (direction < 0 && y < height && window.previous() != null) fetch(window.previous(), -1, null);

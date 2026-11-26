@@ -94,7 +94,7 @@ function command(program,args) {const r=spawnSync(program,args,{encoding:'utf8'}
  context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'});
  page=await context.newPage();page.on('pageerror',e=>errors.push(String(e)));await page.goto(origin);
  await click(page,'Albums');await click(page,'Open '+album);
- for(const [width,height] of [[390,600],[1000,780]]) {
+ for(const [width,height] of [[390,600],[800,780]]) {
   await page.setViewportSize({width,height});await delay(900);await text(page,album);
   const track=await page.getByRole('button',{name:'Play First light',exact:true}).boundingBox();
   const back=await page.getByRole('button',{name:'Close album',exact:true}).boundingBox();

@@ -6,14 +6,52 @@ import com.codename1.ui.layouts.Layout;
 
 /** Proportions of the reference player; dimensions follow the available width. */
 final class PlayerFace extends Container {
+    private boolean horizontal;
+    void horizontal(boolean value) {
+        if (horizontal == value) return;
+        horizontal = value;
+        setShouldCalcPreferredSize(true);
+    }
+    static int wheelWidth(int width) { return Math.min(CN.convertToPixels(60), width * 36 / 100); }
+    static int artworkWidth(int width) { return Math.min(CN.convertToPixels(40), width * 23 / 100); }
+    private static void fitText(Component component, int width) {
+        if (component instanceof com.codename1.components.SpanLabel) {
+            component.setPreferredSize(null); component.setWidth(Math.max(1, width));
+        } else if (component instanceof Container) {
+            for (Component child : (Container) component) fitText(child, width);
+        }
+    }
     PlayerFace(Component artwork, Component metadata, Component timeline, Component controls, Component status) {
         setUIID("PlayerFace");
         setLayout(new Layout() {
             @Override public Dimension getPreferredSize(Container p) {
                 int w = p.getWidth() > 0 ? p.getWidth() : Math.min(CN.getDisplayWidth(), CN.convertToPixels(62));
+                if (horizontal) {
+                    int textWidth = Math.max(1, w - artworkWidth(w) - wheelWidth(w) - CN.convertToPixels(16));
+                    metadata.setPreferredSize(null);
+                    metadata.setWidth(textWidth);
+                    fitText(metadata, textWidth - metadata.getUnselectedStyle().getHorizontalPadding());
+                    int h = Math.max(artworkWidth(w), wheelWidth(w) * 70 / 100);
+                    h = Math.max(h, metadata.getPreferredH() + timeline.getPreferredH() + CN.convertToPixels(4));
+                    return new Dimension(w, h + CN.convertToPixels(8) + (status.isHidden() ? 0 : status.getPreferredH()));
+                }
                 return new Dimension(w, w * 184 / 100 + (status.isHidden() ? 0 : status.getPreferredH()));
             }
             @Override public void layoutContainer(Container p) {
+                if (horizontal) {
+                    int w = p.getWidth(), gap = CN.convertToPixels(4), art = artworkWidth(w), wheel = wheelWidth(w);
+                    int statusH = status.isHidden() ? 0 : status.getPreferredH();
+                    int h = p.getHeight() - gap * 2 - statusH;
+                    int copyX = gap * 2 + art, copyW = Math.max(1, w - copyX - wheel - gap * 2);
+                    int copyH = metadata.getPreferredH() + timeline.getPreferredH() + gap;
+                    int copyY = gap + Math.max(0, (h - copyH) / 2);
+                    place(artwork, gap, gap + Math.max(0, (h - art) / 2), art, art);
+                    place(metadata, copyX, copyY, copyW, metadata.getPreferredH());
+                    place(timeline, copyX, copyY + metadata.getPreferredH() + gap, copyW, timeline.getPreferredH());
+                    place(controls, w - gap - wheel, gap + Math.max(0, (h - wheel * 70 / 100) / 2), wheel, wheel * 70 / 100);
+                    place(status, gap, gap + h, w - gap * 2, statusH);
+                    return;
+                }
                 int w = p.getWidth(), inset = w * 4 / 100, y = 0;
                 place(artwork, 0, y, w, w * 78 / 100); y += w * 78 / 100;
                 place(metadata, inset, y + w * 3 / 100, w - 2 * inset, w * 17 / 100); y += w * 23 / 100;
