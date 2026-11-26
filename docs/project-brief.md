@@ -1,5 +1,11 @@
 # Normal Bias: project brief and constraints
 
+## Initial Tailscale hosting and HTTP default — authorised 2026-11-26
+
+Robin selected initial hosting over Tailscale, asked to defer application HTTPS and explicitly made HTTP the default for now. Implemented `normalbias.auth.require-https=false` by default with `required` account authentication, existing owner/listener permissions, browser CSRF, durable sessions and scoped playback grants retained. Set the flag to true and configure embedded TLS to restore HTTPS enforcement. HTTP browser cookies use a separate non-Secure namespace; toggling transport enforcement requires a fresh browser sign-in. Native address selection/remembering and same-origin invitation/reset links accept HTTP or HTTPS. The private iPhone build helper additionally accepts literal Tailscale IPv4 addresses with its existing host-specific ATS approach. Loopback `demo` and read-only RFC1918 `private-demo` restrictions are unchanged.
+
+This supersedes earlier statements that required authentication always mandates HTTPS. Initial tailnet hosting is an approved direction; actual Tailscale setup, retained-service changes, phone reinstall and public deployment are not performed by this change. HTTP browser secure-context/PWA restrictions and actual tailnet/native acceptance remain distinct from local browser/API checks. The checkpoint below describes the retained services and phone before this source change; verification records the new checks separately.
+
 ## Current checkpoint — 2026-11-26
 
 Delivered this session: explicit read-only private-LAN HTTP demo mode without weakening required HTTPS or loopback demo; endpoint checking/tick/cross and credential gating with actionable errors and keyboard progression; full-size Plus player spacing and native iPhone portrait lock; corrected scrolled-thumbnail clipping. The physical phone is back on the working HTTP demo with the Uploads catalogue, and Robin confirmed later-row artwork renders correctly. Both retained HTTP18447 and HTTPS18445 services are preserved.

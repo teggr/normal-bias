@@ -82,3 +82,14 @@ For the 2026-11-26 repeat: fixture `client/target/simulator-acceptance`, HTTPS `
 
 
 After the native outage/revocation suite has left its replacement fixture running, `python3 client/tests/auth-client/grant-revocation.py` checks the grant-side policy using a separate ephemeral listener session. It follows advertised device-login/songs/playback-grant/audio relations, verifies a 206 Range response, revokes exactly that session through the local admin socket, and requires 401 for a later Range, HEAD and grant renewal. It accepts only loopback synthetic HTTPS fixtures under ignored `client/target`, keeps tokens in memory and writes status-only evidence. This does not promise to retract bytes already buffered by a native media player.
+
+### Authenticated HTTP default
+
+For a fresh loopback-only HTTP fixture and non-secure browser-origin check:
+
+```sh
+python3 client/tests/auth-client/fixture.py --http --port 19646 --output-directory client/target/auth-http
+RECORD_DEMO=1 node client/tests/auth-client/http.cjs client/target/auth-http
+```
+
+The test maps `music.normalbias.test` to loopback only inside its Chrome instance, without promoting it to a secure context. It verifies HTTP session/CSRF cookies, actual sign-in, reload restoration, scoped audio and logout revocation using synthetic data. Service workers are blocked; no real tailnet or native iPhone acceptance is implied. The recording starts after credential entry, contains actual synthetic client audio, and ends signed out. The ordinary HTTPS fixture explicitly enables `normalbias.auth.require-https=true` to retain its original acceptance scope. Stop only this fixture supervisor/service after use.

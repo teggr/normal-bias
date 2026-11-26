@@ -10,6 +10,7 @@ class AccountLinkTest {
                 origin+"/?token="+token, origin+"/#reset="+token+"&extra=1", origin+"/#invite=short",
                 origin+"/other#invite="+token, origin+"/#reset="+"Z".repeat(64)})
             assertThrows(IllegalArgumentException.class, () -> AccountLink.parse(value, origin));
-        assertThrows(IllegalArgumentException.class, () -> AccountLink.parse("http://localhost/#invite="+token, "http://localhost"));
+        assertTrue(AccountLink.parse("http://music.tailnet.ts.net/#invite="+token, "http://music.tailnet.ts.net").invitation);
+        assertThrows(IllegalArgumentException.class, () -> AccountLink.parse("https://music/#invite="+token, "http://music"));
     }
 }

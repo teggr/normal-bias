@@ -17,7 +17,7 @@ class AuthTransportTest {
     private void check(String prefix, Path directory) throws Exception {
         try (var context = new SpringApplicationBuilder(NormalBiasApplication.class).run("--server.port=0",
                 "--normalbias.data-dir=" + directory, "--server.servlet.context-path=" + prefix,
-                "--server.ssl.enabled=false", "--normalbias.artwork.background-enabled=false"); var client = HttpClient.newHttpClient()) {
+                "--server.ssl.enabled=false", "--normalbias.auth.require-https=true", "--normalbias.artwork.background-enabled=false"); var client = HttpClient.newHttpClient()) {
             int port = ((ServletWebServerApplicationContext) context).getWebServer().getPort();
             var response = client.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + prefix + "/api"))
                     .header("X-Forwarded-Proto", "https").header("Forwarded", "proto=https").GET().build(), HttpResponse.BodyHandlers.ofString());

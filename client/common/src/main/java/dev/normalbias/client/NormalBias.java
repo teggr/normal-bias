@@ -162,7 +162,7 @@ public class NormalBias extends Lifecycle {
         });
     }
     private void rememberService() {
-        if (browserOrigin == null && session.origin.startsWith("https://")) Preferences.set(SERVICE_PREFERENCE, session.origin);
+        if (browserOrigin == null) Preferences.set(SERVICE_PREFERENCE, session.origin);
     }
     private void showSession() {
         if (pendingLink != null) { openPendingLink(); return; }

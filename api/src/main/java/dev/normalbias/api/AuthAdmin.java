@@ -97,12 +97,12 @@ class AuthAdmin implements AutoCloseable {
     static String checkedAppOrigin(String value) {
         try {
             URI uri = new URI(value);
-            if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null
+            if (!("https".equals(uri.getScheme()) || "http".equals(uri.getScheme())) || uri.getHost() == null || uri.getUserInfo() != null
                     || uri.getRawQuery() != null || uri.getRawFragment() != null || !uri.getRawPath().isEmpty()
                     || uri.getPort() < -1 || uri.getPort() == 0 || uri.getPort() > 65535
-                    || uri.getRawAuthority().endsWith(":")) throw new IllegalArgumentException("Use an HTTPS origin without a path");
+                    || uri.getRawAuthority().endsWith(":")) throw new IllegalArgumentException("Use an HTTP or HTTPS origin without a path");
             return uri.toASCIIString();
-        } catch (URISyntaxException invalid) { throw new IllegalArgumentException("Use an HTTPS origin", invalid); }
+        } catch (URISyntaxException invalid) { throw new IllegalArgumentException("Use an HTTP or HTTPS origin", invalid); }
     }
     static void command(String[] args) {
         try {
