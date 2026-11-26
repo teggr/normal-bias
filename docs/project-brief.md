@@ -1,8 +1,31 @@
 # Normal Bias: project brief and constraints
 
+## Current checkpoint — 2026-11-26
+
+Delivered this session: explicit read-only private-LAN HTTP demo mode without weakening required HTTPS or loopback demo; endpoint checking/tick/cross and credential gating with actionable errors and keyboard progression; full-size Plus player spacing and native iPhone portrait lock; corrected scrolled-thumbnail clipping. The physical phone is back on the working HTTP demo with the Uploads catalogue, and Robin confirmed later-row artwork renders correctly. Both retained HTTP18447 and HTTPS18445 services are preserved.
+
+Current shared sources passed simulator remembered sign-in, real grant expiry/paused seek/renewal, service restart/reconnect and operator revocation (10 native session/media checks plus four network checks). Separate grant checks rejected later Range/HEAD/renewal after parent revocation. A verified native recording contains actual simulator app sound. The isolated Plus simulator is left paused for review. See [verification](verification.md) for commands, recordings and distinctions between direct, user-reported and simulator evidence.
+
+Still open: physical authenticated HTTPS sign-in/keyboard, locked-track change/interruption and actual physical-device audio recording. Public deployment, backup and retained authenticated-service migration remain separate scope. Current Personal Team provisioning expires **2026-11-27 10:13:37 UTC**; successful simulator checks do not extend signing validity or establish physical acceptance. The dated preparation/history below is preserved; this checkpoint describes the final session state.
+
+
+## HTTP iPhone demo — explicitly authorised 2026-11-26
+
+Robin explicitly approved unencrypted, unauthenticated **read-only** private-LAN listening, keeping HTTPS unchanged, then requested rebuilding/installing the HTTP app. Separate opt-in `normalbias.auth.mode=private-demo` requires a literal RFC1918 IPv4 bind and exposes catalogue/artwork/audio only; account, upload and management routes are denied. Required-auth HTTPS and existing loopback-only `demo` retain their restrictions. The temporary HTTP library at `http://192.168.1.38:18447` contains 24 Uploads tracks plus two synthetic clips; HTTPS 18445 remains on its original process/configuration/data. The matching production iPhone build is signed/installed/launched, with only a host-specific development HTTP exception. Profile expiry remains 2026-11-27 10:13:37 UTC. Host/API/browser playback and recording checks pass; initial Device Hub inspection showed Connecting. After the endpoint-feedback UX update, Device Hub directly confirmed the physical phone opens the populated HTTP Library; the earlier connection-failure cause and physical audio/interruption acceptance remain unverified. This explicit confirmation resolves the earlier automatic-approval block; see verification for actual results and limits.
+
 Last updated: 2026-11-26.
 
+Physical authentication trial preparation (2026-11-26): Robin authorised inspecting the prepared build's signing expiry and starting a fresh private HTTPS service with synthetic tracks. The prepared account-flow build's profile expires 2026-11-27 10:13:37 UTC and bundles the previous private address. A fresh required-auth fixture is running at `https://192.168.1.38:18445`, with a temporary certificate expiring 2026-11-28 13:56:28 UTC. Two synthetic tracks, listener login and scoped audio transport checks pass. No phone build/install, trust change or physical playback acceptance occurred. The next build must target the new origin; see the dated verification and local device guide. Robin subsequently authorised importing the Uploads music into this same trial service: all 24 Oasis/Roxy Music MP3s were imported through the authenticated API and verified by SHA-256, leaving 26 tracks including the two synthetic clips. The original Uploads files and other retained services were unchanged. At Robin’s subsequent request the current source was rebuilt and signed locally for the new HTTPS origin, ready to install. Signature/origin/background-audio and registered-phone provisioning checks pass. The reused profile still expires 2026-11-27 10:13:37 UTC; no physical install or playback acceptance was performed. Robin then authorised pushing this build to the connected physical iPhone: installation and launch succeeded on 2026-11-26. Phone CA trust, signed-in HTTPS playback and locked/interruption acceptance remain unverified.
+
 This document records Robin's requirements and decisions. It is the starting point for people and coding agents working on Normal Bias. Distinguish agreed constraints from proposals; do not silently turn an open question into an architectural decision.
+
+## Endpoint readiness and keyboard progression — authorised 2026-11-26
+
+Robin requested immediate connection feedback before entering credentials, tick/cross endpoint status, credentials enabled only after a successful check, actionable connection errors and logical field tabbing. The shared Java form now discovers on load, after address editing settles (450 ms), keyboard completion and Retry; entering/editing the address revokes its previous readiness and clears the password. Discovery has a six-second UI deadline plus native timeouts; cancelled/stale replies cannot enable credentials. Checking/cross disables credentials/sign-in/account-link entry while preserving address editing; a tick enables them only after a valid Normal Bias discovery response. Errors distinguish timeout, certificate, hostname and HTTP failures where transport information permits. This is transient presentation gating, not client-owned authorisation. Existing sessions/demo still restore directly; browser cross-service selection opens the destination app without cross-origin discovery or credential forwarding. Explicit Tab/reverse-Tab order and native keyboard completion preserve Service address → Username → Password → Sign in, then available secondary actions. DESIGN and verification record implementation and actual browser/native evidence; server authentication/HTTP-demo scope and player remain unchanged.
+
+## Full-size mobile Now Playing spacing — authorised 2026-11-26
+
+Robin reported excess bottom space/top-heavy artwork after the larger-device work, noted the physical iPhone is a taller Plus, and clarified that this view should use the full-size player. Now Playing has no separate mini-player; that remains limited to Library/Queue. The vertical player now sizes against its actual safe-area/header-adjusted viewport, growing beyond the old 62 mm cap when width/height permit and balancing any spare vertical space above/below. Its artwork/metadata/timeline/wheel proportions remain unchanged. Short screens keep the existing comfort size and scroll instead of squeezing controls; wrapped status/error text reserves space. The larger-screen console still delegates to its existing layout, and playback/queue/API/authentication remain unchanged. Robin additionally requested avoiding mobile landscape relayout; native iPhone startup now locks portrait through the supported pinned framework API, while tablets and browser windows retain responsive orientation/resize behaviour. DESIGN records this replacement of the earlier maximum-width rule; actual browser/native checks and handoff belong in verification.
 
 ## Purpose and context
 
@@ -417,3 +440,13 @@ Robin accepted the delivered artist queue and simulator refresh and requested co
 ### Queue toggle alignment correction — authorised 2026-11-26
 
 Robin reported the larger-view Queue glyph shifting left when highlighted. Its active theme now explicitly centres the glyph, matching the neutral hardware button in every interactive state. This is a presentation correction within the existing circular control; verification records actual checks and recording evidence.
+
+
+## Scrolled list artwork correction — 2026-11-26
+
+Robin reported missing row covers after the first visible list screen. Correct the shared artwork painter's scroll-viewport clipping so newly visible rows retain covers/fallback sleeves, including later pages, while preserving fixed header/mini-player boundaries and existing bounded artwork/cache policies. This is a rendering correction, with no API or authorisation change.
+
+
+## Authentication acceptance repeated in simulator — 2026-11-26
+
+Robin selected simulator testing instead of phone certificate setup. Current shared sources pass 10 native session/media checks and four real outage/restart/revocation checks on an isolated iPhone Plus/iOS26 simulator, plus subsequent Range/HEAD/renewal rejection after parent revocation. A saved native controls recording contains verified actual simulator app sound. This establishes simulator acceptance only; physical authenticated audio/interruption remains open. Restored the working HTTP app on the physical phone and preserved retained services. See verification for exact commands, harness corrections and media evidence.

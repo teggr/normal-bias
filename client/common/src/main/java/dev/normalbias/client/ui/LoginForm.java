@@ -12,12 +12,18 @@ public final class LoginForm extends Form {
     private final Button login = new Button("Sign in"), retry = new Button("Retry connection"), redeem = new Button("Use invitation or reset link");
     private final SpanLabel message = new SpanLabel("Sign in to your music. Your service address is remembered on this device.", "ConnectionMessage");
     private final SpanLabel serviceHint = new SpanLabel("", "Muted");
+    private final Label connectionBadge = new Label();
+    private final java.util.function.Consumer<String> check;
     private final String browserOrigin, developmentOrigin;
     private boolean busy;
+    private boolean checking, verified, advanceAfterCheck;
+    private java.util.Timer debounce;
 
-    public LoginForm(String origin, String browserOrigin, String developmentOrigin, Submit submit, java.util.function.Consumer<String> useLink) {
+    public LoginForm(String origin, String browserOrigin, String developmentOrigin, Submit submit,
+                     java.util.function.Consumer<String> check, java.util.function.Consumer<String> useLink) {
         super("Normal Bias", new BorderLayout());
         this.browserOrigin = browserOrigin; this.developmentOrigin = developmentOrigin;
+        this.check = check;
         getToolbar().setHidden(true); getContentPane().setSafeArea(true);
         address = new TextField(origin, "https://music.example.com", 30, TextField.URL);
         address.setName("Service address"); address.setMaxSize(300); address.setUIID("ConnectionField");
@@ -32,16 +38,37 @@ public final class LoginForm extends Form {
         retry.setName("Retry connection"); retry.setUIID("ConnectionSecondary");
         redeem.setUIID("ConnectionSecondary");
         login.addActionListener(event -> submit(submit, false));
-        retry.addActionListener(event -> submit(submit, true));
+        retry.addActionListener(event -> checkNow());
         redeem.addActionListener(event -> {
             password.setText("");
             try { useLink.accept(ServiceAddress.selected(address.getText(), developmentOrigin)); }
             catch (IllegalArgumentException invalid) { status(invalid.getMessage(), false); }
         });
-        address.addDataChangedListener((type, index) -> { password.setText(""); updateActions(); });
+        address.addDataChangedListener((type, index) -> {
+            addressEdited(); scheduleCheck();
+        });
+        // Some native editors commit text only when editing ends. Revoke the old tick on entry too.
+        address.addFocusListener(new com.codename1.ui.events.FocusListener() {
+            @Override public void focusGained(Component component) { addressEdited(); }
+            @Override public void focusLost(Component component) { if (!verified && !checking) scheduleCheck(); }
+        });
+        address.addActionListener(event -> { if (!verified && !checking) scheduleCheck(); });
+        Component[] order = {address, username, password, login, retry, redeem};
+        for (int i = 0; i < order.length; i++) order[i].setPreferredTabIndex(i + 1);
+        address.setDoneListener(event -> {
+            advanceAfterCheck = true;
+            address.stopEditing(() -> { if (verified) focusAfterCheck(); else checkNow(); });
+        });
+        username.setDoneListener(event -> username.stopEditing(() -> {
+            if (password.isEnabled()) { password.requestFocus(); password.startEditingAsync(); }
+        }));
+        password.setDoneListener(event -> password.stopEditing(login::requestFocus));
+        connectionBadge.setFocusable(false);
+        badge(FontImage.MATERIAL_MORE_HORIZ, "Service not checked", "ConnectionBadge");
+        Container endpoint = BorderLayout.center(address).add(BorderLayout.EAST, connectionBadge);
         Container content = BoxLayout.encloseY(new RecordMark(), new Label("Normal Bias", "Brand"),
-                new Label("Your music, wherever you are", "NowTitle"), message,
-                new Label("Service address", "ConnectionCaption"), address, serviceHint,
+                new Label("Your music, wherever you are", "NowTitle"),
+                new Label("Service address", "ConnectionCaption"), endpoint, message, serviceHint,
                 new Label("Username", "ConnectionCaption"), username,
                 new Label("Password", "ConnectionCaption"), password, login, retry, redeem);
         content.setUIID("ConnectionPanel");
@@ -66,6 +93,7 @@ public final class LoginForm extends Form {
         String selected;
         try { selected = ServiceAddress.selected(address.getText(), developmentOrigin); }
         catch (IllegalArgumentException invalid) { status(invalid.getMessage(), false); return; }
+        if (!remote() && !verified) { checkNow(); return; }
         if (!remote() && !retrying && (username.getText().trim().isEmpty() || password.getText().isEmpty())) {
             status("Enter your username and password, or retry the connection to restore your sign-in.", false); return;
         }
@@ -81,20 +109,85 @@ public final class LoginForm extends Form {
     private void updateActions() {
         boolean remote = remote();
         login.setText(remote ? "Open service" : "Sign in"); login.setName(remote ? "Open service" : "Sign in");
-        login.setEnabled(!busy); address.setEnabled(!busy);
-        username.setEnabled(!busy && !remote); password.setEnabled(!busy && !remote);
-        retry.setEnabled(!busy && !remote); redeem.setEnabled(!busy && !remote);
+        login.setEnabled(!busy && !checking && (remote || verified)); fieldEnabled(address, !busy);
+        fieldEnabled(username, !busy && verified && !checking && !remote); fieldEnabled(password, !busy && verified && !checking && !remote);
+        retry.setEnabled(!busy && !checking && !remote); redeem.setEnabled(!busy && verified && !checking && !remote);
+        address.setNextFocusDown(verified && !remote ? username : retry.isVisible() ? retry : login);
+        username.setNextFocusUp(address); username.setNextFocusDown(password);
+        password.setNextFocusUp(username); password.setNextFocusDown(login);
+        login.setNextFocusUp(password); login.setNextFocusDown(retry.isVisible() ? retry : redeem);
+        retry.setNextFocusUp(login.isEnabled() ? login : address); retry.setNextFocusDown(redeem);
         serviceHint.setText(remote ? "Open this service’s Normal Bias page to sign in there." : browserOrigin != null ? "Service address comes from this page." : "The last connected service is saved on this device.");
         revalidate();
     }
+    private static void fieldEnabled(TextField field, boolean enabled) {
+        field.setEnabled(enabled);
+        // The pinned port renders the hint as a separate Label, with its own disabled style.
+        field.getHintLabel().setEnabled(enabled);
+    }
     public void busy(String text) { busy = true; message.setText(text); updateActions(); }
-    public void focusUsername() {
+    private void checkNow() {
+        if (busy) return;
+        if (debounce != null) { debounce.cancel(); debounce = null; }
+        String origin;
+        try { origin = ServiceAddress.selected(address.getText(), developmentOrigin); }
+        catch (IllegalArgumentException invalid) { connectionFailed(invalid.getMessage()); return; }
+        if (remote()) {
+            checking = false; verified = false;
+            badge(FontImage.MATERIAL_OPEN_IN_NEW, "Open service to check connection", "ConnectionBadge");
+            message.setText("Open this service’s Normal Bias page to check its connection and sign in there.");
+            updateActions(); return;
+        }
+        check.accept(origin);
+    }
+    private void addressEdited() {
+        password.setText(""); verified = false; checking = false; advanceAfterCheck = false;
+        check.accept(null);
+        if (debounce != null) debounce.cancel();
+        badge(FontImage.MATERIAL_MORE_HORIZ, "Service not checked", "ConnectionBadge");
+        message.setText("Finish entering the service address to check its connection.");
+        updateActions();
+    }
+    private void scheduleCheck() {
+        if (debounce != null) debounce.cancel();
+        debounce = CN.setTimeout(450, () -> { if (CN.getCurrentForm() == this) checkNow(); });
+    }
+    private void badge(char symbol, String label, String uiid) {
+        connectionBadge.setUIID(uiid); connectionBadge.setName(label);
+        connectionBadge.setAccessibilityText(label); connectionBadge.getSemantics().setLabel(label);
+        FontImage.setMaterialIcon(connectionBadge, symbol, 4);
+    }
+    public void checking() {
+        busy = false; checking = true; verified = false;
+        badge(FontImage.MATERIAL_MORE_HORIZ, "Checking service", "ConnectionBadge");
+        message.setText("Checking service…"); retry.setHidden(true); retry.setVisible(false); updateActions();
+    }
+    public void connected() {
+        busy = false; checking = false; verified = true;
+        badge(FontImage.MATERIAL_CHECK, "Service reachable", "ConnectionReady");
+        retry.setHidden(true); retry.setVisible(false); updateActions();
+    }
+    public void connectionFailed(String text) {
+        verified = false; checking = false;
+        badge(FontImage.MATERIAL_CLOSE, "Service unavailable", "ConnectionFailed");
+        status(text, true);
+    }
+    public void focusAfterCheck() {
+        if (!username.isEnabled() || address.isEditing() && !advanceAfterCheck) return;
         username.requestFocus();
+        if (advanceAfterCheck) { advanceAfterCheck = false; username.startEditingAsync(); }
+    }
+    public void focusUsername() {
+        if (username.isEnabled()) username.requestFocus();
     }
     public void status(String text, boolean connectionFailed) {
         busy = false; message.setText(text);
         retry.setHidden(!connectionFailed); retry.setVisible(connectionFailed);
         updateActions();
+    }
+    @Override protected void deinitialize() {
+        if (debounce != null) debounce.cancel();
+        super.deinitialize();
     }
 
     /** Small original record emblem; the established player remains untouched. */

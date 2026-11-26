@@ -6,6 +6,7 @@ root = Path(__file__).resolve().parents[3]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--private-host', help='Explicit RFC1918 IPv4 bind for the authorised disposable physical-device trial')
 parser.add_argument('--port', type=int, help='Use a separate disposable service port when the default is occupied')
+parser.add_argument('--output-directory', type=Path, help='Fresh ignored directory beneath client/target; preserves existing fixtures')
 args = parser.parse_args()
 host, port = '127.0.0.1', 18444
 if args.private_host:
@@ -18,6 +19,12 @@ if args.port is not None:
     port = args.port
 origin = f'https://{host}:{port}'
 out = root / ('client/target/auth-device' if args.private_host else 'client/target/auth-client')
+if args.output_directory:
+    out = args.output_directory.resolve()
+    if not out.is_relative_to((root/'client/target').resolve()):
+        parser.error('--output-directory must be beneath ignored client/target')
+    if out.exists() and any(out.iterdir()):
+        parser.error('--output-directory must be fresh and empty')
 out.mkdir(parents=True, exist_ok=True, mode=0o700)
 if (out / 'data').exists():
     raise SystemExit('Fixture exists; select a fresh ignored output directory or explicitly archive it first.')

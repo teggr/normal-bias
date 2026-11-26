@@ -80,8 +80,13 @@ final class RecordArtwork extends Component {
         // scroll clip. Intersect explicitly in this painter's parent coordinates.
         int originX = getAbsoluteX() - getX(), originY = getAbsoluteY() - getY();
         for (Container parent = getParent(); parent != null; parent = parent.getParent()) {
-            if (parent.isScrollableY() || parent.isScrollableX())
-                g.clipRect(parent.getAbsoluteX() - originX, parent.getAbsoluteY() - originY, parent.getWidth(), parent.getHeight());
+            if (parent.isScrollableY() || parent.isScrollableX()) {
+                // Absolute coordinates locate the scrolled content origin. Add this
+                // ancestor's own offset back to locate its stationary viewport.
+                g.clipRect(parent.getAbsoluteX() + parent.getScrollX() - originX,
+                        parent.getAbsoluteY() + parent.getScrollY() - originY,
+                        parent.getWidth(), parent.getHeight());
+            }
         }
         int visibleX = g.getClipX(), visibleY = g.getClipY(), visibleW = g.getClipWidth(), visibleH = g.getClipHeight();
         try { if (visibleW > 0 && visibleH > 0) paintSleeve(g, visibleX, visibleY, visibleW, visibleH); }

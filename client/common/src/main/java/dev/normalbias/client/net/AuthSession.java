@@ -15,6 +15,9 @@ public final class AuthSession {
     private String bearer;
     private Map<String, Object> state = new HashMap<>();
     private int generation;
+    private boolean reachable;
+    private ConnectionRequest discoveryRequest;
+    private java.util.Timer discoveryDeadline;
     private Runnable lost = () -> {};
     public AuthSession(String page, boolean browser) {
         int scheme = page.indexOf("://"), end = page.indexOf('/', scheme + 3);
@@ -30,6 +33,7 @@ public final class AuthSession {
     }
     public boolean authenticated() { return Boolean.TRUE.equals(state.get("authenticated")); }
     public boolean hasRememberedSignIn() { return bearer != null; }
+    public boolean reachable() { return reachable; }
     public boolean demo() { return Boolean.FALSE.equals(state.get("authRequired")); }
     public String username() {
         Object account = state.get("account");
@@ -37,14 +41,21 @@ public final class AuthSession {
     }
     public String link(String relation, String method) { return ApiLinks.href(state, relation, method); }
     public void onLost(Runnable listener) { lost = listener; }
-    public void invalidate() { generation++; }
+    public void invalidate() {
+        generation++;
+        if (discoveryDeadline != null) { discoveryDeadline.cancel(); discoveryDeadline = null; }
+        ConnectionRequest pending = discoveryRequest; discoveryRequest = null;
+        if (pending != null) pending.kill();
+    }
     public void restore(Runnable ready, Consumer<String> failure) {
+        reachable = false;
         request("/api", "GET", null, false, data -> {
             if (!(data.get("authenticated") instanceof Boolean) || !(data.get("authRequired") instanceof Boolean)
                     || !(data.get("_links") instanceof Map)) {
                 failure.accept("This address did not return a Normal Bias service. Check the service address."); return;
             }
             state = data;
+            reachable = true;
             if (Preferences.get(storageKey + ".logout", false)) {
                 if (!authenticated()) { clearCredential(); Preferences.delete(storageKey + ".logout"); ready.run(); }
                 else logout(() -> restore(ready, failure), failure);
@@ -144,12 +155,15 @@ public final class AuthSession {
     public void request(String path, String method, Map<String, Object> body, boolean protectedRequest,
                         Consumer<Map<String, Object>> success, Consumer<Integer> failure) {
         final int version = generation;
+        final java.util.Timer[] deadline = new java.util.Timer[1];
         ConnectionRequest request = new ApiRequest() {
             private Map<String, Object> result;
             private boolean delivered;
             private void finish(int code) {
-                if (delivered) return; delivered = true;
                 CN.callSerially(() -> {
+                    if (delivered) return; delivered = true;
+                    if (deadline[0] != null) deadline[0].cancel();
+                    if (discoveryRequest == this) { discoveryRequest = null; discoveryDeadline = null; }
                     if (version != generation) return;
                     if (protectedRequest && code == 401) { unauthorized(); return; }
                     if (code == 0) success.accept(result); else failure.accept(code);
@@ -161,7 +175,7 @@ public final class AuthSession {
             }
             @Override protected void postResponse() { finish(0); }
             @Override protected void handleErrorResponseCode(int code, String message) { finish(code); }
-            @Override protected void handleException(Exception error) { finish(-1); }
+            @Override protected void handleException(Exception error) { finish(connectionError(error)); }
         };
         request.setUrl(origin + ApiLinks.checked(path)); request.setPost(!method.equals("GET")); request.setHttpMethod(method);
         authorize(request);
@@ -169,12 +183,31 @@ public final class AuthSession {
         if (body != null) { request.setRequestBody(JSONParser.mapToJson(body)); request.setContentType("application/json"); }
         request.setSilentRetryCount(0);
         request.setTimeout(15000); request.setReadTimeout(20000);
+        if (path.equals("/api") && method.equals("GET")) {
+            request.setTimeout(6000); request.setReadTimeout(6000);
+            // A UI deadline also bounds native/network-queue stalls; late responses cannot unlock the form.
+            deadline[0] = CN.setTimeout(6000, () -> {
+                ((ApiRequest) request).networkFailed(new java.io.IOException("Connection timed out"));
+                request.kill();
+            });
+            discoveryRequest = request; discoveryDeadline = deadline[0];
+        }
         NetworkManager.getInstance().addToQueue(request);
     }
+    static int connectionError(Exception error) {
+        String detail = String.valueOf(error).toLowerCase();
+        if (detail.contains("certificate") || detail.contains("ssl") || detail.contains("tls") || detail.contains("trust")) return -3;
+        if (detail.contains("unknownhost") || detail.contains("resolve") || detail.contains("hostname")) return -4;
+        if (detail.contains("timed out") || detail.contains("timeout")) return -2;
+        return -1;
+    }
     public static String message(int code) {
+        if (code == -2) return "Connection timed out. Check the service address, Wi-Fi and Local Network permission, then retry.";
+        if (code == -3) return "Cannot verify this service’s HTTPS certificate. Check its expiry, address and certificate trust on this device.";
+        if (code == -4) return "Service hostname not found. Check the address and your network, then retry.";
         if (code == 403) return "This action is not allowed. Reconnect to refresh your session.";
         if (code == 426) return "This service requires HTTPS.";
         if (code > 0) return "Service request failed (HTTP " + code + "). Retry the connection.";
-        return "Cannot reach the service. Check the address and your connection, then retry.";
+        return "Cannot reach the service. Check the address, Wi-Fi and Local Network permission, then retry.";
     }
 }

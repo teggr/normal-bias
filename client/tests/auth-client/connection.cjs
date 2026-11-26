@@ -6,27 +6,7 @@ const root=path.resolve(__dirname,'../../..'), fixtureDir=path.join(root,'client
 const fixture=JSON.parse(fs.readFileSync(path.join(fixtureDir,'fixture.json')));
 const output=path.join(root,'client/target/recordings/service-connection');
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-// CN1's canvas is absent from Chrome's standard screencast on this Mac.
-// Capture actual rendered screenshots on a host clock, including across navigation.
-async function capture(page){
- const directory=fs.mkdtempSync(path.join(output,'frames-')),frames=[];
- let capturing=true,captureError;
- const loop=(async()=>{while(capturing){
-  const name='frame-'+String(frames.length).padStart(5,'0')+'.jpg',before=Date.now();
-  try{await page.screenshot({path:path.join(directory,name),type:'jpeg',quality:85});frames.push({name,time:(before+Date.now())/2000})}
-  catch(error){captureError=error;capturing=false}
-  await wait(100);
- }})();
- return async function stop(filename='demo.mp4'){
-  capturing=false;await loop;if(captureError)throw captureError;assert.ok(frames.length>1);
-  const end=Date.now()/1000;let concat='';
-  for(let i=0;i<frames.length;i++)concat+=`file '${frames[i].name}'\nduration ${Math.max(.001,(frames[i+1]?.time||end)-frames[i].time)}\n`;
-  concat+=`file '${frames.at(-1).name}'\n`;fs.writeFileSync(path.join(directory,'frames.txt'),concat);
-  const result=spawnSync('ffmpeg',['-y','-v','error','-f','concat','-safe','0','-i',path.join(directory,'frames.txt'),'-vf','scale=390:844:force_original_aspect_ratio=decrease:in_range=pc:out_range=tv,pad=390:844:(ow-iw)/2:(oh-ih)/2','-r','30','-c:v','libx264','-color_range','tv','-pix_fmt','yuv420p','-movflags','+faststart',path.join(output,filename)],{encoding:'utf8'});
-  assert.equal(result.status,0,result.stderr);
-  fs.writeFileSync(path.join(output,'capture-timing.json'),JSON.stringify({start:frames[0].time,end,frames:frames.length,method:'actual page screenshots; intentionally silent'},null,2));
- };
-}
+const capture=page=>require('../capture-silent.cjs').start(page,output);
 async function click(page,name){
  const el=page.getByRole('button',{name,exact:true}).first();await el.waitFor();
  let previous;
@@ -67,7 +47,7 @@ async function login(page){await fill(page,'Username',fixture.username);await fi
   await page.route('**/api',route=>route.abort('failed'));await page.goto(fixture.origin+'/');
   await page.getByRole('button',{name:'Retry connection',exact:true}).waitFor();
   await page.getByText('Cannot reach the service.',{exact:false}).first().waitFor();
-  await page.getByRole('textbox',{name:'Service address',exact:true}).waitFor();
+  await page.getByRole('textbox',{name:'Service address',exact:true}).first().waitFor();
   assert.ok(await page.getByRole('textbox',{name:'Username',exact:true}).count());
   assert.ok(await page.locator('[aria-label="Password"]').count());
   check('unreachable startup retains all three fields and inline Retry');
@@ -87,9 +67,9 @@ async function login(page){await fill(page,'Username',fixture.username);await fi
   await page.screenshot({path:path.join(output,'remembered-offline.png')});await wait(1200);
   await page.unroute('**/api');await click(page,'Retry connection');await page.getByRole('button',{name:'Play Morning Circuit',exact:true}).waitFor();
   check('offline bootstrap and Retry preserve cookie and restore without a password');
-  await click(page,'Profile');await click(page,'Sign out');await page.getByRole('textbox',{name:'Service address',exact:true}).waitFor();
+  await click(page,'Profile');await click(page,'Sign out');await page.getByRole('textbox',{name:'Service address',exact:true}).first().waitFor();
   await page.screenshot({path:path.join(output,'sign-in.png')});await wait(1000);
-  await page.keyboard.press('Tab');await wait(300);await page.setViewportSize({width:1180,height:844});await wait(500);const b=await page.getByRole('textbox',{name:'Service address',exact:true}).boundingBox();assert.ok(b.width<700&&b.x>200);await page.screenshot({path:path.join(output,'wide.png')});
+  await page.keyboard.press('Tab');await wait(300);await page.setViewportSize({width:1180,height:844});await wait(500);const b=await page.getByRole('textbox',{name:'Service address',exact:true}).first().boundingBox();assert.ok(b.width<700&&b.x>200);await page.screenshot({path:path.join(output,'wide.png')});
   await page.setViewportSize({width:390,height:568});await wait(400);await fill(page,'Username',fixture.username);await fill(page,'Password','short-screen synthetic');await click(page,'Sign in');await page.getByText('Username or password not recognised.',{exact:false}).first().waitFor();check('wide form bounded; short form scrolls to fields and actions');
   await page.setViewportSize({width:390,height:844});await page.reload();await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
   await page.route('**/api',r=>r.fulfill({status:200,contentType:'application/json',body:'{"unrelated":true}'}));await page.reload();await page.getByText('This address did not return a Normal Bias service.',{exact:false}).first().waitFor();await page.unroute('**/api');check('unrelated JSON service rejected');

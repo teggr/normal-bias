@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Drive the actual simulator UI/player through its test-only MCP build. Never returns credentials."""
-import json, socket, subprocess, time
+import json, socket, subprocess, time, os
 from pathlib import Path
-root=Path(__file__).resolve().parents[3];out=root/'client/target/auth-client';fixture=json.loads((out/'fixture.json').read_text())
-SIM='78BD8653-8300-4EC1-A2C8-84AC2503352A'
+root=Path(__file__).resolve().parents[3];out=Path(os.environ.get('NORMALBIAS_AUTH_FIXTURE_DIR',root/'client/target/auth-client')).resolve();fixture=json.loads((out/'fixture.json').read_text())
+SIM=os.environ.get('NORMALBIAS_AUTH_SIMULATOR','78BD8653-8300-4EC1-A2C8-84AC2503352A')
+PORT=int(os.environ.get('NORMALBIAS_AUTH_PROBE_PORT','18868'))
+# These tools operate only on a CoreSimulator UUID, never a physical device.
+available=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','--json'],text=True))
+assert any(d['udid']==SIM for group in available['devices'].values() for d in group),'Select an available simulator UUID'
 def tool(name,args):
-    with socket.create_connection(('127.0.0.1',18868),timeout=10) as s:
+    with socket.create_connection(('127.0.0.1',PORT),timeout=10) as s:
         stream=s.makefile('rw')
         def send(value):stream.write(json.dumps(value)+'\n');stream.flush()
         send({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2024-11-05','capabilities':{},'clientInfo':{'name':'normal-bias-fixture','version':'1'}}});stream.readline()
@@ -68,5 +72,5 @@ def run():
     evidence('native logout clears library, player and queue')
     sim('terminate',SIM,'dev.normalbias.client');sim('launch',SIM,'dev.normalbias.client');until(lambda s:not s['library'] and 'Sign in' in s['labels'],'logout persists')
     evidence('relaunch after logout does not restore revoked credential')
-    (out/'ios-result.json').write_text(json.dumps({'checks':checks,'events':events,'device':'iPhone 17 Pro simulator; iOS 26.0'},indent=2))
+    (out/'ios-result.json').write_text(json.dumps({'checks':checks,'events':events,'device':'CoreSimulator '+SIM},indent=2))
 if __name__=='__main__':run()
