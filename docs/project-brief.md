@@ -398,3 +398,13 @@ Robin accepted the delivered UI and consolidated simulator apps, then requested 
 ## Player wheel repaint correction — authorised 2026-11-26
 
 Robin reported grey squares behind highlighted player buttons on larger layouts. The shared wheel now paints its existing background using its absolute position relative to the current graphics translation so button-only repaints restore the wheel at the correct origin. This is a presentation bug fix; player geometry, playback, queue and API policy are unchanged. Actual verification and platform limits are recorded in [verification](verification.md).
+
+
+## Artist queue action — authorised 2026-11-26
+
+Robin requested an artist-header queue button matching albums. Implemented a vertically centred amber Queue artist + using the existing Graphite hardware component. It appends the artist's complete catalogue across albums in server catalogue order through an additive advertised GET `tracks` relation, deduplicating existing entries. Album queue loading/cancellation, atomic failure/cap handling, the existing 200-track bound, paused preparation of the first item and preservation of active media apply. Album → artist Back restores the affordance. This supersedes the earlier artist-header no-queue-action boundary for this specific action. No persistent queue migration, schema, authentication policy, media-adapter, retained-service update, simulator install or deployment is included. DESIGN/client/API guides describe the delivered behavior; verification records actual checks and limits.
+
+
+### Artist queue simulator/service refresh — 2026-11-26
+
+At Robin's request, rebuilt and updated the existing Normal Bias app in place on iPhone 17 Pro and iPad Pro 11-inch (M5). Robin additionally approved updating/restarting the existing local HTTPS 19544 service to supply the new artist `tracks` relation. Its configuration, TLS, account metadata and 24 music files were preserved, with private ignored rollback copies. Both apps restored sign-in; iPad Queue artist successfully added 12 tracks paused, then Clear removed them. Both are left open on Oasis's artist albums, empty queues and playback stopped. Exact build/install and service evidence is in verification. No physical-device action or deployment.

@@ -19,7 +19,7 @@ public final class LibraryForm extends Form {
     private final TextField search = new TextField("", "Search title, artist or album", 30, TextField.ANY);
     private final LibraryCollection collection;
     private final java.util.List<LibraryState> libraryHistory = new java.util.ArrayList<>();
-    private record LibraryState(String artist, String album, String query, String editor, LibraryCollection.Anchor anchor, LibraryApi.Group albumGroup, LibraryApi.Group artistGroup, boolean searchVisible) {}
+    private record LibraryState(String artist, String album, String query, String editor, LibraryCollection.Anchor anchor, LibraryApi.Group albumGroup, LibraryApi.Group artistGroup, String artistTracks, boolean searchVisible) {}
     private final Container queue = new Container(BoxLayout.y());
     private final SpanLabel title = new SpanLabel("Nothing playing", "NowTitle");
     private final SpanLabel artist = new SpanLabel("Your library, ready when you are", "Muted");
@@ -89,13 +89,15 @@ public final class LibraryForm extends Form {
     private LibraryApi.Group selectedAlbumGroup;
     private LibraryApi.Group selectedArtistGroup;
     private String selectedAlbumContents;
+    private String selectedArtistTracks;
+    private final HardwareButton queueArtist = new HardwareButton("Queue artist", FontImage.MATERIAL_ADD, true);
     private final HardwareButton queueAlbum = new HardwareButton("Queue album", FontImage.MATERIAL_ADD, true);
-    private final SpanLabel albumMessage = new SpanLabel("", "AlbumMessage");
-    private int albumRequest;
+    private final SpanLabel groupQueueMessage = new SpanLabel("", "AlbumMessage");
+    private int groupQueueRequest;
     private int albumNavigation;
     private Button pendingAlbumButton;
     private final SpanLabel albumNavigationMessage = new SpanLabel("", "AlbumMessage");
-    private boolean albumQueueLoading;
+    private boolean groupQueueLoading;
     private final RecordArtwork albumCover = new RecordArtwork(false, true);
     private final SpanLabel albumTitle = new SpanLabel("", "AlbumHeading");
     private final SpanLabel albumArtist = new SpanLabel("", "Muted");
@@ -157,10 +159,13 @@ public final class LibraryForm extends Form {
         libraryUp.setEndsWith3Points(true);
         libraryUp.setPreferredH(CN.convertToPixels(9));
         libraryUp.addActionListener(e -> closeLibraryGroup());
+        queueArtist.setUIID("AlbumQueueButton");
+        queueArtist.setGlyph("Queue artist", FontImage.MATERIAL_ADD);
+        queueArtist.addActionListener(e -> queueSelectedGroup());
         queueAlbum.setUIID("AlbumQueueButton");
         queueAlbum.setGlyph("Queue album", FontImage.MATERIAL_ADD);
-        queueAlbum.addActionListener(e -> queueSelectedAlbum());
-        for (HardwareButton button : new HardwareButton[] {queueAlbum, miniPlay, miniNext}) {
+        queueAlbum.addActionListener(e -> queueSelectedGroup());
+        for (HardwareButton button : new HardwareButton[] {queueAlbum, queueArtist, miniPlay, miniNext}) {
             button.setPreferredW(CN.convertToPixels(9)); button.setPreferredH(CN.convertToPixels(9));
         }
         albumCover.setPreferredW(CN.convertToPixels(18));
@@ -181,7 +186,9 @@ public final class LibraryForm extends Form {
         artistHeading.setName("Artist name");
         artistCount.setName("Artist song count");
         artistSummary.setUIID("AlbumSummary");
-        artistSummary.add(BorderLayout.WEST, artistCover)
+        Container artistActions = FlowLayout.encloseCenterMiddle(queueArtist);
+        artistActions.setUIID("AlbumActions");
+        artistSummary.add(BorderLayout.EAST, artistActions).add(BorderLayout.WEST, artistCover)
                 .add(BorderLayout.CENTER, BoxLayout.encloseYCenter(artistHeading, artistCount));
         libraryLocationBar = new Container(new BorderLayout());
         libraryCategories.add(BorderLayout.CENTER, libraryViews).add(BorderLayout.EAST, searchToggle);
@@ -194,7 +201,7 @@ public final class LibraryForm extends Form {
         queue.setScrollVisible(false);
         Button clear = new Button("Clear queue");
         clear.addActionListener(e -> {
-            if (albumQueueLoading) { finishAlbumQueue(albumRequest, "Album queueing cancelled."); albumRequest++; }
+            if (groupQueueLoading) { finishGroupQueue(groupQueueRequest, queueSubject() + " queueing cancelled."); groupQueueRequest++; }
             player.clear();
         });
         clear.setName("Clear queue");
@@ -477,8 +484,8 @@ public final class LibraryForm extends Form {
     private void load(int ignored) { load(null, null); }
     private void load(String path, LibraryCollection.Anchor anchor) {
         cancelAlbumNavigation();
-        albumRequest++; albumQueueLoading = false;
-        albumMessage.setText(""); albumMessage.setHidden(true); albumMessage.setVisible(false);
+        groupQueueRequest++; groupQueueLoading = false;
+        groupQueueMessage.setText(""); groupQueueMessage.setHidden(true); groupQueueMessage.setVisible(false);
         boolean child = !libraryHistory.isEmpty();
         libraryCategories.setHidden(child); libraryCategories.setVisible(!child);
         libraryBack.setHidden(!child); libraryBack.setVisible(child);
@@ -508,15 +515,16 @@ public final class LibraryForm extends Form {
             albumArtist.setText(display(group.artist(), "Unknown artist"));
             albumCount.setText(group.trackCount() + (group.trackCount() == 1 ? " song" : " songs"));
             albumCover.setTrack(new Track(group.trackId(), group.album(), group.artist(), group.album(), 0), api);
-            libraryLocationBar.add(BorderLayout.CENTER, albumSummary).add(BorderLayout.SOUTH, albumMessage);
+            libraryLocationBar.add(BorderLayout.CENTER, albumSummary).add(BorderLayout.SOUTH, groupQueueMessage);
         } else {
             albumCover.release();
             if (artistOpen) {
                 LibraryApi.Group group = selectedArtistGroup;
+                queueArtist.setEnabled(selectedArtistTracks != null && group.trackCount() > 0);
                 artistHeading.setText(display(group.artist(), "Unknown artist"));
                 artistCount.setText(group.trackCount() + (group.trackCount() == 1 ? " song" : " songs"));
                 artistCover.setTrack(new Track(group.trackId(), group.artist(), group.artist(), null, 0), api);
-                libraryLocationBar.add(BorderLayout.CENTER, artistSummary);
+                libraryLocationBar.add(BorderLayout.CENTER, artistSummary).add(BorderLayout.SOUTH, groupQueueMessage);
             }
         }
         libraryLocationBar.setUIID(albumOpen || artistOpen ? "AlbumLocation" : "Container");
@@ -532,59 +540,63 @@ public final class LibraryForm extends Form {
     private void closeLibraryGroup() {
         if (libraryHistory.isEmpty()) return;
         LibraryState parent = libraryHistory.remove(libraryHistory.size() - 1);
-        selectedArtist = parent.artist(); selectedAlbum = parent.album(); selectedAlbumGroup = parent.albumGroup(); selectedArtistGroup = parent.artistGroup();
+        selectedArtist = parent.artist(); selectedAlbum = parent.album(); selectedAlbumGroup = parent.albumGroup(); selectedArtistGroup = parent.artistGroup(); selectedArtistTracks = parent.artistTracks();
         selectedAlbumContents = null;
         query = parent.query(); search.setText(parent.editor()); searchVisible = parent.searchVisible();
         load(null, parent.anchor());
     }
-    private void albumMessage(String message) {
-        albumMessage.setText(message); albumMessage.setHidden(false); albumMessage.setVisible(true); revalidate();
+    private void groupQueueMessage(String message) {
+        groupQueueMessage.setText(message); groupQueueMessage.setHidden(false); groupQueueMessage.setVisible(true); revalidate();
     }
-    private void queueSelectedAlbum() {
-        if (albumQueueLoading || selectedAlbumContents == null) return;
-        if (selectedAlbumGroup.trackCount() > dev.normalbias.client.player.PlaybackQueue.MAX_TRACKS) {
-            albumMessage("Album does not fit in the 200-track queue."); return;
+    private String selectedQueueContents() { return selectedAlbumGroup != null ? selectedAlbumContents : selectedArtistTracks; }
+    private String queueSubject() { return selectedAlbumGroup != null ? "Album" : "Artist"; }
+    private void queueSelectedGroup() {
+        String contents = selectedQueueContents();
+        if (groupQueueLoading || contents == null) return;
+        if ((selectedAlbumGroup != null ? selectedAlbumGroup : selectedArtistGroup).trackCount() > dev.normalbias.client.player.PlaybackQueue.MAX_TRACKS) {
+            groupQueueMessage(queueSubject() + " does not fit in the 200-track queue."); return;
         }
-        albumQueueLoading = true; queueAlbum.setEnabled(false);
-        albumMessage("Loading album for queue…");
-        fetchQueueAlbum(selectedAlbumContents, ++albumRequest, new java.util.ArrayList<>(), new java.util.HashSet<>());
+        groupQueueLoading = true; queueAlbum.setEnabled(false); queueArtist.setEnabled(false);
+        groupQueueMessage("Loading " + queueSubject().toLowerCase() + " for queue…");
+        fetchQueueGroup(contents, ++groupQueueRequest, new java.util.ArrayList<>(), new java.util.HashSet<>());
     }
-    private void fetchQueueAlbum(String path, int request, java.util.List<LibraryApi.Item> items, java.util.Set<String> visited) {
-        if (!visited.add(path)) { finishAlbumQueue(request, "Could not load the complete album. Try again."); return; }
+    private void fetchQueueGroup(String path, int request, java.util.List<LibraryApi.Item> items, java.util.Set<String> visited) {
+        if (!visited.add(path)) { finishGroupQueue(request, "Could not load the complete " + queueSubject().toLowerCase() + ". Try again."); return; }
         api.browse(path, false, page -> {
-            if (request != albumRequest) return;
+            if (request != groupQueueRequest) return;
             for (LibraryApi.Item item : page.items()) {
                 if (item.track() == null || api.scopedPlayback() &&
                         dev.normalbias.client.net.ApiLinks.href(item.resource(), "playback-grant", "POST") == null) {
-                    finishAlbumQueue(request, "Album playback is unavailable. Refresh the library and try again."); return;
+                    finishGroupQueue(request, queueSubject() + " playback is unavailable. Refresh the library and try again."); return;
                 }
                 items.add(item);
                 if (items.size() > dev.normalbias.client.player.PlaybackQueue.MAX_TRACKS) {
-                    finishAlbumQueue(request, "Album does not fit in the 200-track queue."); return;
+                    finishGroupQueue(request, queueSubject() + " does not fit in the 200-track queue."); return;
                 }
             }
             if (page.next() != null) {
-                if (page.items().isEmpty()) { finishAlbumQueue(request, "Could not load the complete album. Try again."); return; }
-                fetchQueueAlbum(page.next(), request, items, visited); return;
+                if (page.items().isEmpty()) { finishGroupQueue(request, "Could not load the complete " + queueSubject().toLowerCase() + ". Try again."); return; }
+                fetchQueueGroup(page.next(), request, items, visited); return;
             }
             if (items.size() != page.total()) {
-                finishAlbumQueue(request, "Album changed while loading. Refresh the library and try again."); return;
+                finishGroupQueue(request, queueSubject() + " changed while loading. Refresh the library and try again."); return;
             }
             java.util.List<Track> tracks = new java.util.ArrayList<>();
             java.util.List<String> retained = new java.util.ArrayList<>();
             for (int i = 0; i < player.queue.size(); i++) retained.add(player.queue.get(i).id());
             for (LibraryApi.Item item : items) tracks.add(item.track());
             api.rememberForQueue(items, retained);
-            int added = player.enqueueAlbum(tracks);
-            finishAlbumQueue(request, added < 0 ? "Album does not fit in the 200-track queue. Clear space and try again."
-                    : added == 0 ? "Album already in queue." : "Album queued: " + added + (added == 1 ? " track added." : " tracks added."));
-        }, error -> finishAlbumQueue(request, "Album was not queued. " + error + " Try again."));
+            int added = player.enqueueGroup(tracks, queueSubject());
+            finishGroupQueue(request, added < 0 ? queueSubject() + " does not fit in the 200-track queue. Clear space and try again."
+                    : added == 0 ? queueSubject() + " already in queue." : queueSubject() + " queued: " + added + (added == 1 ? " track added." : " tracks added."));
+        }, error -> finishGroupQueue(request, queueSubject() + " was not queued. " + error + " Try again."));
     }
-    private void finishAlbumQueue(int request, String message) {
-        if (request != albumRequest) return;
-        albumQueueLoading = false;
+    private void finishGroupQueue(int request, String message) {
+        if (request != groupQueueRequest) return;
+        groupQueueLoading = false;
         queueAlbum.setEnabled(selectedAlbumContents != null);
-        albumMessage(message);
+        queueArtist.setEnabled(selectedArtistTracks != null);
+        groupQueueMessage(message);
     }
     private static String display(String text, String fallback) { return text == null || text.isEmpty() ? fallback : text; }
     private Container groupRow(LibraryApi.Item item) {
@@ -596,8 +608,11 @@ public final class LibraryForm extends Form {
         open.getSemantics().setLabel("Open " + name);
         open.setEnabled(item.contents() != null);
         open.addActionListener(e -> {
-            libraryHistory.add(new LibraryState(selectedArtist, selectedAlbum, query, search.getText(), collection.anchor(), selectedAlbumGroup, selectedArtistGroup, searchVisible));
-            if (artistList) selectedArtistGroup = group;
+            libraryHistory.add(new LibraryState(selectedArtist, selectedAlbum, query, search.getText(), collection.anchor(), selectedAlbumGroup, selectedArtistGroup, selectedArtistTracks, searchVisible));
+            if (artistList) {
+                selectedArtistGroup = group;
+                selectedArtistTracks = dev.normalbias.client.net.ApiLinks.href(item.resource(), "tracks", "GET");
+            }
             selectedArtist = group.artist();
             selectedAlbum = artistList ? null : group.album();
             selectedAlbumGroup = artistList ? null : group;
@@ -655,7 +670,7 @@ public final class LibraryForm extends Form {
             }
             LibraryApi.Item item = page.items().get(0);
             api.remember(page);
-            libraryHistory.add(new LibraryState(selectedArtist, selectedAlbum, query, search.getText(), collection.anchor(), selectedAlbumGroup, selectedArtistGroup, searchVisible));
+            libraryHistory.add(new LibraryState(selectedArtist, selectedAlbum, query, search.getText(), collection.anchor(), selectedAlbumGroup, selectedArtistGroup, selectedArtistTracks, searchVisible));
             selectedAlbumGroup = item.group(); selectedArtist = item.group().artist(); selectedAlbum = item.group().album();
             selectedAlbumContents = item.contents();
             searchVisible = false; search.setText(""); query = ""; load(item.contents(), null);
@@ -775,7 +790,7 @@ public final class LibraryForm extends Form {
     }
     public void disposePlayer() {
         cancelAlbumNavigation();
-        albumRequest++;
+        groupQueueRequest++;
         collection.dispose();
         albumCover.release(); artistCover.release();
         if (timer != null) timer.cancel();
