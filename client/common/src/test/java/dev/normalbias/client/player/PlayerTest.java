@@ -33,6 +33,36 @@ class PlayerTest {
         assertEquals(17000, player.time()); assertEquals(2, player.queue.size());
         assertEquals("a".repeat(64), player.queue.current().id());
     }
+    @Test void libraryPlayInsertsBeforeUpcomingTracksAndNextContinuesQueue() {
+        Audio audio = new Audio(); Player player = player(audio);
+        Track first = track("a", 42000), upcoming = track("b", 42000), choice = track("c", 42000);
+        player.enqueue(first); player.enqueue(upcoming);
+        player.playTrack(choice);
+        assertEquals(java.util.List.of(first, choice, upcoming), java.util.stream.IntStream.range(0, player.queue.size()).mapToObj(player.queue::get).toList());
+        assertSame(choice, player.queue.current()); assertEquals(1, audio.played);
+        player.next(); assertSame(upcoming, player.queue.current());
+        player.enqueue(track("d", 42000)); assertSame(upcoming, player.queue.current());
+        assertEquals("d".repeat(64), player.queue.get(3).id());
+    }
+    @Test void libraryPlayReusesExistingPositionEvenAtCapacityAndRejectsNewTrackWithoutInterrupting() {
+        Audio audio = new Audio(); Player player = player(audio);
+        for (int i = 0; i < PlaybackQueue.MAX_TRACKS; i++) player.enqueue(new Track("id-" + i, "Track " + i, null, null, 42000));
+        player.playTrack(player.queue.get(50));
+        assertEquals(50, player.queue.index()); assertEquals(200, player.queue.size());
+        int opened = audio.opened, closed = audio.closed;
+        player.playTrack(track("z", 42000));
+        assertEquals(50, player.queue.index()); assertEquals(200, player.queue.size());
+        assertEquals(opened, audio.opened); assertEquals(closed, audio.closed);
+        assertTrue(player.status().contains("Queue full"));
+    }
+    @Test void libraryPlayStartsEmptyQueueAndPrependsWhenThereIsNoSelection() {
+        Audio audio = new Audio(); Player player = player(audio);
+        Track choice = track("a", 42000), upcoming = track("b", 42000);
+        player.playTrack(choice); assertSame(choice, player.queue.current()); assertEquals(1, audio.played);
+        player.clear(); player.queue.add(upcoming); player.playTrack(choice);
+        assertSame(choice, player.queue.current()); assertSame(upcoming, player.queue.get(1));
+        player.next(); assertSame(upcoming, player.queue.current());
+    }
     @Test void systemSeekUsesCatalogueDurationWhenNativeDurationIsNotReady() {
         Audio audio = new Audio();
         Player player = player(audio);

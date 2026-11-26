@@ -35,6 +35,7 @@ public class LibraryApi {
     }
     public boolean canPlay(Track track) { return !scopedPlayback() || ApiLinks.href(resources.get(track.id()), "playback-grant", "POST") != null; }
     public boolean scopedPlayback() { return session != null && !session.demo(); }
+    public String albumLink(Track track) { return ApiLinks.href(resources.get(track.id()), "album", "GET"); }
     public void playback(Track track, Consumer<String> ready, Consumer<String> failure) {
         if (!scopedPlayback()) { ready.accept(audioUrl(track)); return; }
         String action = ApiLinks.href(resources.get(track.id()), "playback-grant", "POST");

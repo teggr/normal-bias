@@ -25,10 +25,10 @@ class AuthRepresentations implements ResponseBodyAdvice<Object> {
                                           ServerHttpRequest request, ServerHttpResponse response) {
         Identity identity = identity(SecurityContextHolder.getContext().getAuthentication());
         boolean alphabetical = "alphabetical".equals(UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams().getFirst("sort"));
-        if (body instanceof Track track) return security.demo() ? body : track(track, identity);
+        if (body instanceof Track track) return security.demo() ? demoTrack(track) : track(track, identity);
         if (body instanceof TrackPage page) {
             Map<String, Object> result = map(page); result.put("items", page.items().stream().map(t -> {
-                var row = security.demo() ? map(t) : track(t, identity);
+                var row = security.demo() ? demoTrack(t) : track(t, identity);
                 if (alphabetical) row.put("initial", BrowseOrder.initial(t.title()));
                 return row;
             }).toList());
@@ -52,11 +52,21 @@ class AuthRepresentations implements ResponseBodyAdvice<Object> {
         Map<String, Object> result = map(track); String path = "/api/tracks/" + track.id();
         var links = new LinkedHashMap<String, Link>();
         if (allows(identity, Action.LISTEN)) {
+            links.put("album", album(track));
             links.put("self", link(path, "GET"));
             links.put("artwork", link(path + "/artwork", "GET")); links.put("playback-grant", link(path + "/playback-grants", "POST"));
         }
         if (allows(identity, Action.MANAGE)) { links.put("edit", link(path, "PATCH")); links.put("delete", link(path, "DELETE")); }
         result.put("_links", links); return result;
+    }
+    private Link album(Track track) {
+        return link("/api/library/albums?artist=" + URLEncoder.encode(Objects.toString(track.artist(), ""), StandardCharsets.UTF_8)
+                + "&album=" + URLEncoder.encode(Objects.toString(track.album(), ""), StandardCharsets.UTF_8) + "&limit=25", "GET");
+    }
+    private Map<String, Object> demoTrack(Track track) {
+        var row = map(track);
+        row.put("_links", Map.of("album", album(track)));
+        return row;
     }
     private Map<String, Link> pages(ServerHttpRequest request, int offset, int limit, long total) {
         var links = new LinkedHashMap<String, Link>();

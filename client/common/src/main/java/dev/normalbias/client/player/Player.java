@@ -94,7 +94,7 @@ public final class Player {
     public int duration() { return duration; }
 
     public void playTrack(Track track) {
-        int index = queue.add(track);
+        int index = queue.insertAfterCurrent(track);
         if (index < 0) { status = "Queue full (200 tracks). Clear it to start a new queue."; changed.run(); return; }
         select(index);
     }

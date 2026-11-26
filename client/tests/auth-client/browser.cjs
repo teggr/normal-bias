@@ -27,7 +27,7 @@ async function audio(page){return page.locator('audio').evaluateAll(items=>items
  const pin=crypto.createHash('sha256').update(cert.publicKey.export({type:'spki',format:'der'})).digest('base64');
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--ignore-certificate-errors-spki-list='+pin]});
  console.log('Starting real-client browser checks');
- const context=await browser.newContext({viewport:{width:1180,height:844}}),page=await context.newPage();
+ const context=await browser.newContext({viewport:{width:1000,height:844}}),page=await context.newPage();
  page.setDefaultTimeout(20000);
  let grants=0,stop;
  const checks=[];page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname.endsWith('/playback-grants'))grants++});

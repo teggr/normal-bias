@@ -77,7 +77,7 @@ async function audio(){return page.locator('audio').evaluateAll(es=>es.map(e=>({
  await click('All songs');await search('M track');await song('M track 06000');
  await jump('A');await song('M track 06000'); // Missing A falls forward to M in the filtered collection.
  await search('absent result');await until(async()=>(await page.locator('body').innerText()).includes('No tracks match your search.'),'empty search');
- await click('Reset');await song('A listening demo');
+ await require('./search-input.cjs').clear(page, click);await song('A listening demo');
  console.log('PASS filtered index, missing-letter fallback and empty results');
  // Failed incremental request preserves currently rendered rows and supports retry.
  await page.route('**/api/tracks?**',route=>{const u=new URL(route.request().url());return Number(u.searchParams.get('offset')||0)>0?route.fulfill({status:503,body:''}):route.continue();});
@@ -89,7 +89,7 @@ async function audio(){return page.locator('audio').evaluateAll(es=>es.map(e=>({
  await page.setViewportSize({width:390,height:600});await delay(700);await page.screenshot({path:path.join(out,'short.png')});
  const first=await page.getByRole('button',{name:'Jump to A',exact:true}).boundingBox(),last=await page.getByRole('button',{name:'Jump to #',exact:true}).boundingBox();
  assert.ok(first.y>=100&&last.y+last.height<540,'full rail fits short viewport above mini-player');
- await page.setViewportSize({width:1180,height:780});await delay(700);await page.screenshot({path:path.join(out,'wide.png')});
+ await page.setViewportSize({width:1000,height:780});await delay(700);await page.screenshot({path:path.join(out,'wide.png')});
  // Keyboard can focus and activate an individual letter, independently of the persistent highlight.
  await page.getByRole('button',{name:'Jump to Z',exact:true}).focus();await page.keyboard.press('Enter');await song('Z track 12500');
  console.log('PASS short/wide layout and keyboard letter activation');

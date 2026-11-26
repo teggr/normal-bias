@@ -63,7 +63,7 @@ async function seed(origin) {
     const originals=await Promise.all(ids.map(async id=>Buffer.from(await(await fetch(origin+'/api/tracks/'+id+'/audio')).arrayBuffer())));
     const embedded=Buffer.from(await(await fetch(origin+'/api/tracks/'+ids[2]+'/artwork')).arrayBuffer());
     browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
-    const context=await browser.newContext({viewport:{width:1180,height:844},serviceWorkers:'block'});page=await context.newPage();
+    const context=await browser.newContext({viewport:{width:1000,height:844},serviceWorkers:'block'});page=await context.newPage();
     if(process.env.BLOCK_ARTWORK_REVISION) await page.route('**/api/album-artwork/revision',route=>route.fulfill({status:503,body:'revision check unavailable'}));
     const errors=[];page.on('pageerror',e=>errors.push(String(e)));
     const requests=[];page.on('request',r=>requests.push(r.url()));

@@ -19,12 +19,13 @@ public class LibraryController {
     public Page groups(@PathVariable String view, @RequestParam(defaultValue="0") int offset,
                        @RequestParam(defaultValue="50") int limit, @RequestParam(defaultValue="") String q,
                        @RequestParam(required=false) String artist,
+                       @RequestParam(required=false) String album,
                        @RequestParam(defaultValue="") String sort) {
         boolean alphabetical = BrowseOrder.alphabetical(sort);
         if (offset < 0 || limit < 1 || limit > 200)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid library query");
         boolean albums = view.equals("albums");
-        var selection = LibraryBrowse.selection(view, q, artist, null);
+        var selection = LibraryBrowse.selection(view, q, artist, album);
         String projection = selection.sql();
         var args = new ArrayList<>(selection.args());
         long total = db.queryForObject("SELECT COUNT(*) FROM (" + projection + ") library_groups", Long.class, args.toArray());

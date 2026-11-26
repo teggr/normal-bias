@@ -97,6 +97,25 @@ class ApiIntegrationTest {
         assertEquals(1, json.readTree(get("/api/library/artists").body()).get("total").asInt());
     }
 
+    @Test void trackAlbumLinksReturnOneCompleteExactGroupIndependentOfSearch() throws Exception {
+        String name = "Shared % & é album";
+        for (int i = 0; i < 6; i++) db.update("INSERT INTO tracks (id, filename, title, artist, album, duration_ms, size_bytes, created_at) VALUES (?, 'song.mp3', ?, ?, ?, 1000, 1, CURRENT_TIMESTAMP)",
+                String.format("%064x", i), "Song " + i, i >= 4 ? null : i == 2 ? "Artist B" : "Artist A",
+                i >= 4 ? null : i == 3 ? "Other album" : name);
+        var song = json.readTree(get("/api/tracks?q=Song%200").body()).path("items").get(0);
+        String album = song.path("_links").path("album").path("href").asText();
+        assertFalse(album.isBlank());
+        var groupPage = json.readTree(get(album).body());
+        assertEquals(1, groupPage.path("total").asInt());
+        var group = groupPage.path("items").get(0);
+        assertEquals("Artist A", group.path("artist").asText()); assertEquals(name, group.path("album").asText());
+        assertEquals(2, group.path("trackCount").asInt());
+        assertEquals(2, json.readTree(get(group.path("_links").path("contents").path("href").asText()).body()).path("total").asInt());
+        var unknown = json.readTree(get("/api/tracks/" + String.format("%064x", 4)).body());
+        var missing = json.readTree(get(unknown.path("_links").path("album").path("href").asText()).body());
+        assertEquals(1, missing.path("total").asInt()); assertEquals(2, missing.path("items").get(0).path("trackCount").asInt());
+    }
+
     @AfterEach void close() { client.close(); }
 
     URI uri(String path) { return URI.create("http://127.0.0.1:" + port + path); }

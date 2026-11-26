@@ -90,6 +90,10 @@ class AuthHttpTest {
         var ownerTrack = get("/api/tracks/" + id, owner); var listenerTrack = get("/api/tracks/" + id, listener);
         assertTrue(ownerTrack.path("_links").has("edit")); assertTrue(ownerTrack.path("_links").has("delete"));
         assertFalse(listenerTrack.path("_links").has("edit")); assertTrue(listenerTrack.path("_links").has("playback-grant"));
+        String albumPath = listenerTrack.path("_links").path("album").path("href").asText();
+        assertFalse(albumPath.isBlank());
+        assertEquals(1, get(albumPath, listener).path("total").asInt());
+        assertEquals(401, request("GET", albumPath, null, null, Map.of()).statusCode());
         assertEquals(403, request("PATCH", ownerTrack.path("_links").path("edit").path("href").asText(), "{}".getBytes(), listener, Map.of("Content-Type", "application/json")).statusCode());
         assertEquals(403, request("DELETE", "/api/tracks/" + id, null, listener, Map.of()).statusCode());
         assertEquals(403, request("POST", "/api/tracks", tone, listener, Map.of("Content-Type", "audio/mpeg")).statusCode());
@@ -105,6 +109,7 @@ class AuthHttpTest {
         assertEquals(1, alphabet.path("total").asInt());
         assertTrue(browse.path("items").get(0).path("_links").has("playback-grant"));
         auth.enabled("listener", false);
+        assertEquals(401, request("GET", albumPath, null, listener, Map.of()).statusCode());
         assertEquals(401, request("GET", indexPath, null, listener, Map.of()).statusCode());
         assertEquals(401, request("POST", listenerTrack.path("_links").path("playback-grant").path("href").asText(), null, listener, Map.of()).statusCode());
     }

@@ -17,6 +17,14 @@ public final class PlaybackQueue {
         tracks.add(track);
         return tracks.size() - 1;
     }
+    /** Play a new Library choice next, keeping the remaining queue after it. */
+    public int insertAfterCurrent(Track track) {
+        for (int i = 0; i < tracks.size(); i++) if (tracks.get(i).id().equals(track.id())) return i;
+        if (tracks.size() >= MAX_TRACKS) return -1;
+        int insertion = index + 1;
+        tracks.add(insertion, track);
+        return insertion;
+    }
     /** Append a complete album atomically, retaining existing order and selection. */
     public int addAll(List<Track> album) {
         java.util.Set<String> ids = new java.util.HashSet<>();
