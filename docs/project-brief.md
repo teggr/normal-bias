@@ -4,7 +4,7 @@
 
 The repository introduction is implemented and accepted by Robin: a visitor-oriented README, actual desktop/iPhone/iPad/CarPlay gallery, disposable one-command browser demo and setup/capture guide. The gallery and verified 35-second actual-audio walkthrough use Robin's authorised Uploads music; a fresh clone generates synthetic clips by default. Original MP3s remain unchanged and outside Git. Root verification passes 89 API + 5 CLI tests; the web build passes 49 client tests. Demo startup, playback, immediate restart, hash checks and cleanup pass. The unchanged browser smoke suite still fails its later scroll-image comparison; this and the simulator-launch test limitation are recorded in verification.
 
-Robin requested committing, pushing and opening a PR for this accepted increment. Public demo hosting/video publication, licensing/contribution guidance, native physical-device/CarPlay acceptance, deployment and backups remain separate work. The earlier 2026-11-26 checkpoint below preserves its historical service/device state; this publication does not refresh retained services or devices.
+Robin requested committing, pushing and opening a PR for this accepted increment. Published implementation commit `2ddd13a` on `codex/repository-demo-onboarding`, based on main `83e097f`, in [PR #28](https://github.com/teggr/normal-bias/pull/28). Public demo hosting/video publication, licensing/contribution guidance, native physical-device/CarPlay acceptance, deployment and backups remain separate work. The earlier 2026-11-26 checkpoint below preserves its historical service/device state; this publication does not refresh retained services or devices.
 
 ## Repository introduction and disposable browser demo — authorised 2026-11-27
 
