@@ -1,5 +1,15 @@
 # Normal Bias: project brief and constraints
 
+## Presentation and phone progress publication — 2026-11-27
+
+Robin requested a progress update and a PR containing the slides. The seven-slide rock-poster deck and researched speaking outline are complete, including Robin's subsequent saved screenshot/wording edits. The repository includes an offline HTML slideshow and seven slide-image exports alongside the decorative assets; the editable source remains in Spaces. The phone update is installed with a renewed profile valid until 2026-12-04 15:04:46 UTC, but iOS rejected automated launch and renewed Developer App trust remains pending. Host-side authenticated catalogue and scoped Range checks through the explicitly authorised Wi-Fi bridge pass; physical launch/login/playback is not yet accepted. Publishing this documentation/presentation increment does not change application source, deploy the service or complete physical-device acceptance.
+
+Published as implementation commit `d4e465f` on `codex/project-demo-slides`, based on main `76dfe55`, in [PR #29](https://github.com/teggr/normal-bias/pull/29). The PR includes the cover preview, offline-presentation instructions, validation and outstanding phone acceptance. No merge or deployment was requested.
+
+## Phone refresh against the retained library — authorised 2026-11-27
+
+Robin requested the latest build on the connected physical phone, using the same service as the simulators, and explicitly selected authenticated HTTP on private Wi-Fi for this demo. The existing 24-track authenticated HTTPS service on loopback port 19544 remains authoritative. A temporary native-client HTTP bridge bound only to the Mac's literal private address, port 19545, forwards to that service with certificate-verified HTTPS; it does not open a second database writer or remove account/playback-grant checks. This is a bounded private demonstration transport, not public deployment, Tailscale setup or a general browser HTTP configuration. The phone build uses the private HTTP origin and host-specific ATS setting. Build/install results and limits belong in verification; the physical authenticated/background acceptance scope remains separate.
+
 ## Current checkpoint — 2026-11-27
 
 The repository introduction is implemented and accepted by Robin: a visitor-oriented README, actual desktop/iPhone/iPad/CarPlay gallery, disposable one-command browser demo and setup/capture guide. The gallery and verified 35-second actual-audio walkthrough use Robin's authorised Uploads music; a fresh clone generates synthetic clips by default. Original MP3s remain unchanged and outside Git. Root verification passes 89 API + 5 CLI tests; the web build passes 49 client tests. Demo startup, playback, immediate restart, hash checks and cleanup pass. The unchanged browser smoke suite still fails its later scroll-image comparison; this and the simulator-launch test limitation are recorded in verification.
@@ -45,7 +55,11 @@ Robin reported excess bottom space/top-heavy artwork after the larger-device wor
 
 ## Purpose and context
 
-Normal Bias is a self-hosted personal music service for an existing MP3 collection of approximately 30 GB, intended as an alternative to iBroadcast. Hosting should be in the cloud rather than on a machine at home.
+Normal Bias is a self-hosted personal music service for an existing MP3 collection of approximately 13,000 songs / 120 GB, intended as an alternative to iBroadcast. Robin supplied this updated collection estimate on 2026-11-27, superseding the earlier approximate 30 GB figure; it does not mean the complete collection has been imported or verified. Hosting should be in the cloud rather than on a machine at home.
+
+Robin requested a roughly five-minute project demonstration on 2026-11-27, with slides explaining the personal journey before the live application. The [presentation guide](project-demo.md) records the story, timing, researched sources and platform distinctions. The motivation combines an existing collection, a preference for a music-only listening experience, iBroadcast's announced January limits, the work Codex Pioneers initiative and an interest in Codename One. Preparing this presentation does not change implementation, hosting or native acceptance scope.
+
+For that deck, Robin selected a rock-magazine/gig-poster visual direction: concept 02's acid-yellow foundation, concept 06's rough zine edges and concept 07's oversized typography, with nostalgia for tapes, CDs, Napster/Kazaa, early MP3 players and iPods. Bright backgrounds showcase the real application. This presentation direction does not replace the application's canonical DESIGN.md conventions.
 
 The listening targets are desktop web, mobile and eventually CarPlay. Following the API-first milestones, Robin authorised a Codename One listening-client PoC on 2026-11-19, starting with the web/JavaScript platform before mobile. Application source remains Java with Maven; Codename One generates the browser JavaScript, with the browser audio bridge described below.
 
