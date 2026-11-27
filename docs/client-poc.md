@@ -6,6 +6,8 @@ The shared Java web/iPhone client supports server-discovered login, remembered s
 
 ## Build and run locally
 
+For the shortest first run, use `./client/demo-web.sh` from the repository root. It builds both reactors, generates two original musical clips/covers, and serves a disposable loopback-only browser library. Requires Java 21, Maven 3.6.3+, Bash, Python 3, unzip, curl and FFmpeg/FFprobe. Open the printed URL (default `http://127.0.0.1:18080/`); Ctrl-C stops its service and deletes its temporary library. `NORMALBIAS_DEMO_PORT` selects another unoccupied port. `NORMALBIAS_DEMO_MUSIC_DIR` instead imports a selected local MP3 directory into that temporary library, preserving the originals. It leaves existing services/libraries alone and disables external artwork lookup. See the [demo guide](demo.md) for first-build downloads, usage, troubleshooting and screenshot/video capture. The manual commands below remain useful when controlling each build/start step yourself.
+
 Requires Java 21 JDK, Maven 3.6.3+, Bash, `unzip` and internet access to Maven Central, `repo.codenameone.com` and Codename One's official tool downloads. The first build installs vendor tools under `~/.codenameone`; this cache must be writable. No Codename One account, cloud build credits or paid plan is needed for the local JavaScript target used here.
 
 From the repository root:
