@@ -1,69 +1,112 @@
-# normal-bias
-A self hosted music service
+# Normal Bias
 
-## Project documentation
+A self-hosted music service for your MP3 collection, with a tactile, iPod-inspired player. Browse albums and artists, find a song, and build a listening queue—on the web or in the shared Java client.
 
+Normal Bias is a working proof of concept built with Java, Spring Boot and Codename One. You bring the music and run the service; your catalogue and MP3 files live alongside it.
+
+![Normal Bias desktop browser: graphite player console above the album library](docs/screenshots/desktop.png)
+
+**[Try it locally](#try-it-locally)** · **[Use your own music](#use-your-own-music)** · **[Build and explore](#build-and-explore)**
+
+## See the app
+
+| iPhone | iPad |
+| --- | --- |
+| <img src="docs/screenshots/iphone.png" alt="Normal Bias Now Playing in the iPhone simulator" width="220"> | <img src="docs/screenshots/ipad.png" alt="Normal Bias player console and album library in the iPad simulator" width="480"> |
+| Full-size Now Playing · iOS simulator | Player and library together · iPadOS simulator |
+
+![CarPlay prototype album browsing in the Codename One desktop head-unit simulator](docs/screenshots/carplay.png)
+
+*CarPlay prototype — desktop simulator. This is the framework’s head-unit renderer; Apple’s native CarPlay layout and real-car operation remain unverified.*
+
+These are actual application captures using a locally imported music collection. Music files are not included in the repository; the quick demo below supplies original synthetic clips. Capture details and reproduction steps are in the [demo guide](docs/demo.md).
+
+## What you can do
+
+- Browse songs, albums and artists with continuous scrolling, alphabetical jumps and search.
+- Play, pause, seek and move between queued tracks; queue a song, album or artist, and shuffle the current queue.
+- See embedded album covers, with automatic background lookup for missing artwork in normal service operation.
+- Import an MP3 directory using the Java uploader, with exact-file deduplication.
+- Run an authenticated service with owner/listener accounts, remembered sessions and scoped playback URLs.
+
+### Current status
+
+| Area | Status |
+| --- | --- |
+| Browser | Working listening client; local playback and desktop installed-app checks recorded. |
+| iPhone / iPad | Native builds and simulator checks recorded; some physical iPhone playback has been tested. Full physical authenticated/background/interruption acceptance remains open. |
+| CarPlay | Experimental Java prototype verified in the desktop head-unit renderer. Native signing/entitlement and runtime acceptance remain open. |
+| Hosting | Local development supported; initial authenticated Tailscale HTTP hosting selected. Public deployment and backup/restore remain unfinished. |
+
+Currently MP3-only, with a session-local queue capped at 200 tracks. Persistent playlists and offline music are not implemented. The service uses a single-instance H2 catalogue and local file storage. See the dated [verification record](docs/verification.md) for evidence and platform limits.
+
+## Try it locally
+
+You need **Java 21 JDK**, **Maven 3.6.3+**, **Bash**, **Python 3**, **unzip**, **curl**, and **FFmpeg/FFprobe**, plus internet access for the first build. Check that both `java -version` and `mvn -version` report Java 21.
+
+Clone this repository, enter its directory, then run:
+
+```sh
+./client/demo-web.sh
+```
+
+The helper builds the API, uploader and browser client, creates two original synthetic musical clips with covers, and starts a disposable library. The first build can take several minutes while Maven and Codename One download their tools; no Codename One account or cloud build subscription is needed.
+
+When the terminal prints **Normal Bias is ready**, open **http://127.0.0.1:18080/**. Choose a song to play, or open **Albums → Simulator Sessions → Queue album +**, then press Play. No sign-in is needed for this loopback-only demo.
+
+Keep the terminal open. **Ctrl-C stops the service and deletes the temporary library.** The helper leaves build output and downloaded tool caches for later runs. It uses a separate data directory, disables external artwork lookup, and refuses an occupied port. For another port:
+
+```sh
+NORMALBIAS_DEMO_PORT=18081 ./client/demo-web.sh
+```
+
+To try your own MP3s in the same disposable demo:
+
+```sh
+NORMALBIAS_DEMO_MUSIC_DIR="/absolute/path/to/music" ./client/demo-web.sh
+```
+
+This imports copies through the API and preserves your source files. Its temporary library is still deleted when stopped.
+
+This demo is available only on the computer running it. For setup, troubleshooting and capture instructions, see the [demo guide](docs/demo.md).
+
+## Use your own music
+
+For an enduring library, follow the [authenticated service setup](docs/authentication.md) to create an owner, configure storage and issue an upload credential. Then use the [directory uploader](docs/authentication.md#authenticated-uploader) to import MP3s and sign into the listening client. The [client guide](docs/client-poc.md) explains building and serving the browser app from the API’s origin.
+
+Authentication is required by default. Initial hosting is intended for Tailscale with HTTP; HTTPS enforcement is configurable. The uploader currently connects through loopback, so run it on the service host. Data is stored under `./data` unless configured otherwise. Demo libraries are temporary: do not use the quick demo for a collection you want to keep.
+
+Public hosting, backup/restore and native distribution are still development work. See [storage reliability](docs/storage-reliability.md) for migrations, recovery and online inspection.
+
+## Build and explore
+
+The project has three main pieces:
+
+| Piece | Location | Purpose |
+| --- | --- | --- |
+| API | `api/` | Spring Boot, H2 catalogue, authentication and MP3 storage/streaming. |
+| Uploader | `cli/` | Java command-line directory import through the API. |
+| Listening client | `client/` | Shared Java/Codename One UI, translated locally for the browser. |
+
+With Java 21 selected, run from the repository root:
+
+```sh
+mvn clean verify          # API and uploader, including tests
+./client/build-web.sh     # Separate client reactor, tests and browser bundle
+```
+
+Client common sources target Java 17; the builds use JDK 21 and pinned Codename One 7.0.282. The root Maven reactor does not build the client. Browser playback uses a documented narrow JavaScript audio bridge; UI, API access and queue policy remain Java.
+
+Start with the [local API/CLI guide](docs/local-poc.md) and [web client guide](docs/client-poc.md). For a desktop simulator with a disposable library, use `./client/demo-simulator.sh` and the [simulator guide](docs/simulator-poc.md).
+
+## Further documentation
+
+- [Project brief, agreed constraints and open decisions](docs/project-brief.md)
 - [Canonical application design reference](DESIGN.md)
-- [Historical Graphite design proposal](docs/design-system-proposal.md)
-- [Project brief and agreed constraints](docs/project-brief.md)
-- [Authentication plan and progress](docs/authentication-plan.md)
-- [Server authentication and local administration](docs/authentication.md)
-- [Authenticated iOS simulator audio feasibility](docs/authenticated-audio-trial.md)
-- [Web listening-client PoC](docs/client-poc.md)
-- [Album matching and missing artwork](docs/album-artwork.md)
-- [Desktop simulator demo](docs/simulator-poc.md)
-- [Local device trial plan](docs/local-device-trial.md)
-- [CarPlay feasibility PoC and signing gate](docs/carplay-poc.md)
-- [Instructions for coding agents](AGENTS.md)
-- [Official Codename One authoring skill](.agent-skills/codename-one/SKILL.md)
-- [Cloud UI demonstration recording skill](.agents/skills/ui-demo-recording/SKILL.md)
+- [Authentication and local administration](docs/authentication.md)
+- [Album artwork](docs/album-artwork.md)
 - [Storage migrations, recovery and online inspection](docs/storage-reliability.md)
-
-The local PoC includes a Spring Boot API, embedded H2 catalogue, local MP3 storage and a Java directory uploader. The API supports paginated song, album and artist views, listing/search, catalogue metadata editing and track deletion. Owner/listener accounts, persistent sessions and scoped playback URLs are implemented, with invitation/reset links, password change, login, remembered sessions, logout and playback URL renewal integrated in the web/iPhone client. Java 21 JDK and Maven 3.6.3+ are required.
-
-The API requires authentication by default and now uses HTTP for initial Tailscale hosting. HTTPS enforcement is available with `normalbias.auth.require-https=true` plus Spring Boot TLS configuration. See [authentication](docs/authentication.md) for TLS, owner setup and upload credentials. The web and iPhone clients support sign-in and scoped playback; see that guide for the private HTTPS flow. The unified sign-in page checks the endpoint with tick/cross feedback before enabling credentials, bounds discovery to six seconds, and supports logical keyboard traversal. It also lets you select a service: native clients remember its HTTP or HTTPS address, while browsers open the selected service’s hosted app. See [service connection guidance](docs/client-poc.md#service-connection-and-sign-in). For the separately authorised read-only private-LAN HTTP phone demo, see [the device guide](docs/local-device-trial.md#authorised-http-phone-demo--2026-11-26); normal sign-in works over authenticated HTTP or HTTPS as configured. For an unauthenticated synthetic local demo, explicitly select loopback-only demo mode:
-
-```sh
-mvn clean verify
-java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar --normalbias.auth.mode=demo
-# In another terminal; start with the bundled synthetic fixture:
-java -jar cli/target/normal-bias-cli-0.1.0-SNAPSHOT.jar api/src/test/resources
-curl http://127.0.0.1:8080/api/tracks
-```
-
-The API listens on `127.0.0.1:8080` and stores its catalogue and music under `./data` relative to the launch directory. Ctrl-C cancels the uploader; rerunning retries whole files and deduplicates identical content.
-
-Startup applies versioned schema migrations and recovers prepared uploads and committed deletions. Start a background inspection while it runs with `curl -X POST 'http://127.0.0.1:8080/api/inspections?mode=full'`. Follow the returned Location for status and append `/findings` for paginated results. Backup/restore remains part of the future deployment story.
-
-Read the [local PoC guide](docs/local-poc.md) for endpoints, seeking examples, tests and limitations. Demo mode is unauthenticated and refuses non-loopback binds. No public deployment is included. The optional Codename One web/iPhone client now supports login, session restoration, logout and scoped playback renewal. Installed desktop Chrome session/cache acceptance passes; physical authenticated iPhone acceptance remains open.
-
-## Web listening client
-
-With the Java 21 JDK, Maven, Python 3, Bash and `unzip` available:
-
-```sh
-./client/build-web.sh
-java -jar api/target/normal-bias-api-0.1.0-SNAPSHOT.jar \
-  --normalbias.auth.mode=demo \
-  --spring.web.resources.static-locations="file:$(pwd)/client/target/web/"
-```
-
-Open `http://127.0.0.1:8080/` to browse All songs, Albums or Artists with continuous scrolling and an A–Z / # jump rail, search, play, seek and queue tracks. The album icon beside + in All songs opens the full album; ‹ All songs restores the song search and scroll position. Inside an album or artist, the category/search row becomes contextual Back (‹ Albums, ‹ Artists or ‹ artist name), replacing the breadcrumb and Close ×. Artist pages show square artwork, a larger artist name and song count. Album artwork/title and Queue album + remain; Back restores parent search visibility and scroll. The first queue addition prepares its first track paused for Play; Clear unloads it, and the mini-player offers play/pause and Next. On compact windows Library and Now Playing remain separate destinations with a compact toolbar; larger desktop/iPad windows show a horizontal top console above a denser Albums/Artists tile browser. The wheel Queue button opens/closes Queue in place of Library, keeping the console visible. All songs and album contents retain track lists. Narrowing restores compact navigation and preserves playback/browsing state. On taller phones such as the iPhone Plus, full-screen Now Playing grows to the available space and balances its vertical margins; short screens scroll without shrinking the wheel. Native iPhones stay in portrait when rotated; tablets and browsers retain responsive layouts. In compact mode Queue opens from its dedicated player button, with Back to Now Playing and a one-shot Shuffle action; the player also offers Shuffle in its bottom-right control, and Profile opens full-screen Account options with Back to the launching view. Build the API first with the command above, and stop any API already using the same data directory before relaunching it. The separate client build translates Java locally; it requires no cloud build account. See the [client guide](docs/client-poc.md) for the browser audio bridge, testing commands and limitations. The separate [local iPhone trial](docs/local-device-trial.md) now has a local signing/install route, private development origin and framework media adapter. The service automatically fills missing covers in the background using MusicBrainz and Cover Art Archive, without matching controls in the listening app or rewriting MP3s. See the [artwork guide](docs/album-artwork.md). The prior native increment preserves iPhone audio across backgrounding and displays embedded ID3 covers from the API; physical acceptance and platform limits are tracked in [verification](docs/verification.md).
-
-## Simulator demo
-
-With Java 21, Maven, Bash, FFmpeg/FFprobe, curl and desktop sound available:
-
-```sh
-./client/demo-simulator.sh
-```
-
-This prepares a disposable local library with two synthetic tracks and launches the Codename One desktop simulator. No cloud account or signing is needed. See the [simulator guide](docs/simulator-poc.md) for connecting to an existing API, proxy troubleshooting and verification limits.
-
-## Progress and next steps
-
-The API and shared client support authenticated browsing, account setup/recovery, session restoration and playback-grant renewal. The 2026-11-26 isolated iPhone simulator run passed remembered sign-in, real grant expiry/seek/renewal, service restart/reconnect and revocation, with verified actual simulator audio. Robin also confirmed the installed phone’s scrolled artwork fix. Library now adds bounded continuous scrolling and alphabetical navigation, with its approved mobile concept saved in [DESIGN.md](DESIGN.md). Build/test commands, dated results, recordings and platform limits are recorded in [verification](docs/verification.md).
-
-Remaining: physical iPhone authentication/locked playback/interruption acceptance, then separately authorised retained-service migration and deployment/backup work. On 2026-11-26 the new HTTPS build was installed, followed by the explicitly approved separate HTTP listening-demo build. The physical phone now opens the HTTP demo Library after the endpoint-feedback update; sign-in/locked/interruption acceptance remains unverified; the HTTPS service and other retained libraries remain unchanged. See the device guide and dated verification record.
-
-See the [current project checkpoint](docs/project-brief.md#current-checkpoint--2026-11-26) and [authentication plan](docs/authentication-plan.md) for delivered scope and outstanding work. The [album matching proposal](docs/album-matching-proposal.md) remains historical where superseded by automatic background artwork filling in [the artwork guide](docs/album-artwork.md).
+- [Local iPhone trial](docs/local-device-trial.md)
+- [CarPlay prototype and signing gate](docs/carplay-poc.md)
+- [Verification history and platform limitations](docs/verification.md)
+- [Instructions for coding agents](AGENTS.md)
