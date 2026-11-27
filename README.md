@@ -101,6 +101,7 @@ Start with the [local API/CLI guide](docs/local-poc.md) and [web client guide](d
 
 ## Further documentation
 
+- [Five-minute project presentation and live demo outline](docs/project-demo.md)
 - [Project brief, agreed constraints and open decisions](docs/project-brief.md)
 - [Canonical application design reference](DESIGN.md)
 - [Authentication and local administration](docs/authentication.md)
